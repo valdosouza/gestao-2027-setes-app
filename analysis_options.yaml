@@ -1,0 +1,9 @@
+# Regras compartilhadas do monorepo (decisão 12 — Agent_Context_App.md:
+# dart analyze sem issues antes de qualquer PR)
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    unintended_html_in_doc_comment: true

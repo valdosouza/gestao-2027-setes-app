@@ -1,0 +1,38 @@
+# packages/core — compartilhado entre web, android e ios (decisões 10, 12 e 25).
+# Modelo GestaoERPApps: features do core (auth, splash...) são COMPLETAS
+# (domain + data + presentation) e reusadas pelos apps como módulos Modular.
+name: core
+description: Nucleo compartilhado do setes-app (auth completo, menus, http, helpers)
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Design system (decisão 11): presentation do core usa só widgets Setes*
+  setes_widgets:
+    path: ../setes_widgets
+  # DI e rotas (decisão 12)
+  flutter_modular: ^5.0.3
+  # Estado (decisão 12)
+  bloc: ^8.1.4
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.8
+  # Funcional (decisão 12): retorno assíncrono = Either<Failure, T>
+  dartz: ^0.10.1
+  # HTTP
+  http: ^1.6.0
+  # i18n (decisão 13) — chaves de tradução ficam nos assets do app
+  easy_localization: ^3.0.7
+  # Institution padrão local no dispositivo (decisão 15)
+  shared_preferences: ^2.5.3
+  logger: ^2.6.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

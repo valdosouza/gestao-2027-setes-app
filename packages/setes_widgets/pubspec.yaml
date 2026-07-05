@@ -1,0 +1,20 @@
+# packages/setes_widgets — design system Setes (decisão 11):
+# NENHUM widget do Flutter é usado diretamente nas telas; todo widget é
+# encapsulado aqui, permitindo trocar implementações sem impactar o sistema.
+name: setes_widgets
+description: Design system do setes-app (widgets encapsulados Setes*)
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

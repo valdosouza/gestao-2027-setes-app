@@ -1,0 +1,24 @@
+{
+  "app": { "title": "Setes ERP" },
+  "auth": {
+    "email": "E-mail",
+    "password": "Password",
+    "login": "Sign in",
+    "invalidCredentials": "Invalid e-mail or password",
+    "chooseInstitution": "Choose the company",
+    "setAsDefault": "Set as default",
+    "continue": "Continue"
+  },
+  "home": {
+    "modules": "Modules",
+    "welcome": "Select a module in the menu",
+    "logout": "Sign out"
+  },
+  "register": {
+    "search": "Search",
+    "view": "View",
+    "save": "Save",
+    "cancel": "Cancel",
+    "filter": "Filter"
+  }
+}

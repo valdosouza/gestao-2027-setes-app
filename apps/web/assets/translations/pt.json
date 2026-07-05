@@ -1,0 +1,24 @@
+{
+  "app": { "title": "Setes ERP" },
+  "auth": {
+    "email": "E-mail",
+    "password": "Senha",
+    "login": "Entrar",
+    "invalidCredentials": "E-mail ou senha inválidos",
+    "chooseInstitution": "Escolha o estabelecimento",
+    "setAsDefault": "Definir como padrão",
+    "continue": "Avançar"
+  },
+  "home": {
+    "modules": "Módulos",
+    "welcome": "Selecione um módulo no menu",
+    "logout": "Sair"
+  },
+  "register": {
+    "search": "Pesquisar",
+    "view": "Visualizar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "filter": "Filtro"
+  }
+}

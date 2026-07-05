@@ -1,0 +1,12 @@
+# setes-app — monorepo (prompt_fase1_fundacao.md, decisão 10)
+# Pub workspace nativo (Dart 3.6+): um único resolve para todos os packages.
+name: setes_app_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+workspace:
+  - packages/core
+  - packages/setes_widgets
+  - apps/web
