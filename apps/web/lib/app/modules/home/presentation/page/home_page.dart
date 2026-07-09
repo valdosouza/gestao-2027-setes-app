@@ -25,10 +25,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     bloc = widget.bloc ?? Modular.get<MenuBloc>();
     bloc.add(const MenuLoadRequested());
-    // Aplica o idioma salvo do usuário (decisão 14) assim que a home monta
+    // Pós-login: aplica idioma salvo (decisão 14) e tema da institution (decisões 16/27)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.bloc == null) {
         applyUserLocale(context, Modular.get<GetPreferencesUsecase>());
+        Modular.get<ThemeCubit>().load();
       }
     });
   }

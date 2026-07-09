@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../../shared/helpers/jwt_utils.dart';
 import '../../../shared/helpers/responsive.dart';
+import '../../../shared/http/api_client.dart';
+import '../../../shared/storage/local_prefs.dart';
 import '../bloc/auth_bloc.dart';
 import '../content/content_login_desktop.dart';
 import '../content/content_login_mobile.dart';
@@ -26,6 +29,19 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     bloc = widget.bloc ?? Modular.get<AuthBloc>();
+    // Sessão persistida ainda válida (refresh/reabertura) → entra direto
+    if (widget.bloc == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final prefs = Modular.get<LocalPrefs>();
+        final saved = await prefs.getSessionToken();
+        if (saved != null && !isJwtExpired(saved)) {
+          Modular.get<ApiClient>().token = saved;
+          Modular.to.navigate('/home/');
+        } else if (saved != null) {
+          await prefs.setSessionToken(null);
+        }
+      });
+    }
   }
 
   @override

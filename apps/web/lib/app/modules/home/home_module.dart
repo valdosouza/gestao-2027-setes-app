@@ -19,5 +19,7 @@ class HomeModule extends Module {
   @override
   List<ModularRoute> get routes => [
         ChildRoute('/', child: (_, __) => const HomePage()),
+        // Personalização da identidade visual pelo cliente (decisões 16/27)
+        ChildRoute('/theme', child: (_, __) => const ThemeSettingsPage()),
       ];
 }

@@ -12,6 +12,13 @@ class AppModule extends Module {
         // Singleton: uma sessão HTTP/JWT para o app inteiro
         Bind.singleton<ApiClient>((_) => ApiClient()),
         Bind.singleton<LocalPrefs>((_) => LocalPrefs()),
+        // UserBadge (home): identificação do usuário logado via /api/core/me.
+        // Binds próprios no root — os do AuthModule são descartados ao sair de '/'.
+        Bind.factory<GetMeUsecase>((i) => GetMeUsecase(
+              repository: AuthRepositoryImpl(
+                datasource: AuthRemoteDatasource(client: i.get<ApiClient>()),
+              ),
+            )),
         // Preferências do usuário (decisão 14) — usadas em qualquer módulo pós-login
         Bind.lazySingleton<PreferenceRemoteDatasource>(
             (i) => PreferenceRemoteDatasource(client: i.get<ApiClient>())),
@@ -21,11 +28,25 @@ class AppModule extends Module {
             (i) => GetPreferencesUsecase(repository: i.get<PreferenceRepository>())),
         Bind.factory<SavePreferenceUsecase>(
             (i) => SavePreferenceUsecase(repository: i.get<PreferenceRepository>())),
+        // Tema por institution (decisões 16 e 27) — aplicado no MaterialApp
+        Bind.lazySingleton<ThemeRemoteDatasource>(
+            (i) => ThemeRemoteDatasource(client: i.get<ApiClient>())),
+        Bind.lazySingleton<ThemeRepository>(
+            (i) => ThemeRepositoryImpl(datasource: i.get<ThemeRemoteDatasource>())),
+        Bind.factory<GetThemeUsecase>(
+            (i) => GetThemeUsecase(repository: i.get<ThemeRepository>())),
+        Bind.factory<SaveThemeUsecase>(
+            (i) => SaveThemeUsecase(repository: i.get<ThemeRepository>())),
+        Bind.singleton<ThemeCubit>((i) => ThemeCubit(
+              getUsecase: i.get<GetThemeUsecase>(),
+              saveUsecase: i.get<SaveThemeUsecase>(),
+            )),
       ];
 
   @override
   List<ModularRoute> get routes => [
         ModuleRoute('/', module: AuthModule()),
-        ModuleRoute('/home', module: HomeModule()),
+        // Guard: restaura a sessão persistida no refresh; sem sessão → /login
+        ModuleRoute('/home', module: HomeModule(), guards: [SetesAuthGuard()]),
       ];
 }

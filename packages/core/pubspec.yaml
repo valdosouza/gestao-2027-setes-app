@@ -30,6 +30,8 @@ dependencies:
   easy_localization: ^3.0.7
   # Institution padrão local no dispositivo (decisão 15)
   shared_preferences: ^2.5.3
+  # Upload da logomarca pelo cliente (decisão 16) — package oficial, suporta web
+  file_selector: ^1.0.3
   logger: ^2.6.2
 
 dev_dependencies:

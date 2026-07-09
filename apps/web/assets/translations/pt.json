@@ -2,12 +2,33 @@
   "app": { "title": "Setes ERP" },
   "auth": {
     "email": "E-mail",
+    "emailHint": "Digite seu e-mail",
+    "user": "Usuário",
+    "userHint": "Digite seu usuário",
     "password": "Senha",
+    "passwordHint": "Digite sua senha",
     "login": "Entrar",
+    "rememberMe": "Lembrar credenciais",
+    "keepConnected": "Mantenha-me conectado",
+    "forgotPassword": "Esqueci minha senha",
     "invalidCredentials": "E-mail ou senha inválidos",
     "chooseInstitution": "Escolha o estabelecimento",
     "setAsDefault": "Definir como padrão",
-    "continue": "Avançar"
+    "continue": "Avançar",
+    "recoveryTitle": "Recuperar senha",
+    "recoveryInfo": "Informe seu e-mail para receber o código de recuperação",
+    "sendCode": "Enviar código",
+    "backToLogin": "Voltar ao login",
+    "changeTitle": "Alterar senha",
+    "codeSentInfo": "Verifique o código que foi enviado via e-mail",
+    "code": "Código",
+    "codeHint": "Código de 6 dígitos",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar nova senha",
+    "changePassword": "Alterar senha",
+    "passwordChanged": "Senha alterada com sucesso",
+    "passwordsDontMatch": "As senhas não conferem",
+    "passwordTooShort": "A senha deve ter pelo menos 5 caracteres"
   },
   "home": {
     "modules": "Módulos",
@@ -20,6 +41,16 @@
     "save": "Salvar",
     "cancel": "Cancelar",
     "filter": "Filtro"
+  },
+  "theme": {
+    "title": "Identidade visual",
+    "primary": "Cor primária",
+    "secondary": "Cor secundária",
+    "logo": "Logomarca",
+    "uploadLogo": "Carregar logomarca",
+    "logoTooBig": "Imagem muito grande (máx. 1,4 MB)",
+    "apply": "Aplicar e salvar",
+    "resetToDefault": "Voltar ao padrão Setes"
   },
   "menu": {
     "groups": {

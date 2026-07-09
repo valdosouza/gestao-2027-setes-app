@@ -2,12 +2,33 @@
   "app": { "title": "Setes ERP" },
   "auth": {
     "email": "E-mail",
+    "emailHint": "Enter your e-mail",
+    "user": "User",
+    "userHint": "Enter your user",
     "password": "Password",
+    "passwordHint": "Enter your password",
     "login": "Sign in",
+    "rememberMe": "Remember credentials",
+    "keepConnected": "Keep me signed in",
+    "forgotPassword": "Forgot my password",
     "invalidCredentials": "Invalid e-mail or password",
     "chooseInstitution": "Choose the company",
     "setAsDefault": "Set as default",
-    "continue": "Continue"
+    "continue": "Continue",
+    "recoveryTitle": "Recover password",
+    "recoveryInfo": "Enter your e-mail to receive the recovery code",
+    "sendCode": "Send code",
+    "backToLogin": "Back to sign in",
+    "changeTitle": "Change password",
+    "codeSentInfo": "Check the code sent to your e-mail",
+    "code": "Code",
+    "codeHint": "6-digit code",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed successfully",
+    "passwordsDontMatch": "Passwords don't match",
+    "passwordTooShort": "Password must have at least 5 characters"
   },
   "home": {
     "modules": "Modules",
@@ -20,6 +41,16 @@
     "save": "Save",
     "cancel": "Cancel",
     "filter": "Filter"
+  },
+  "theme": {
+    "title": "Visual identity",
+    "primary": "Primary color",
+    "secondary": "Secondary color",
+    "logo": "Logo",
+    "uploadLogo": "Upload logo",
+    "logoTooBig": "Image too large (max 1.4 MB)",
+    "apply": "Apply and save",
+    "resetToDefault": "Reset to Setes default"
   },
   "menu": {
     "groups": {

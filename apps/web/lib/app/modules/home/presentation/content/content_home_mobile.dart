@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../bloc/menu_bloc.dart';
@@ -28,8 +29,21 @@ class ContentHomeMobile extends StatelessWidget {
 
         return SetesScaffold(
           appBarTitle: 'app.title'.tr(),
-          // Troca de idioma em runtime + persistência na API (decisões 13/14)
-          appBarActions: const [LanguageSelector()],
+          // Logo da institution (o leading fica com o hambúrguer do Drawer)
+          // + idioma (decisões 13/14) + tema (decisões 16/27)
+          appBarActions: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: InstitutionLogo(height: 32),
+            ),
+            const UserBadge(),
+            const LanguageSelector(),
+            SetesIconButton(
+              icon: Icons.palette_outlined,
+              tooltip: 'theme.title'.tr(),
+              onPressed: () => Modular.to.pushNamed('/home/theme'),
+            ),
+          ],
           drawer: Drawer(
             child: ListView(
               children: [

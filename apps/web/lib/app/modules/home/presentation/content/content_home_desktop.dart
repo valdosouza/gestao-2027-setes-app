@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../bloc/menu_bloc.dart';
@@ -29,8 +30,21 @@ class ContentHomeDesktop extends StatelessWidget {
 
         return SetesScaffold(
           appBarTitle: 'app.title'.tr(),
-          // Troca de idioma em runtime + persistência na API (decisões 13/14)
-          appBarActions: const [LanguageSelector()],
+          // Logo da institution (upload do cliente) com fallback Setes (decisão 16)
+          appBarLeading: const Padding(
+            padding: EdgeInsets.all(8),
+            child: InstitutionLogo(height: 36),
+          ),
+          // Usuário logado + idioma (13/14) + tema (16/27)
+          appBarActions: [
+            const UserBadge(),
+            const LanguageSelector(),
+            SetesIconButton(
+              icon: Icons.palette_outlined,
+              tooltip: 'theme.title'.tr(),
+              onPressed: () => Modular.to.pushNamed('/home/theme'),
+            ),
+          ],
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
