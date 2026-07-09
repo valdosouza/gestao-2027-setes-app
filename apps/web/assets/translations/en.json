@@ -20,5 +20,31 @@
     "save": "Save",
     "cancel": "Cancel",
     "filter": "Filter"
+  },
+  "menu": {
+    "groups": {
+      "Registers": "Registers",
+      "Super": "Super",
+      "System": "System"
+    },
+    "interfaces": {
+      "privileges": "Privileges",
+      "interfaces": "Interfaces",
+      "customers": "Customers",
+      "institutions": "Institutions",
+      "users": "Users",
+      "modules": "Modules",
+      "countries": "Countries",
+      "states": "States",
+      "cities": "Cities",
+      "cfop": "CFOP"
+    },
+    "privileges": {
+      "view": "View",
+      "insert": "Insert",
+      "update": "Update",
+      "delete": "Delete",
+      "authorize": "Authorize"
+    }
   }
 }

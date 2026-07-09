@@ -12,6 +12,15 @@ class AppModule extends Module {
         // Singleton: uma sessão HTTP/JWT para o app inteiro
         Bind.singleton<ApiClient>((_) => ApiClient()),
         Bind.singleton<LocalPrefs>((_) => LocalPrefs()),
+        // Preferências do usuário (decisão 14) — usadas em qualquer módulo pós-login
+        Bind.lazySingleton<PreferenceRemoteDatasource>(
+            (i) => PreferenceRemoteDatasource(client: i.get<ApiClient>())),
+        Bind.lazySingleton<PreferenceRepository>(
+            (i) => PreferenceRepositoryImpl(datasource: i.get<PreferenceRemoteDatasource>())),
+        Bind.factory<GetPreferencesUsecase>(
+            (i) => GetPreferencesUsecase(repository: i.get<PreferenceRepository>())),
+        Bind.factory<SavePreferenceUsecase>(
+            (i) => SavePreferenceUsecase(repository: i.get<PreferenceRepository>())),
       ];
 
   @override

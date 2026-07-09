@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,6 +29,8 @@ class ContentHomeDesktop extends StatelessWidget {
 
         return SetesScaffold(
           appBarTitle: 'app.title'.tr(),
+          // Troca de idioma em runtime + persistência na API (decisões 13/14)
+          appBarActions: const [LanguageSelector()],
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -40,8 +43,13 @@ class ContentHomeDesktop extends StatelessWidget {
                     itemCount: loaded.modules.length,
                     itemBuilder: (context, index) {
                       final module = loaded.modules[index];
+                      // tb_module do cliente (id != null): texto como cadastrado.
+                      // Pseudo-módulo do catálogo (group_default): traduz (decisão 26).
+                      final title = module.id != null
+                          ? module.description
+                          : trCatalog(module.description, module.description, prefix: 'menu.groups');
                       return SetesListTile(
-                        title: SetesText(module.description),
+                        title: SetesText(title),
                         leading: const Icon(Icons.apps_outlined),
                         selected: loaded.selectedModuleIndex == index,
                         onTap: () => bloc.add(MenuModuleSelected(index: index)),
@@ -61,7 +69,8 @@ class ContentHomeDesktop extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final item = loaded.selectedModule!.interfaces[index];
                         return SetesListTile(
-                          title: SetesText(item.description),
+                          title: SetesText(trCatalog(item.i18nKey, item.description,
+                              prefix: 'menu.interfaces')),
                           selected: loaded.selectedInterface?.id == item.id,
                           onTap: () => bloc.add(MenuInterfaceSelected(interfaceItem: item)),
                         );

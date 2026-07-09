@@ -30,6 +30,7 @@ class MenuInterfaceModel extends MenuInterface {
   const MenuInterfaceModel({
     required super.id,
     required super.description,
+    super.i18nKey,
     super.buttonAction,
     super.imgIndex,
     super.privileges,
@@ -39,6 +40,7 @@ class MenuInterfaceModel extends MenuInterface {
       MenuInterfaceModel(
         id: (json['id'] as num?)?.toInt() ?? 0,
         description: json['description'] as String? ?? '',
+        i18nKey: json['i18nKey'] as String?,
         buttonAction: json['buttonAction'] as String?,
         imgIndex: (json['imgIndex'] as num?)?.toInt(),
         privileges: (json['privileges'] as List<dynamic>? ?? [])

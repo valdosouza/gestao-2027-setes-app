@@ -21,14 +21,15 @@ class InterfaceFrame extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SetesText.title(interfaceItem!.description),
+          SetesText.title(trCatalog(interfaceItem!.i18nKey, interfaceItem!.description,
+              prefix: 'menu.interfaces')),
           const SizedBox(height: 8),
-          // Botões da UI respeitam os privilégios (decisão 21)
+          // Botões da UI respeitam os privilégios (decisão 21); rótulos traduzidos (decisão 26)
           Wrap(
             spacing: 8,
             children: [
               for (final privilege in interfaceItem!.privileges)
-                Chip(label: SetesText(privilege)),
+                Chip(label: SetesText(trCatalog(privilege, privilege, prefix: 'menu.privileges'))),
             ],
           ),
           const SizedBox(height: 24),

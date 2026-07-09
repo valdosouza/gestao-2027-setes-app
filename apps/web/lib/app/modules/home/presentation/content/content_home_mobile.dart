@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,17 +28,23 @@ class ContentHomeMobile extends StatelessWidget {
 
         return SetesScaffold(
           appBarTitle: 'app.title'.tr(),
+          // Troca de idioma em runtime + persistência na API (decisões 13/14)
+          appBarActions: const [LanguageSelector()],
           drawer: Drawer(
             child: ListView(
               children: [
                 for (var i = 0; i < loaded.modules.length; i++)
                   ExpansionTile(
-                    title: SetesText(loaded.modules[i].description),
+                    title: SetesText(loaded.modules[i].id != null
+                        ? loaded.modules[i].description
+                        : trCatalog(loaded.modules[i].description,
+                            loaded.modules[i].description, prefix: 'menu.groups')),
                     leading: const Icon(Icons.apps_outlined),
                     children: [
                       for (final item in loaded.modules[i].interfaces)
                         SetesListTile(
-                          title: SetesText(item.description),
+                          title: SetesText(trCatalog(item.i18nKey, item.description,
+                              prefix: 'menu.interfaces')),
                           onTap: () {
                             bloc.add(MenuInterfaceSelected(interfaceItem: item));
                             Navigator.of(context).pop();

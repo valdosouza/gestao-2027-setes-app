@@ -24,6 +24,7 @@ class MenuInterface extends Equatable {
   const MenuInterface({
     required this.id,
     required this.description,
+    this.i18nKey,
     this.buttonAction,
     this.imgIndex,
     this.privileges = const [],
@@ -31,6 +32,10 @@ class MenuInterface extends Equatable {
 
   final int id;
   final String description;
+
+  /// Decisão 26: chave de tradução do catálogo (menu.interfaces.<key>);
+  /// null ou sem tradução → mostra [description] do banco.
+  final String? i18nKey;
   final String? buttonAction;
   final int? imgIndex;
 
@@ -41,5 +46,5 @@ class MenuInterface extends Equatable {
       privileges.any((p) => p.toLowerCase() == privilege.toLowerCase());
 
   @override
-  List<Object?> get props => [id, description, buttonAction, imgIndex, privileges];
+  List<Object?> get props => [id, description, i18nKey, buttonAction, imgIndex, privileges];
 }

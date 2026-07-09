@@ -20,5 +20,31 @@
     "save": "Salvar",
     "cancel": "Cancelar",
     "filter": "Filtro"
+  },
+  "menu": {
+    "groups": {
+      "Registers": "Cadastros",
+      "Super": "Super",
+      "System": "Sistema"
+    },
+    "interfaces": {
+      "privileges": "Privilégios",
+      "interfaces": "Interfaces",
+      "customers": "Clientes",
+      "institutions": "Estabelecimentos",
+      "users": "Usuários",
+      "modules": "Módulos",
+      "countries": "Países",
+      "states": "Estados",
+      "cities": "Cidades",
+      "cfop": "CFOP"
+    },
+    "privileges": {
+      "view": "Visualizar",
+      "insert": "Inserir",
+      "update": "Alterar",
+      "delete": "Excluir",
+      "authorize": "Autorizar"
+    }
   }
 }
