@@ -40,7 +40,23 @@
     "view": "Visualizar",
     "save": "Salvar",
     "cancel": "Cancelar",
-    "filter": "Filtro"
+    "filter": "Filtro",
+    "filterHint": "Pesquise ou filtre aqui",
+    "delete": "Excluir",
+    "required": "Campo obrigatório",
+    "invalidNumber": "Valor numérico inválido",
+    "listTitle": "Lista de {}",
+    "emptyList": "Não encontramos nenhum registro em nossa base.",
+    "saved": "Registro salvo",
+    "deleted": "Registro excluído",
+    "confirmDelete": "Confirma a exclusão?",
+    "error": "Não foi possível concluir a operação"
+  },
+  "forms": {
+    "country": {
+      "code": "Código do País",
+      "name": "Nome do País"
+    }
   },
   "theme": {
     "title": "Identidade visual",

@@ -40,7 +40,23 @@
     "view": "View",
     "save": "Save",
     "cancel": "Cancel",
-    "filter": "Filter"
+    "filter": "Filter",
+    "filterHint": "Search or filter here",
+    "delete": "Delete",
+    "required": "Required field",
+    "invalidNumber": "Invalid numeric value",
+    "listTitle": "List of {}",
+    "emptyList": "No records found in our database.",
+    "saved": "Record saved",
+    "deleted": "Record deleted",
+    "confirmDelete": "Confirm deletion?",
+    "error": "The operation could not be completed"
+  },
+  "forms": {
+    "country": {
+      "code": "Country Code",
+      "name": "Country Name"
+    }
   },
   "theme": {
     "title": "Visual identity",

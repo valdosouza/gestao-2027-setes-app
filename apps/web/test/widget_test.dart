@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Smoke test do contrato visual da fábrica de cadastros
+// (skill criar-formulario-cadastro.md): AppBar com voltar/salvar/excluir.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:setes_web/main.dart';
+import 'package:setes_widgets/setes_widgets.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('SetesFormShell mostra voltar, titulo, salvar e excluir',
+      (WidgetTester tester) async {
+    var backed = false;
+    var saved = false;
+    var deleted = false;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(MaterialApp(
+      home: SetesFormShell(
+        title: 'Editar — País',
+        onBack: () => backed = true,
+        onSave: () => saved = true,
+        onDelete: () => deleted = true,
+        child: const SizedBox(),
+      ),
+    ));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Editar — País'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_ios_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_rounded));
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.tap(find.byIcon(Icons.delete_outline));
+
+    expect(backed, isTrue);
+    expect(saved, isTrue);
+    expect(deleted, isTrue);
+  });
+
+  testWidgets('SetesFormShell em novo registro nao mostra excluir',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: SetesFormShell(
+        title: 'Adicionar — País',
+        onBack: () {},
+        onSave: () {},
+        child: const SizedBox(),
+      ),
+    ));
+
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.byIcon(Icons.check), findsOneWidget);
   });
 }
