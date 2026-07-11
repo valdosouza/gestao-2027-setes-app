@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
-import '../../../shared/storage/local_prefs.dart';
 import '../bloc/auth_bloc.dart';
 import 'auth_field.dart';
 import 'auth_styles.dart';

@@ -52,10 +52,32 @@
     "confirmDelete": "Confirm deletion?",
     "error": "The operation could not be completed"
   },
+  "lookup": {
+    "countries": "List of Countries",
+    "states": "List of States",
+    "cities": "List of Cities"
+  },
   "forms": {
     "country": {
       "code": "Country Code",
       "name": "Country Name"
+    },
+    "state": {
+      "code": "State Code",
+      "country": "Country",
+      "abbreviation": "State Abbreviation",
+      "name": "State Name",
+      "aliquota": "State Tax Rate"
+    },
+    "city": {
+      "code": "City Code",
+      "state": "State",
+      "name": "City Name",
+      "ibge": "IBGE Code",
+      "aliqIss": "ISS Tax Rate",
+      "population": "Population",
+      "density": "Density",
+      "area": "Area"
     }
   },
   "theme": {

@@ -52,10 +52,32 @@
     "confirmDelete": "Confirma a exclusão?",
     "error": "Não foi possível concluir a operação"
   },
+  "lookup": {
+    "countries": "Lista de Países",
+    "states": "Lista de Estados",
+    "cities": "Lista de Cidades"
+  },
   "forms": {
     "country": {
       "code": "Código do País",
       "name": "Nome do País"
+    },
+    "state": {
+      "code": "Código do Estado",
+      "country": "País",
+      "abbreviation": "Sigla do Estado (UF)",
+      "name": "Nome do Estado",
+      "aliquota": "Alíquota do Estado"
+    },
+    "city": {
+      "code": "Código do Município",
+      "state": "Estado",
+      "name": "Nome da Cidade",
+      "ibge": "Código IBGE",
+      "aliqIss": "Alíquota ISS",
+      "population": "População",
+      "density": "Densidade",
+      "area": "Área"
     }
   },
   "theme": {

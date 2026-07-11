@@ -1,5 +1,5 @@
 /// packages/core — núcleo compartilhado do setes-app (decisão 10).
-library core;
+library;
 
 export 'src/core/config/app_config.dart';
 export 'src/error/failure.dart';

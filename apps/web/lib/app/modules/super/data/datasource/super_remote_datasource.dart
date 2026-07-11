@@ -60,13 +60,18 @@ class SuperRemoteDatasource {
     return StateEntity.fromJson(json['data'] as Map<String, dynamic>);
   }
 
+  /// O id é o código IBGE da UF (ex.: Paraná 41, São Paulo 35), informado
+  /// pelo usuário na inclusão; NÃO é sequencial (decisão 2026-07-11).
+  /// A API devolve 409 se o código já existir (mesmo excluído).
   Future<int> createState({
+    required int id,
     required int tbCountryId,
     required String abbreviation,
     required String name,
     double? aliquota,
   }) async {
     final json = await client.post('/api/super/states', {
+      'id':           id,
       'tbCountryId':  tbCountryId,
       'abbreviation': abbreviation,
       'name':         name,
@@ -112,7 +117,11 @@ class SuperRemoteDatasource {
     return CityEntity.fromJson(json['data'] as Map<String, dynamic>);
   }
 
+  /// O id é o código IBGE do município (ex.: Curitiba 4004), informado
+  /// pelo usuário na inclusão; NÃO é sequencial (decisão 2026-07-11).
+  /// A API devolve 409 se o código já existir (mesmo excluído).
   Future<int> createCity({
+    required int id,
     required int tbStateId,
     required String name,
     String? ibge,
@@ -122,6 +131,7 @@ class SuperRemoteDatasource {
     double area = 0,
   }) async {
     final json = await client.post('/api/super/cities', {
+      'id':         id,
       'tbStateId':  tbStateId,
       'name':       name,
       if (ibge != null) 'ibge': ibge,

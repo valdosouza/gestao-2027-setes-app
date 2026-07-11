@@ -33,7 +33,7 @@ class MenuInterface extends Equatable {
   final int id;
   final String description;
 
-  /// Decisão 26: chave de tradução do catálogo (menu.interfaces.<key>);
+  /// Decisão 26: chave de tradução do catálogo (menu.interfaces.\<key\>);
   /// null ou sem tradução → mostra [description] do banco.
   final String? i18nKey;
   final String? buttonAction;

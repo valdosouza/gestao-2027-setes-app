@@ -4,6 +4,15 @@ import 'package:equatable/equatable.dart';
 /// Acessadas exclusivamente via setes-api /api/super/* — nunca direto ao banco
 /// (decisão 1 do prompt_fase1_fundacao.md).
 
+/// Drivers MySQL podem serializar DECIMAL como string ("12.00") — aceitar
+/// num E string evita quebrar a lista inteira por um campo numérico.
+double? _asDouble(dynamic v) => switch (v) {
+      null => null,
+      final num n => n.toDouble(),
+      final String s => double.tryParse(s),
+      _ => null,
+    };
+
 class CountryEntity extends Equatable {
   const CountryEntity({required this.id, this.name});
 
@@ -26,24 +35,31 @@ class StateEntity extends Equatable {
     this.abbreviation,
     this.name,
     this.aliquota,
+    this.countryName,
   });
 
+  /// Código IBGE da UF (ex.: Paraná 41) — informado na inclusão, imutável.
   final int     id;
   final int     tbCountryId;
   final String? abbreviation;
   final String? name;
   final double? aliquota;
 
+  /// Nome do país (JOIN da API) — exibição no campo lookup (campo-lookup-fk.md).
+  final String? countryName;
+
   factory StateEntity.fromJson(Map<String, dynamic> json) => StateEntity(
         id:           (json['id'] as num).toInt(),
         tbCountryId:  (json['tbCountryId'] as num).toInt(),
         abbreviation: json['abbreviation'] as String?,
         name:         json['name'] as String?,
-        aliquota:     (json['aliquota'] as num?)?.toDouble(),
+        aliquota:     _asDouble(json['aliquota']),
+        countryName:  json['countryName'] as String?,
       );
 
   @override
-  List<Object?> get props => [id, tbCountryId, abbreviation, name, aliquota];
+  List<Object?> get props =>
+      [id, tbCountryId, abbreviation, name, aliquota, countryName];
 }
 
 class CityEntity extends Equatable {
@@ -56,6 +72,7 @@ class CityEntity extends Equatable {
     this.population = 0,
     this.density = 0,
     this.area = 0,
+    this.stateName,
   });
 
   final int     id;
@@ -67,17 +84,21 @@ class CityEntity extends Equatable {
   final double  density;
   final double  area;
 
+  /// Nome do estado (JOIN da API) — exibição no campo lookup (campo-lookup-fk.md).
+  final String? stateName;
+
   factory CityEntity.fromJson(Map<String, dynamic> json) => CityEntity(
         id:         (json['id'] as num).toInt(),
         tbStateId:  (json['tbStateId'] as num).toInt(),
         ibge:       json['ibge'] as String?,
         name:       json['name'] as String?,
-        aliqIss:    (json['aliqIss'] as num?)?.toDouble() ?? 0,
-        population: (json['population'] as num?)?.toInt() ?? 0,
-        density:    (json['density'] as num?)?.toDouble() ?? 0,
-        area:       (json['area'] as num?)?.toDouble() ?? 0,
+        aliqIss:    _asDouble(json['aliqIss']) ?? 0,
+        population: _asDouble(json['population'])?.toInt() ?? 0,
+        density:    _asDouble(json['density']) ?? 0,
+        area:       _asDouble(json['area']) ?? 0,
+        stateName:  json['stateName'] as String?,
       );
 
   @override
-  List<Object?> get props => [id, tbStateId, ibge, name, aliqIss, population, density, area];
+  List<Object?> get props => [id, tbStateId, ibge, name, aliqIss, population, density, area, stateName];
 }

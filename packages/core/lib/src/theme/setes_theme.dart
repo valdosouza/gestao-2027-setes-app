@@ -99,7 +99,8 @@ class SetesTheme {
   }
 
   static String colorToHex(Color color) {
-    String two(int v) => v.toRadixString(16).padLeft(2, '0').toUpperCase();
-    return '#${two(color.red)}${two(color.green)}${two(color.blue)}';
+    String two(double v) =>
+        (v * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0').toUpperCase();
+    return '#${two(color.r)}${two(color.g)}${two(color.b)}';
   }
 }

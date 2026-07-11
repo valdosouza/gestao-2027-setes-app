@@ -12,7 +12,26 @@ class RegisterField {
     this.readOnly = false,
     this.keyboardType,
     this.validator,
-  });
+  })  : isLookup = false,
+        display = '',
+        onPick = null,
+        validatorMessage = null;
+
+  /// Campo de FK com lista de apoio (skill campo-lookup-fk.md): renderiza
+  /// [SetesLookupField] mostrando [display] (readOnly, fora do Tab);
+  /// Icons.search chama [onPick], que abre showSetesLookup e guarda o id
+  /// escolhido no ESTADO DA PÁGINA — o id nunca entra nos values do onSave.
+  const RegisterField.lookup({
+    required this.name,
+    required this.label,
+    required this.display,
+    required this.onPick,
+    this.validatorMessage,
+  })  : isLookup = true,
+        obscure = false,
+        readOnly = true,
+        keyboardType = null,
+        validator = null;
 
   final String name;
   final String label;
@@ -22,6 +41,55 @@ class RegisterField {
   final bool readOnly;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+
+  /// true = campo de FK (constructor [RegisterField.lookup]).
+  final bool isLookup;
+
+  /// Descrição atual do registro relacionado ('' se nada escolhido).
+  final String display;
+
+  /// Abre a lista de apoio (a página chama showSetesLookup e faz setState).
+  final VoidCallback? onPick;
+
+  /// Mensagem exibida pelo Form.validate() quando nada foi escolhido.
+  final String? validatorMessage;
+}
+
+class SetesLookupField extends StatelessWidget {
+  const SetesLookupField({
+    required this.label,
+    required this.display,
+    required this.onSearch,
+    this.validatorMessage,
+    super.key,
+  });
+
+  final String label;
+  final String display;
+  final VoidCallback onSearch;
+  final String? validatorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: display,
+      readOnly: true,
+      onTap: onSearch,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: onSearch,
+        ),
+      ),
+      validator: (value) {
+        if ((value?.isEmpty ?? true) && validatorMessage != null) {
+          return validatorMessage;
+        }
+        return null;
+      },
+    );
+  }
 }
 
 /// Fábrica de cadastros (decisão 20): formulário padrão no contrato visual do
@@ -70,7 +138,10 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     super.initState();
     _controllers = {
       for (final field in widget.fields)
-        field.name: TextEditingController(text: widget.initialValues[field.name] ?? ''),
+        if (!field
+            .isLookup) // lookup: o id fica no estado da página, sem controller
+          field.name: TextEditingController(
+              text: widget.initialValues[field.name] ?? ''),
     };
   }
 
@@ -86,7 +157,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     setState(() => _saving = true);
     try {
       await widget.onSave({
-        for (final entry in _controllers.entries) entry.key: entry.value.text.trim(),
+        for (final entry in _controllers.entries)
+          entry.key: entry.value.text.trim(),
       });
       _notify(messenger, 'register.saved'.tr());
     } catch (err) {
@@ -142,18 +214,30 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     // Tabulação (feedback do Valdo 2026-07-11): Tab segue a ordem declarada
     // dos campos; readOnly fica fora da sequência; foco inicial no primeiro
     // campo editável; Enter avança (next) e finaliza no último (done).
-    final firstEditable =
-        widget.fields.indexWhere((f) => !f.readOnly);
-    final lastEditable =
-        widget.fields.lastIndexWhere((f) => !f.readOnly);
 
-    return SetesFormShell(
-      title: widget.title,
-      onBack: widget.onCancel,
-      onSave: widget.canSave ? _save : null,
-      onDelete: (widget.canDelete && widget.onDelete != null) ? _delete : null,
-      saving: _saving,
-      child: Form(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onCancel,
+        ),
+        actions: [
+          if (widget.canDelete && widget.onDelete != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _saving ? null : _delete,
+              tooltip: 'register.delete'.tr(),
+            ),
+          if (widget.canSave)
+            IconButton(
+              icon: const Icon(Icons.check),
+              onPressed: _saving ? null : _save,
+              tooltip: 'register.save'.tr(),
+            ),
+        ],
+      ),
+      body: Form(
         key: _formKey,
         child: FocusTraversalGroup(
           policy: OrderedTraversalPolicy(),
@@ -161,21 +245,25 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             padding: const EdgeInsets.all(16),
             children: [
               for (final (index, field) in widget.fields.indexed) ...[
-                FocusTraversalOrder(
-                  order: NumericFocusOrder(index.toDouble()),
-                  child: SetesTextField(
+                if (field.isLookup)
+                  // FK: readOnly e fora do Tab (SetesLookupField já exclui).
+                  SetesLookupField(
                     label: field.label,
-                    controller: _controllers[field.name],
-                    obscureText: field.obscure,
-                    readOnly: field.readOnly,
-                    autofocus: index == firstEditable,
-                    keyboardType: field.keyboardType,
-                    textInputAction: index == lastEditable
-                        ? TextInputAction.done
-                        : TextInputAction.next,
-                    validator: field.validator,
+                    display: field.display,
+                    onSearch: field.onPick ?? () {},
+                    validatorMessage: field.validatorMessage,
+                  )
+                else
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(index.toDouble()),
+                    child: SetesTextField(
+                      label: field.label,
+                      controller: _controllers[field.name],
+                      obscureText: field.obscure,
+                      keyboardType: field.keyboardType,
+                      validator: field.validator,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 16),
               ],
             ],

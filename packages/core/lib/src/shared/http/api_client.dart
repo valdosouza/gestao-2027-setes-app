@@ -14,15 +14,12 @@ class ApiClient {
   final http.Client _client;
   final String baseUrl;
 
-  String? _token;
-
-  set token(String? value) => _token = value;
-  String? get token => _token;
+  String? token;
 
   Map<String, String> _headers({String? overrideToken}) => {
         'Content-Type': 'application/json',
-        if (overrideToken != null || _token != null)
-          'Authorization': 'Bearer ${overrideToken ?? _token}',
+        if (overrideToken != null || token != null)
+          'Authorization': 'Bearer ${overrideToken ?? token}',
       };
 
   Future<Map<String, dynamic>> get(String path) async =>

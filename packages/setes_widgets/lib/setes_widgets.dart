@@ -8,6 +8,8 @@ export 'src/setes_checkbox.dart';
 export 'src/setes_form_shell.dart';
 export 'src/setes_icon_button.dart';
 export 'src/setes_list_tile.dart';
+export 'src/setes_lookup.dart';
+export 'src/setes_lookup_field.dart';
 export 'src/setes_scaffold.dart';
 export 'src/setes_text.dart';
 export 'src/setes_text_field.dart';

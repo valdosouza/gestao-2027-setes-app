@@ -89,7 +89,8 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
               ? CircleAvatar(child: SetesText(widget.avatarBuilder!(item)))
               : null,
           title: SetesText(cells.isNotEmpty ? cells.first : ''),
-          subtitle: cells.length > 1 ? SetesText(cells.skip(1).join(' · ')) : null,
+          subtitle:
+              cells.length > 1 ? SetesText(cells.skip(1).join(' · ')) : null,
           onTap: widget.canView ? () => widget.onView(item) : null,
         );
       },
