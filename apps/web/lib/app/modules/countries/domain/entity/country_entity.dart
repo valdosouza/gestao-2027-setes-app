@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// País (setes_central.tb_country) — interface 'countries' do módulo Super.
-/// Acesso exclusivamente via setes-api /api/super/* (decisão 1).
+/// Acesso exclusivamente via setes-api /api/* (decisão 1).
 class CountryEntity extends Equatable {
   const CountryEntity({required this.id, this.name});
 

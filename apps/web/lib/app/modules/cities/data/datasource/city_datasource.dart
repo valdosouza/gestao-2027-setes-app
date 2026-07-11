@@ -2,7 +2,7 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/city_entity.dart';
 
-/// Datasource remoto de Cidade: /api/super/cities na setes-api.
+/// Datasource remoto de Cidade: /api/cities na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class CityDatasource {
   Future<List<CityEntity>> getList(String filter);
@@ -19,7 +19,7 @@ class CityDatasourceImpl implements CityDatasource {
   @override
   Future<List<CityEntity>> getList(String filter) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/super/cities$query');
+    final json = await client.get('/api/cities$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CityEntity.fromJson(e as Map<String, dynamic>))
@@ -30,7 +30,7 @@ class CityDatasourceImpl implements CityDatasource {
   /// devolve 409 se o código já existir (mesmo excluído logicamente).
   @override
   Future<int> post(CityEntity city) async {
-    final json = await client.post('/api/super/cities', {
+    final json = await client.post('/api/cities', {
       'id':         city.id,
       'tbStateId':  city.tbStateId,
       'name':       city.name,
@@ -45,7 +45,7 @@ class CityDatasourceImpl implements CityDatasource {
 
   @override
   Future<void> put(CityEntity city) async {
-    await client.put('/api/super/cities/${city.id}', {
+    await client.put('/api/cities/${city.id}', {
       'tbStateId':  city.tbStateId,
       'name':       city.name,
       'ibge':       city.ibge,
@@ -58,6 +58,6 @@ class CityDatasourceImpl implements CityDatasource {
 
   @override
   Future<void> delete(int id) async {
-    await client.delete('/api/super/cities/$id');
+    await client.delete('/api/cities/$id');
   }
 }

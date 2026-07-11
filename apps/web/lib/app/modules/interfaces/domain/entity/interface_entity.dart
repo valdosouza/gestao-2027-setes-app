@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// Interface do sistema (setes_central.tb_interface) — interface 'interfaces'
-/// do módulo Super. Acesso exclusivamente via setes-api /api/super/* (decisão 1).
+/// do módulo Super. Acesso exclusivamente via setes-api /api/* (decisão 1).
 ///
 /// O id é gerado pelo backend (MAX+1 — sem padrão externo tipo BACEN/IBGE,
 /// decisão do Valdo 2026-07-11): aparece readOnly no formulário, vazio na

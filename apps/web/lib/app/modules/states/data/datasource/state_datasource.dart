@@ -2,7 +2,7 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/state_entity.dart';
 
-/// Datasource remoto de Estado: /api/super/states na setes-api.
+/// Datasource remoto de Estado: /api/states na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class StateDatasource {
   Future<List<StateEntity>> getList(String filter);
@@ -19,7 +19,7 @@ class StateDatasourceImpl implements StateDatasource {
   @override
   Future<List<StateEntity>> getList(String filter) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/super/states$query');
+    final json = await client.get('/api/states$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => StateEntity.fromJson(e as Map<String, dynamic>))
@@ -30,7 +30,7 @@ class StateDatasourceImpl implements StateDatasource {
   /// se o código já existir (mesmo excluído logicamente).
   @override
   Future<int> post(StateEntity state) async {
-    final json = await client.post('/api/super/states', {
+    final json = await client.post('/api/states', {
       'id':           state.id,
       'tbCountryId':  state.tbCountryId,
       'abbreviation': state.abbreviation,
@@ -42,7 +42,7 @@ class StateDatasourceImpl implements StateDatasource {
 
   @override
   Future<void> put(StateEntity state) async {
-    await client.put('/api/super/states/${state.id}', {
+    await client.put('/api/states/${state.id}', {
       'tbCountryId':  state.tbCountryId,
       'abbreviation': state.abbreviation,
       'name':         state.name,
@@ -52,6 +52,6 @@ class StateDatasourceImpl implements StateDatasource {
 
   @override
   Future<void> delete(int id) async {
-    await client.delete('/api/super/states/$id');
+    await client.delete('/api/states/$id');
   }
 }

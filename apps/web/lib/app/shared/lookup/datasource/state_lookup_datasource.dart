@@ -17,7 +17,7 @@ class StateLookupDatasourceImpl implements StateLookupDatasource {
   @override
   Future<List<StateLookup>> list(String filter) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/super/states$query');
+    final json = await client.get('/api/states$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => StateLookup.fromJson(e as Map<String, dynamic>))

@@ -2,7 +2,7 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/country_entity.dart';
 
-/// Datasource remoto de País: /api/super/countries na setes-api.
+/// Datasource remoto de País: /api/countries na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class CountryDatasource {
   Future<List<CountryEntity>> getList(String filter);
@@ -19,7 +19,7 @@ class CountryDatasourceImpl implements CountryDatasource {
   @override
   Future<List<CountryEntity>> getList(String filter) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/super/countries$query');
+    final json = await client.get('/api/countries$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CountryEntity.fromJson(e as Map<String, dynamic>))
@@ -30,7 +30,7 @@ class CountryDatasourceImpl implements CountryDatasource {
   /// código já existir (mesmo excluído logicamente).
   @override
   Future<int> post(CountryEntity country) async {
-    final json = await client.post('/api/super/countries', {
+    final json = await client.post('/api/countries', {
       'id':   country.id,
       'name': country.name,
     });
@@ -39,11 +39,11 @@ class CountryDatasourceImpl implements CountryDatasource {
 
   @override
   Future<void> put(CountryEntity country) async {
-    await client.put('/api/super/countries/${country.id}', {'name': country.name});
+    await client.put('/api/countries/${country.id}', {'name': country.name});
   }
 
   @override
   Future<void> delete(int id) async {
-    await client.delete('/api/super/countries/$id');
+    await client.delete('/api/countries/$id');
   }
 }

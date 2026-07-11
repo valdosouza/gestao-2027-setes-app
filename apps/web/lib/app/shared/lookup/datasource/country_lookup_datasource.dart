@@ -17,7 +17,7 @@ class CountryLookupDatasourceImpl implements CountryLookupDatasource {
   @override
   Future<List<CountryLookup>> list(String filter) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/super/countries$query');
+    final json = await client.get('/api/countries$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CountryLookup.fromJson(e as Map<String, dynamic>))

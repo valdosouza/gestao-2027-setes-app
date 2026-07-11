@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// Privilégio (setes_central.tb_privilege) — interface 'privileges' do
-/// módulo Super. Acesso exclusivamente via setes-api /api/super/* (decisão 1).
+/// módulo Super. Acesso exclusivamente via setes-api /api/* (decisão 1).
 ///
 /// ATENÇÃO: o módulo interfaces/ tem um PrivilegeEntity PRÓPRIO
 /// (leitura-para-checkbox). Este aqui é o de CRUD — cada um vive no seu
