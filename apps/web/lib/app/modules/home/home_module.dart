@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../cities/cities_module.dart';
 import '../countries/countries_module.dart';
 import '../interfaces/interfaces_module.dart';
+import '../privileges/privileges_module.dart';
 import '../states/states_module.dart';
 import 'presentation/bloc/menu_bloc.dart';
 import 'presentation/content/home_frames.dart';
@@ -39,6 +40,7 @@ class HomeModule extends Module {
             ModuleRoute('/states',     module: StatesModule()),
             ModuleRoute('/cities',     module: CitiesModule()),
             ModuleRoute('/interfaces', module: InterfacesModule()),
+            ModuleRoute('/privileges', module: PrivilegesModule()),
           ],
         ),
         // Personalização da identidade visual pelo cliente (decisões 16/27)

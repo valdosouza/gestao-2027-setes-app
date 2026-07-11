@@ -68,6 +68,10 @@
       "position": "Menu Position",
       "privileges": "Interface Privileges"
     },
+    "privilege": {
+      "code": "Privilege Code",
+      "description": "Privilege Description"
+    },
     "country": {
       "code": "Country Code",
       "name": "Country Name"

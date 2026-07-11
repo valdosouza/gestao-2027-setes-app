@@ -12,6 +12,7 @@ const Map<String, String> interfaceRoutes = {
   'states':     '/home/states/',
   'cities':     '/home/cities/',
   'interfaces': '/home/interfaces/',
+  'privileges': '/home/privileges/',
 };
 
 /// Navega para o módulo da interface clicada no menu, levando o NOME DA
