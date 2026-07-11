@@ -51,6 +51,7 @@
       "dependencies": [
         "bloc",
         "core",
+        "dartz",
         "easy_localization",
         "equatable",
         "flutter",
@@ -121,6 +122,11 @@
         "path",
         "shared_preferences"
       ]
+    },
+    {
+      "name": "dartz",
+      "version": "0.10.1",
+      "dependencies": []
     },
     {
       "name": "equatable",
@@ -221,11 +227,6 @@
         "meta",
         "web"
       ]
-    },
-    {
-      "name": "dartz",
-      "version": "0.10.1",
-      "dependencies": []
     },
     {
       "name": "test_api",

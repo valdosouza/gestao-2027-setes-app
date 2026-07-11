@@ -4,6 +4,7 @@ library;
 export 'src/core/config/app_config.dart';
 export 'src/error/failure.dart';
 export 'src/shared/helpers/catalog_i18n.dart';
+export 'src/shared/helpers/json_utils.dart';
 export 'src/shared/helpers/jwt_utils.dart';
 export 'src/shared/helpers/responsive.dart';
 export 'src/shared/http/api_client.dart';

@@ -30,6 +30,12 @@ class _HomePageState extends State<HomePage> {
       if (mounted && widget.bloc == null) {
         applyUserLocale(context, Modular.get<GetPreferencesUsecase>());
         Modular.get<ThemeCubit>().load();
+        // RouterOutlet precisa de uma rota filha ativa: sem interface na URL
+        // (login normal), abre o welcome. Refresh em /home/<interface>/ mantém.
+        final path = Modular.to.path;
+        if (path == '/home' || path == '/home/') {
+          Modular.to.navigate('/home/welcome/');
+        }
       }
     });
   }

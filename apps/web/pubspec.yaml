@@ -23,6 +23,8 @@ dependencies:
   bloc: ^8.1.4
   flutter_bloc: ^8.1.6
   equatable: ^2.0.8
+  # Either<Failure, T> nos repositórios/usecases (decisão 12)
+  dartz: ^0.10.1
   # i18n (decisão 13): traduções em JSON, troca em runtime
   easy_localization: ^3.0.7
   intl: ^0.20.2

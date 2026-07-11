@@ -5,8 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../interface_routes.dart';
 import '../bloc/menu_bloc.dart';
-import 'interface_frame.dart';
 
 /// Shell mobile: módulos/interfaces em Drawer expansível; frame no corpo.
 class ContentHomeMobile extends StatelessWidget {
@@ -62,6 +62,7 @@ class ContentHomeMobile extends StatelessWidget {
                           onTap: () {
                             bloc.add(MenuInterfaceSelected(interfaceItem: item));
                             Navigator.of(context).pop();
+                            navigateToInterface(item);
                           },
                         ),
                     ],
@@ -69,7 +70,8 @@ class ContentHomeMobile extends StatelessWidget {
               ],
             ),
           ),
-          body: InterfaceFrame(interfaceItem: loaded.selectedInterface),
+          // Conteúdo: módulo da interface ativa (1 interface = 1 módulo/rota)
+          body: const RouterOutlet(),
         );
       },
     );

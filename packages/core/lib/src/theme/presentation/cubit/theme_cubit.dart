@@ -9,7 +9,7 @@ import '../../setes_theme.dart';
 /// Estado do tema aplicado (decisão 27). themeData fica fora do props —
 /// a igualdade é decidida pelas cores/logo persistidas.
 class SetesThemeState extends Equatable {
-  SetesThemeState({
+  const SetesThemeState({
     required this.themeData,
     this.primaryHex,
     this.secondaryHex,

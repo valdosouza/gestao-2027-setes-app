@@ -33,6 +33,7 @@
   "home": {
     "modules": "Modules",
     "welcome": "Select a module in the menu",
+    "not_implemented": "Interface '{}' not implemented yet",
     "logout": "Sign out"
   },
   "register": {

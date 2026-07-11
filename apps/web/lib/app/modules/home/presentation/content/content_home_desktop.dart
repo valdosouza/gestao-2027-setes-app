@@ -5,8 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../interface_routes.dart';
 import '../bloc/menu_bloc.dart';
-import 'interface_frame.dart';
 
 /// Shell desktop (layout do prompt): menu vertical de módulos → menu de
 /// interfaces → frame. Acionamento por CLIQUE, nunca mouse-over (decisão 22).
@@ -86,14 +86,18 @@ class ContentHomeDesktop extends StatelessWidget {
                           title: SetesText(trCatalog(item.i18nKey, item.description,
                               prefix: 'menu.interfaces')),
                           selected: loaded.selectedInterface?.id == item.id,
-                          onTap: () => bloc.add(MenuInterfaceSelected(interfaceItem: item)),
+                          onTap: () {
+                            bloc.add(MenuInterfaceSelected(interfaceItem: item));
+                            navigateToInterface(item);
+                          },
                         );
                       },
                     ),
                   ),
                 ),
-              // Frame que renderiza a tela apontada pelo menu
-              Expanded(child: InterfaceFrame(interfaceItem: loaded.selectedInterface)),
+              // Conteúdo central: módulo da interface ativa
+              // (ARQUITETURA_MODULOS.md — 1 interface = 1 módulo/rota)
+              const Expanded(child: RouterOutlet()),
             ],
           ),
         );
