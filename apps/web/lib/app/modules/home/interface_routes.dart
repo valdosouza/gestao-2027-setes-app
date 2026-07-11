@@ -8,9 +8,10 @@ import 'package:flutter_modular/flutter_modular.dart';
 /// Ao criar um módulo novo: adicionar a entrada aqui E a ModuleRoute
 /// correspondente no HomeModule.
 const Map<String, String> interfaceRoutes = {
-  'countries': '/home/countries/',
-  'states':    '/home/states/',
-  'cities':    '/home/cities/',
+  'countries':  '/home/countries/',
+  'states':     '/home/states/',
+  'cities':     '/home/cities/',
+  'interfaces': '/home/interfaces/',
 };
 
 /// Navega para o módulo da interface clicada no menu, levando o NOME DA

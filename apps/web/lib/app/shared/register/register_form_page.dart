@@ -72,6 +72,7 @@ class RegisterFormPage extends StatefulWidget {
     this.onDelete,
     this.canDelete = false,
     this.saving = false,
+    this.extraChildren = const <Widget>[],
     super.key,
   });
 
@@ -93,6 +94,12 @@ class RegisterFormPage extends StatefulWidget {
 
   /// Estado do bloc: operação em andamento desabilita as ações.
   final bool saving;
+
+  /// Widgets extras renderizados APÓS os campos, dentro do Form/ListView —
+  /// seções que a fábrica não parametriza (ex.: grupo de checkboxes de
+  /// privilégios na tela de Interfaces). O estado desses widgets vive na
+  /// PÁGINA do módulo (como o id do lookup) — nunca nos values do onSave.
+  final List<Widget> extraChildren;
 
   @override
   State<RegisterFormPage> createState() => _RegisterFormPageState();
@@ -204,6 +211,7 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
                   ),
                 const SizedBox(height: 16),
               ],
+              ...widget.extraChildren,
             ],
           ),
         ),

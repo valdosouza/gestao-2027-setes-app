@@ -3,6 +3,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../cities/cities_module.dart';
 import '../countries/countries_module.dart';
+import '../interfaces/interfaces_module.dart';
 import '../states/states_module.dart';
 import 'presentation/bloc/menu_bloc.dart';
 import 'presentation/content/home_frames.dart';
@@ -34,9 +35,10 @@ class HomeModule extends Module {
             // Conteúdo do RouterOutlet: 1 interface = 1 módulo
             ChildRoute('/welcome', child: (_, __) => const WelcomeFrame()),
             ChildRoute('/pending', child: (_, __) => const PendingInterfaceFrame()),
-            ModuleRoute('/countries', module: CountriesModule()),
-            ModuleRoute('/states',    module: StatesModule()),
-            ModuleRoute('/cities',    module: CitiesModule()),
+            ModuleRoute('/countries',  module: CountriesModule()),
+            ModuleRoute('/states',     module: StatesModule()),
+            ModuleRoute('/cities',     module: CitiesModule()),
+            ModuleRoute('/interfaces', module: InterfacesModule()),
           ],
         ),
         // Personalização da identidade visual pelo cliente (decisões 16/27)

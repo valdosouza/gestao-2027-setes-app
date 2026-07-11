@@ -59,6 +59,15 @@
     "cities": "List of Cities"
   },
   "forms": {
+    "interface": {
+      "code": "Interface Code",
+      "description": "Interface Description",
+      "group": "Default Group (menu)",
+      "i18nKey": "Translation Key (i18n)",
+      "kind": "Kind",
+      "position": "Menu Position",
+      "privileges": "Interface Privileges"
+    },
     "country": {
       "code": "Country Code",
       "name": "Country Name"
