@@ -7,6 +7,7 @@ class SetesCheckbox extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
     super.key,
   });
 
@@ -14,11 +15,15 @@ class SetesCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool?> onChanged;
 
+  /// false = somente leitura (ex.: obrigatoriedade técnica travada no
+  /// painel de campos configuráveis — o cliente vê, mas não altera).
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) => CheckboxListTile(
         title: Text(label),
         value: value,
-        onChanged: onChanged,
+        onChanged: enabled ? onChanged : null,
         controlAffinity: ListTileControlAffinity.leading,
         dense: true,
       );

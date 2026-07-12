@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Encapsula [TextFormField] (decisão 11).
 ///
@@ -15,6 +16,7 @@ class SetesTextField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.validator,
+    this.inputFormatters,
     this.onChanged,
     this.onSubmitted,
     this.prefixIcon,
@@ -40,6 +42,10 @@ class SetesTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final String? Function(String?)? validator;
 
+  /// Máscaras/filtros de digitação (ex.: SetesMaskFormatter do
+  /// setes_validators — Fase 2 campos configuráveis).
+  final List<TextInputFormatter>? inputFormatters;
+
   /// Notifica cada alteração de texto (ex.: abas que editam um draft no bloc).
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -61,6 +67,7 @@ class SetesTextField extends StatelessWidget {
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       validator: validator,
+      inputFormatters: inputFormatters,
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
       decoration: InputDecoration(

@@ -1,0 +1,22 @@
+# packages/setes_validators — validadores compartilhados do app (Fase 2
+# campos configuráveis, decisões 18 e 22): espelho do src/shared/validation
+# da setes-api — manter as regras IDÊNTICAS nos dois lados (API = fonte da
+# verdade). Sem widgets, sem easy_localization, sem API: funções puras +
+# TextInputFormatter de máscara (flutter/services).
+name: setes_validators
+description: Validadores e máscaras compartilhados do setes-app (espelho da API)
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

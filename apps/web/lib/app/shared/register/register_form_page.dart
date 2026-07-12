@@ -1,8 +1,15 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 /// Descritor de campo (decisão 20): parametriza o formulário genérico.
+///
+/// Fase 2 campos configuráveis: [validator] pode devolver CHAVE i18n
+/// (setes_validators) — a fábrica traduz com .tr(); [mask] aplica
+/// SetesMaskFormatter na digitação e o valor vai SEM máscara no onSave
+/// (decisão 19). Use applyFieldConfig (field_config_merge.dart) para
+/// mesclar a config do cliente (caption/required/mask — decisão 7).
 class RegisterField {
   const RegisterField({
     required this.name,
@@ -11,6 +18,7 @@ class RegisterField {
     this.readOnly = false,
     this.keyboardType,
     this.validator,
+    this.mask,
   })  : isLookup = false,
         display = '',
         onPick = null,
@@ -30,7 +38,8 @@ class RegisterField {
         obscure = false,
         readOnly = true,
         keyboardType = null,
-        validator = null;
+        validator = null,
+        mask = null;
 
   final String name;
   final String label;
@@ -40,6 +49,10 @@ class RegisterField {
   final bool readOnly;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+
+  /// Máscara de digitação `#`/`A` (decisão 16). O valor salvo vai SEM
+  /// máscara (decisão 19 — a fábrica aplica unmask no onSave).
+  final String? mask;
 
   /// true = campo de FK (constructor [RegisterField.lookup]).
   final bool isLookup;
@@ -122,9 +135,16 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
 
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // Decisão 19: campo mascarado grava só os dígitos/caracteres.
+    final maskByName = {
+      for (final field in widget.fields)
+        if (!field.isLookup && field.mask != null) field.name: field.mask,
+    };
     widget.onSave({
       for (final entry in _controllers.entries)
-        entry.key: entry.value.text.trim(),
+        entry.key: maskByName.containsKey(entry.key)
+            ? unmask(entry.value.text.trim())
+            : entry.value.text.trim(),
     });
   }
 
@@ -206,7 +226,14 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
                       textInputAction: index == lastEditable
                           ? TextInputAction.done
                           : TextInputAction.next,
-                      validator: field.validator,
+                      // Valida e traduz: setes_validators devolve chave i18n
+                      // (.tr() em texto já traduzido devolve o próprio texto).
+                      validator: field.validator == null
+                          ? null
+                          : (value) => field.validator!(value)?.tr(),
+                      inputFormatters: field.mask == null
+                          ? null
+                          : [SetesMaskFormatter(field.mask!)],
                     ),
                   ),
                 const SizedBox(height: 16),

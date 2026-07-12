@@ -452,6 +452,12 @@
       "languageVersion": "3.6"
     },
     {
+      "name": "setes_validators",
+      "rootUri": "../packages/setes_validators",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
       "name": "setes_web",
       "rootUri": "../apps/web",
       "packageUri": "lib/",

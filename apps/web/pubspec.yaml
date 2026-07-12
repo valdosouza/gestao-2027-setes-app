@@ -17,6 +17,9 @@ dependencies:
     path: ../../packages/core
   setes_widgets:
     path: ../../packages/setes_widgets
+  # Validadores/máscaras compartilhados (Fase 2 campos configuráveis, decisão 22)
+  setes_validators:
+    path: ../../packages/setes_validators
   # DI e rotas (decisão 12)
   flutter_modular: ^5.0.3
   # Estado (decisão 12)

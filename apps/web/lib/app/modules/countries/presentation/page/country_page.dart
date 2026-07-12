@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../domain/entity/country_entity.dart';
@@ -26,13 +28,14 @@ class CountryPage extends StatefulWidget {
   State<CountryPage> createState() => _CountryPageState();
 }
 
-class _CountryPageState extends State<CountryPage> {
+class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
   late final CountryBloc _bloc;
 
   @override
   void initState() {
     super.initState();
     _bloc = Modular.get<CountryBloc>()..add(const CountryListRequested(''));
+    loadFieldConfig('countries'); // engine de campos configuráveis (decisão 7)
   }
 
   String? _validateCode(String? value) {
@@ -55,7 +58,7 @@ class _CountryPageState extends State<CountryPage> {
       initialValues: creating
           ? const {}
           : {'id': '${editing.id}', 'name': editing.name ?? ''},
-      fields: [
+      fields: applyFieldConfig([
         RegisterField(
           name:         'id',
           label:        'forms.country.code'.tr(),
@@ -68,7 +71,7 @@ class _CountryPageState extends State<CountryPage> {
           label:     'forms.country.name'.tr(),
           validator: _validateRequired,
         ),
-      ],
+      ], fieldConfig),
       onSave: (values) => _bloc.add(CountrySaveRequested(
         country: CountryEntity(
           id:   int.parse(values['id']!),

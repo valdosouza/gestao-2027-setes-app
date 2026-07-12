@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/state_lookup_entity.dart';
+import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../domain/entity/city_entity.dart';
@@ -30,7 +32,7 @@ class CityPage extends StatefulWidget {
   State<CityPage> createState() => _CityPageState();
 }
 
-class _CityPageState extends State<CityPage> {
+class _CityPageState extends State<CityPage> with FieldConfigLoader {
   late final CityBloc _bloc;
   late final StateLookupDatasource _stateLookup;
 
@@ -43,6 +45,7 @@ class _CityPageState extends State<CityPage> {
     super.initState();
     _bloc = Modular.get<CityBloc>()..add(const CityListRequested(''));
     _stateLookup = Modular.get<StateLookupDatasource>();
+    loadFieldConfig('cities'); // engine de campos configuráveis (decisão 7)
   }
 
   Future<void> _pickState() async {
@@ -125,7 +128,7 @@ class _CityPageState extends State<CityPage> {
               'density':    editing.density != 0 ? '${editing.density}' : '',
               'area':       editing.area != 0 ? '${editing.area}' : '',
             },
-      fields: [
+      fields: applyFieldConfig([
         RegisterField(
           name:         'id',
           label:        'forms.city.code'.tr(),
@@ -173,7 +176,7 @@ class _CityPageState extends State<CityPage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateDecimal,
         ),
-      ],
+      ], fieldConfig),
       onSave: (values) => _bloc.add(CitySaveRequested(
         city: CityEntity(
           id:         int.parse(values['id']!),

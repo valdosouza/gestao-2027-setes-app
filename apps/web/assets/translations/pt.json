@@ -67,6 +67,32 @@
     "cities": "Lista de Cidades"
   },
   "forms": {
+    "validation": {
+      "required": "Campo obrigatório",
+      "minLength": "Tamanho mínimo não atingido",
+      "maxLength": "Tamanho máximo excedido",
+      "onlyDigits": "Somente números",
+      "onlyLetters": "Somente letras",
+      "cpf": "CPF inválido",
+      "cnpj": "CNPJ inválido",
+      "cep": "CEP inválido",
+      "phone": "Telefone inválido",
+      "email": "E-mail inválido",
+      "mask": "Preenchimento incompleto",
+      "alreadyExists": "Já cadastrado em outro registro"
+    },
+    "interfaceFields": {
+      "acquired": "Adquirida",
+      "available": "Disponível para contratação",
+      "notAcquired": "Interface não adquirida no seu pacote — fale com a Setes para contratar",
+      "caption": "Rótulo do campo",
+      "captionHint": "Vazio = rótulo padrão do sistema",
+      "required": "Preenchimento obrigatório",
+      "requiredTech": "Obrigatório pelo sistema (não pode ser desligado)",
+      "mask": "Máscara",
+      "maskHint": "# = número, A = letra — ex.: (##) #-####-####",
+      "saved": "Configuração do campo salva"
+    },
     "entity": {
       "nameCompany": "Razão Social",
       "nickTrade": "Nome Fantasia",
@@ -177,7 +203,8 @@
       "countries": "Países",
       "states": "Estados",
       "cities": "Cidades",
-      "cfop": "CFOP"
+      "cfop": "CFOP",
+      "interface-fields": "Campos das Interfaces"
     },
     "privileges": {
       "view": "Visualizar",

@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../data/datasource/interface_datasource.dart';
@@ -34,7 +36,7 @@ class InterfacePage extends StatefulWidget {
   State<InterfacePage> createState() => _InterfacePageState();
 }
 
-class _InterfacePageState extends State<InterfacePage> {
+class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
   late final InterfaceBloc _bloc;
   late final InterfaceDatasource _datasource;
 
@@ -51,6 +53,7 @@ class _InterfacePageState extends State<InterfacePage> {
     _bloc = Modular.get<InterfaceBloc>()..add(const InterfaceListRequested(''));
     _datasource = Modular.get<InterfaceDatasource>();
     _loadPrivileges();
+    loadFieldConfig('interfaces'); // engine de campos configuráveis (decisão 7)
   }
 
   Future<void> _loadPrivileges() async {
@@ -132,7 +135,7 @@ class _InterfacePageState extends State<InterfacePage> {
               'kind':         editing.kind ?? '',
               'position':     editing.position ?? '',
             },
-      fields: [
+      fields: applyFieldConfig([
         // Código gerado pelo backend (MAX+1): sempre readOnly — vazio na
         // inclusão, preenchido na edição (decisão do Valdo 2026-07-11).
         RegisterField(
@@ -162,7 +165,7 @@ class _InterfacePageState extends State<InterfacePage> {
           name:  'position',
           label: 'forms.interface.position'.tr(),
         ),
-      ],
+      ], fieldConfig),
       extraChildren: _buildPrivilegesSection(),
       onSave: (values) => _bloc.add(InterfaceSaveRequested(
         entity: InterfaceEntity(

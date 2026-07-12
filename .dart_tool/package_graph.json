@@ -2,6 +2,7 @@
   "roots": [
     "core",
     "setes_app_workspace",
+    "setes_validators",
     "setes_web",
     "setes_widgets"
   ],
@@ -46,6 +47,17 @@
       ]
     },
     {
+      "name": "setes_validators",
+      "version": "0.1.0",
+      "dependencies": [
+        "flutter"
+      ],
+      "devDependencies": [
+        "flutter_lints",
+        "flutter_test"
+      ]
+    },
+    {
       "name": "setes_web",
       "version": "0.1.0",
       "dependencies": [
@@ -59,6 +71,7 @@
         "flutter_localizations",
         "flutter_modular",
         "intl",
+        "setes_validators",
         "setes_widgets"
       ],
       "devDependencies": [

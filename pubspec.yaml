@@ -9,4 +9,5 @@ environment:
 workspace:
   - packages/core
   - packages/setes_widgets
+  - packages/setes_validators
   - apps/web

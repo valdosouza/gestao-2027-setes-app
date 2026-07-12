@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/country_lookup_entity.dart';
+import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../domain/entity/state_entity.dart';
@@ -30,7 +32,7 @@ class StatePage extends StatefulWidget {
   State<StatePage> createState() => _StatePageState();
 }
 
-class _StatePageState extends State<StatePage> {
+class _StatePageState extends State<StatePage> with FieldConfigLoader {
   late final StateBloc _bloc;
   late final CountryLookupDatasource _countryLookup;
 
@@ -43,6 +45,7 @@ class _StatePageState extends State<StatePage> {
     super.initState();
     _bloc = Modular.get<StateBloc>()..add(const StateListRequested(''));
     _countryLookup = Modular.get<CountryLookupDatasource>();
+    loadFieldConfig('states'); // engine de campos configuráveis (decisão 7)
   }
 
   Future<void> _pickCountry() async {
@@ -116,7 +119,7 @@ class _StatePageState extends State<StatePage> {
               'name':         editing.name ?? '',
               'aliquota':     editing.aliquota != null ? '${editing.aliquota}' : '',
             },
-      fields: [
+      fields: applyFieldConfig([
         RegisterField(
           name:         'id',
           label:        'forms.state.code'.tr(),
@@ -147,7 +150,7 @@ class _StatePageState extends State<StatePage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateDecimal,
         ),
-      ],
+      ], fieldConfig),
       onSave: (values) => _bloc.add(StateSaveRequested(
         state: StateEntity(
           id:           int.parse(values['id']!),

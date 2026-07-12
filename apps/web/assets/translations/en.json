@@ -67,6 +67,32 @@
     "cities": "List of Cities"
   },
   "forms": {
+    "validation": {
+      "required": "Required field",
+      "minLength": "Minimum length not reached",
+      "maxLength": "Maximum length exceeded",
+      "onlyDigits": "Digits only",
+      "onlyLetters": "Letters only",
+      "cpf": "Invalid CPF",
+      "cnpj": "Invalid CNPJ",
+      "cep": "Invalid postal code",
+      "phone": "Invalid phone number",
+      "email": "Invalid e-mail",
+      "mask": "Incomplete value",
+      "alreadyExists": "Already registered on another record"
+    },
+    "interfaceFields": {
+      "acquired": "Acquired",
+      "available": "Available for purchase",
+      "notAcquired": "Interface not included in your package — contact Setes to purchase",
+      "caption": "Field label",
+      "captionHint": "Empty = system default label",
+      "required": "Required field",
+      "requiredTech": "Required by the system (cannot be turned off)",
+      "mask": "Mask",
+      "maskHint": "# = digit, A = letter — e.g. (##) #-####-####",
+      "saved": "Field configuration saved"
+    },
     "entity": {
       "nameCompany": "Company Name",
       "nickTrade": "Trade Name",
@@ -177,7 +203,8 @@
       "countries": "Countries",
       "states": "States",
       "cities": "Cities",
-      "cfop": "CFOP"
+      "cfop": "CFOP",
+      "interface-fields": "Interface Fields"
     },
     "privileges": {
       "view": "View",

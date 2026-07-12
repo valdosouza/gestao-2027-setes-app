@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../domain/entity/privilege_entity.dart';
@@ -29,13 +31,14 @@ class PrivilegePage extends StatefulWidget {
   State<PrivilegePage> createState() => _PrivilegePageState();
 }
 
-class _PrivilegePageState extends State<PrivilegePage> {
+class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
   late final PrivilegeBloc _bloc;
 
   @override
   void initState() {
     super.initState();
     _bloc = Modular.get<PrivilegeBloc>()..add(const PrivilegeListRequested(''));
+    loadFieldConfig('privileges'); // engine de campos configuráveis (decisão 7)
   }
 
   String? _validateRequired(String? value) =>
@@ -50,7 +53,7 @@ class _PrivilegePageState extends State<PrivilegePage> {
       initialValues: creating
           ? const {}
           : {'id': '${editing.id}', 'description': editing.description ?? ''},
-      fields: [
+      fields: applyFieldConfig([
         // Código gerado pelo backend (MAX+1): sempre readOnly — vazio na
         // inclusão, preenchido na edição (decisão do Valdo 2026-07-11).
         RegisterField(
@@ -63,7 +66,7 @@ class _PrivilegePageState extends State<PrivilegePage> {
           label:     'forms.privilege.description'.tr(),
           validator: _validateRequired,
         ),
-      ],
+      ], fieldConfig),
       onSave: (values) => _bloc.add(PrivilegeSaveRequested(
         privilege: PrivilegeEntity(
           id:          creating ? 0 : editing.id, // ignorado no POST
