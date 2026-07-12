@@ -15,6 +15,7 @@ class SetesTextField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.validator,
+    this.onChanged,
     this.onSubmitted,
     this.prefixIcon,
     this.suffixIcon,
@@ -38,6 +39,9 @@ class SetesTextField extends StatelessWidget {
   /// next nos campos intermediários, done no último (Enter avança no mobile).
   final TextInputAction? textInputAction;
   final String? Function(String?)? validator;
+
+  /// Notifica cada alteração de texto (ex.: abas que editam um draft no bloc).
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final IconData? prefixIcon;
 
@@ -57,6 +61,7 @@ class SetesTextField extends StatelessWidget {
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       validator: validator,
+      onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
       decoration: InputDecoration(
         labelText: label,

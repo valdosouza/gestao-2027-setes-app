@@ -45,7 +45,15 @@
     "filterHint": "Pesquise ou filtre aqui",
     "delete": "Excluir",
     "required": "Campo obrigatório",
+    "requiredField": "Preencha o campo: {}",
     "invalidNumber": "Valor numérico inválido",
+    "invalidDate": "Data inválida",
+    "dateHint": "dd/mm/aaaa",
+    "duplicateKind": "Já existe um item com este tipo",
+    "tabMain": "Principal",
+    "tabAddresses": "Endereços",
+    "tabPhones": "Fones",
+    "tabSocialMedia": "Redes Sociais",
     "listTitle": "Lista de {}",
     "emptyList": "Não encontramos nenhum registro em nossa base.",
     "saved": "Registro salvo",
@@ -59,6 +67,55 @@
     "cities": "Lista de Cidades"
   },
   "forms": {
+    "entity": {
+      "nameCompany": "Razão Social",
+      "nickTrade": "Nome Fantasia",
+      "aniversary": "Aniversário",
+      "personF": "Pessoa Física",
+      "personJ": "Pessoa Jurídica",
+      "cpf": "CPF",
+      "cpfInvalid": "CPF deve ter 11 dígitos",
+      "rg": "RG",
+      "birthday": "Data de Nascimento",
+      "cnpj": "CNPJ",
+      "cnpjInvalid": "CNPJ deve ter 14 dígitos",
+      "ie": "Inscrição Estadual",
+      "im": "Inscrição Municipal",
+      "dtFoundation": "Data de Fundação"
+    },
+    "address": {
+      "dialogTitle": "Endereço",
+      "kind": "Tipo do Endereço",
+      "street": "Logradouro",
+      "nmbr": "Número",
+      "complement": "Complemento",
+      "neighborhood": "Bairro",
+      "zipCode": "CEP",
+      "country": "País",
+      "state": "Estado (UF)",
+      "city": "Cidade",
+      "main": "Endereço Principal",
+      "stateFirst": "Escolha o Estado (UF) antes da Cidade"
+    },
+    "phone": {
+      "dialogTitle": "Fone",
+      "kind": "Tipo do Fone",
+      "contact": "Contato",
+      "number": "Número do Fone"
+    },
+    "socialMedia": {
+      "dialogTitle": "Rede Social",
+      "kind": "Tipo da Rede Social",
+      "link": "Link da Rede Social"
+    },
+    "institution": {
+      "tab": "Estabelecimento",
+      "schemaName": "Schema do Cliente",
+      "schemaNameHint": "setes_<nome>",
+      "schemaNameInvalid": "Schema deve seguir o padrão setes_<nome> (minúsculas, números e _)",
+      "active": "Ativo",
+      "inactive": "Inativo"
+    },
     "interface": {
       "code": "Código da Interface",
       "description": "Descrição da Interface",

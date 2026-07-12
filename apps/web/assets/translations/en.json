@@ -45,7 +45,15 @@
     "filterHint": "Search or filter here",
     "delete": "Delete",
     "required": "Required field",
+    "requiredField": "Fill in the field: {}",
     "invalidNumber": "Invalid numeric value",
+    "invalidDate": "Invalid date",
+    "dateHint": "dd/mm/yyyy",
+    "duplicateKind": "An item with this kind already exists",
+    "tabMain": "Main",
+    "tabAddresses": "Addresses",
+    "tabPhones": "Phones",
+    "tabSocialMedia": "Social Media",
     "listTitle": "List of {}",
     "emptyList": "No records found in our database.",
     "saved": "Record saved",
@@ -59,6 +67,55 @@
     "cities": "List of Cities"
   },
   "forms": {
+    "entity": {
+      "nameCompany": "Company Name",
+      "nickTrade": "Trade Name",
+      "aniversary": "Anniversary",
+      "personF": "Individual",
+      "personJ": "Company",
+      "cpf": "CPF",
+      "cpfInvalid": "CPF must have 11 digits",
+      "rg": "RG",
+      "birthday": "Birth Date",
+      "cnpj": "CNPJ",
+      "cnpjInvalid": "CNPJ must have 14 digits",
+      "ie": "State Registration",
+      "im": "Municipal Registration",
+      "dtFoundation": "Foundation Date"
+    },
+    "address": {
+      "dialogTitle": "Address",
+      "kind": "Address Kind",
+      "street": "Street",
+      "nmbr": "Number",
+      "complement": "Complement",
+      "neighborhood": "Neighborhood",
+      "zipCode": "ZIP Code",
+      "country": "Country",
+      "state": "State",
+      "city": "City",
+      "main": "Main Address",
+      "stateFirst": "Choose the State before the City"
+    },
+    "phone": {
+      "dialogTitle": "Phone",
+      "kind": "Phone Kind",
+      "contact": "Contact",
+      "number": "Phone Number"
+    },
+    "socialMedia": {
+      "dialogTitle": "Social Media",
+      "kind": "Social Media Kind",
+      "link": "Social Media Link"
+    },
+    "institution": {
+      "tab": "Institution",
+      "schemaName": "Client Schema",
+      "schemaNameHint": "setes_<name>",
+      "schemaNameInvalid": "Schema must follow the setes_<name> pattern (lowercase, digits and _)",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
     "interface": {
       "code": "Interface Code",
       "description": "Interface Description",
