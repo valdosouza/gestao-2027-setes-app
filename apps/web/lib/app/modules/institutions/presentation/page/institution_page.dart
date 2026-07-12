@@ -12,11 +12,13 @@ import '../../../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../data/datasource/institution_datasource.dart';
 import '../../domain/entity/object_institution.dart';
 import '../bloc/institution_bloc.dart';
 import '../widget/institution_interfaces_tab.dart';
 import '../widget/institution_tab.dart';
+import '../widget/institution_users_tab.dart';
 
 /// Tela de Estabelecimentos — interface 'institutions' (1 interface =
 /// 1 módulo, ARQUITETURA_MODULOS.md). Primeiro cadastro com cadeia de
@@ -39,6 +41,7 @@ class InstitutionPage extends StatefulWidget {
 class _InstitutionPageState extends State<InstitutionPage> {
   late final InstitutionBloc _bloc;
   late final InstitutionDatasource _datasource;
+  late final UserDatasource _userDatasource;
   late final CountryLookupDatasource _countryLookup;
   late final StateLookupDatasource _stateLookup;
   late final CityLookupDatasource _cityLookup;
@@ -48,9 +51,10 @@ class _InstitutionPageState extends State<InstitutionPage> {
     super.initState();
     _bloc = Modular.get<InstitutionBloc>()
       ..add(const InstitutionListRequested(''));
-    // Aba Interfaces (contrato comercial): CRUD autônomo via datasource,
+    // Abas Interfaces (contrato) e Usuários: CRUD autônomo via datasource,
     // fora do draft do bloc (precedente dos privilégios da tela Interfaces).
     _datasource = Modular.get<InstitutionDatasource>();
+    _userDatasource = Modular.get<UserDatasource>();
     _countryLookup = Modular.get<CountryLookupDatasource>();
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cityLookup = Modular.get<CityLookupDatasource>();
@@ -84,6 +88,7 @@ class _InstitutionPageState extends State<InstitutionPage> {
         creating: state.creating,
         saving: state.saving,
         datasource: _datasource,
+        userDatasource: _userDatasource,
         countryLookup: _countryLookup,
         stateLookup: _stateLookup,
         cityLookup: _cityLookup,
@@ -130,6 +135,7 @@ class _InstitutionFormView extends StatelessWidget {
     required this.creating,
     required this.saving,
     required this.datasource,
+    required this.userDatasource,
     required this.countryLookup,
     required this.stateLookup,
     required this.cityLookup,
@@ -145,6 +151,7 @@ class _InstitutionFormView extends StatelessWidget {
   final bool creating;
   final bool saving;
   final InstitutionDatasource datasource;
+  final UserDatasource userDatasource;
   final CountryLookupDatasource countryLookup;
   final StateLookupDatasource stateLookup;
   final CityLookupDatasource cityLookup;
@@ -223,7 +230,7 @@ class _InstitutionFormView extends StatelessWidget {
         onSave: () => _save(context),
         onDelete: onDelete != null ? () => _confirmDelete(context) : null,
         child: DefaultTabController(
-          length: 6,
+          length: 7,
           child: Column(
             children: [
               TabBar(
@@ -234,6 +241,7 @@ class _InstitutionFormView extends StatelessWidget {
                   Tab(text: 'register.tabSocialMedia'.tr()),
                   Tab(text: 'forms.institution.tab'.tr()),
                   Tab(text: 'forms.institution.tabInterfaces'.tr()),
+                  Tab(text: 'forms.institution.tabUsers'.tr()),
                 ],
               ),
               Expanded(
@@ -272,6 +280,13 @@ class _InstitutionFormView extends StatelessWidget {
                     InstitutionInterfacesTab(
                       institutionId: creating ? null : draft.id,
                       datasource: datasource,
+                    ),
+                    // Usuários do institution (workflow 2026-07-12): lista
+                    // filtrada + botão + com o institution IMPLÍCITO —
+                    // facilita liberar o primeiro admin do cliente.
+                    InstitutionUsersTab(
+                      institutionId: creating ? null : draft.id,
+                      datasource: userDatasource,
                     ),
                   ],
                 ),

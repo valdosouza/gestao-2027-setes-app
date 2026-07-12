@@ -8,6 +8,7 @@ import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
 import '../states/states_module.dart';
+import '../users/users_module.dart';
 import 'presentation/bloc/menu_bloc.dart';
 import 'presentation/content/home_frames.dart';
 import 'presentation/page/home_page.dart';
@@ -46,6 +47,7 @@ class HomeModule extends Module {
             ModuleRoute('/institutions', module: InstitutionsModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
+            ModuleRoute('/users', module: UsersModule()),
           ],
         ),
         // Personalização da identidade visual pelo cliente (decisões 16/27)

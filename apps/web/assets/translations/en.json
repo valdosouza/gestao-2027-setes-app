@@ -147,7 +147,23 @@
       "interfacesNoGroup": "No group",
       "interfacesFilterModule": "Module",
       "interfacesAllModules": "All modules",
-      "interfacesFilterHint": "Filter by interface name"
+      "interfacesFilterHint": "Filter by interface name",
+      "tabUsers": "Users",
+      "usersSaveFirst": "Save the institution first — users are linked to it.",
+      "userDialogTitle": "User Registration"
+    },
+    "user": {
+      "code": "User Code",
+      "name": "Full Name",
+      "nick": "Nickname",
+      "email": "Login E-mail",
+      "password": "Password",
+      "active": "Active user",
+      "kind": "Profile",
+      "institutions": "Institutions (the user can only sign in where an active link exists)",
+      "institutionsSaved": "User links updated",
+      "institutionsSaveFirst": "Save the user first to link institutions.",
+      "passwordKeepHint": "Leave empty to keep the current password"
     },
     "interface": {
       "code": "Interface Code",

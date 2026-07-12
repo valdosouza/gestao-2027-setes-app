@@ -147,7 +147,23 @@
       "interfacesNoGroup": "Sem grupo",
       "interfacesFilterModule": "Módulo",
       "interfacesAllModules": "Todos os módulos",
-      "interfacesFilterHint": "Filtre pelo nome da interface"
+      "interfacesFilterHint": "Filtre pelo nome da interface",
+      "tabUsers": "Usuários",
+      "usersSaveFirst": "Salve o estabelecimento primeiro — os usuários são vinculados a ele.",
+      "userDialogTitle": "Cadastro de Usuário"
+    },
+    "user": {
+      "code": "Código do Usuário",
+      "name": "Nome Completo",
+      "nick": "Apelido",
+      "email": "E-mail de Login",
+      "password": "Senha",
+      "active": "Usuário ativo",
+      "kind": "Perfil",
+      "institutions": "Estabelecimentos (o usuário só consegue entrar onde tiver vínculo ativo)",
+      "institutionsSaved": "Vínculos do usuário atualizados",
+      "institutionsSaveFirst": "Salve o usuário primeiro para vincular os estabelecimentos.",
+      "passwordKeepHint": "Vazio mantém a senha atual"
     },
     "interface": {
       "code": "Código da Interface",

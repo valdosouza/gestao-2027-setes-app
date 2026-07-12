@@ -3,6 +3,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import 'modules/home/home_module.dart';
 import 'shared/field_config/datasource/field_config_datasource.dart';
+import 'shared/users/datasource/user_datasource.dart';
 
 /// Módulo raiz (decisão 12: flutter_modular v5 para rotas e DI).
 /// Auth vem PRONTO do packages/core (decisão 25 — modelo GestaoERPApps):
@@ -17,6 +18,10 @@ class AppModule extends Module {
         // cadastro consulta a config resolvida na montagem — bind global.
         Bind.lazySingleton<FieldConfigDatasource>(
             (i) => FieldConfigDatasourceImpl(client: i.get<ApiClient>())),
+        // Usuários (workflow 2026-07-12): compartilhado entre o módulo users
+        // e a aba Usuários do Estabelecimento — bind global.
+        Bind.lazySingleton<UserDatasource>(
+            (i) => UserDatasourceImpl(client: i.get<ApiClient>())),
         // UserBadge (home): identificação do usuário logado via /api/core/me.
         // Binds próprios no root — os do AuthModule são descartados ao sair de '/'.
         Bind.factory<GetMeUsecase>((i) => GetMeUsecase(

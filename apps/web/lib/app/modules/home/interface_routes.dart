@@ -16,6 +16,7 @@ const Map<String, String> interfaceRoutes = {
   'institutions': '/home/institutions/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
   'interface-fields': '/home/interface-fields/',
+  'users':      '/home/users/',
 };
 
 /// Navega para o módulo da interface clicada no menu, levando o NOME DA
