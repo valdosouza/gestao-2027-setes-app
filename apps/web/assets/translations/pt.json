@@ -136,11 +136,18 @@
     },
     "institution": {
       "tab": "Estabelecimento",
+      "tabInterfaces": "Interfaces",
       "schemaName": "Schema do Cliente",
       "schemaNameHint": "setes_<nome>",
       "schemaNameInvalid": "Schema deve seguir o padrão setes_<nome> (minúsculas, números e _)",
       "active": "Ativo",
-      "inactive": "Inativo"
+      "inactive": "Inativo",
+      "interfacesSaveFirst": "Salve o estabelecimento primeiro — o contrato de interfaces é gravado no schema do cliente, criado no salvar.",
+      "interfacesSaved": "Contrato de interfaces atualizado",
+      "interfacesNoGroup": "Sem grupo",
+      "interfacesFilterModule": "Módulo",
+      "interfacesAllModules": "Todos os módulos",
+      "interfacesFilterHint": "Filtre pelo nome da interface"
     },
     "interface": {
       "code": "Código da Interface",

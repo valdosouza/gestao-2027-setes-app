@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../domain/entity/institution_interface_grant.dart';
 import '../../domain/entity/object_institution.dart';
 
 /// Datasource remoto de Estabelecimento: /api/institutions na setes-api.
@@ -16,6 +17,13 @@ abstract class InstitutionDatasource {
   Future<int> post(ObjectInstitution institution);
   Future<void> put(ObjectInstitution institution);
   Future<void> delete(int id);
+
+  /// Contrato comercial de interfaces (aba Interfaces — decisão 23: o Super
+  /// informa o institutionId ALVO; endpoints do admin permanecem).
+  Future<List<InstitutionInterfaceGrant>> getInterfaces(int institutionId);
+
+  /// Sincroniza o contrato: concede a lista, revoga (soft) as demais.
+  Future<void> setInterfaces(int institutionId, List<int> interfaceIds);
 }
 
 class InstitutionDatasourceImpl implements InstitutionDatasource {
@@ -56,5 +64,23 @@ class InstitutionDatasourceImpl implements InstitutionDatasource {
   @override
   Future<void> delete(int id) async {
     await client.delete('/api/institutions/$id');
+  }
+
+  @override
+  Future<List<InstitutionInterfaceGrant>> getInterfaces(
+      int institutionId) async {
+    final json =
+        await client.get('/api/admin/institutions/$institutionId/interfaces');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) =>
+            InstitutionInterfaceGrant.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> setInterfaces(int institutionId, List<int> interfaceIds) async {
+    await client.put('/api/admin/institutions/$institutionId/interfaces',
+        {'interfaceIds': interfaceIds});
   }
 }

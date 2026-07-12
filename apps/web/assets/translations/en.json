@@ -136,11 +136,18 @@
     },
     "institution": {
       "tab": "Institution",
+      "tabInterfaces": "Interfaces",
       "schemaName": "Client Schema",
       "schemaNameHint": "setes_<name>",
       "schemaNameInvalid": "Schema must follow the setes_<name> pattern (lowercase, digits and _)",
       "active": "Active",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "interfacesSaveFirst": "Save the institution first — the interface contract is stored in the client schema, created on save.",
+      "interfacesSaved": "Interface contract updated",
+      "interfacesNoGroup": "No group",
+      "interfacesFilterModule": "Module",
+      "interfacesAllModules": "All modules",
+      "interfacesFilterHint": "Filter by interface name"
     },
     "interface": {
       "code": "Interface Code",
