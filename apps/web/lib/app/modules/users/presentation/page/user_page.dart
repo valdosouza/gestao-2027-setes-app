@@ -14,6 +14,7 @@ import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 import '../bloc/user_bloc.dart';
 import '../widget/user_institutions_section.dart';
+import '../widget/user_privileges_section.dart';
 
 /// Tela de Usuários — interface 'users' (1 interface = 1 módulo,
 /// ARQUITETURA_MODULOS.md). Grava a cadeia do LOGIN (análise do módulo
@@ -137,20 +138,41 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           value: _active,
           onChanged: (checked) => setState(() => _active = checked ?? true),
         ),
-        // Vínculos multi-institution: exclusivos do SUPER. Para o admin do
-        // cliente o institution é implícito (workflow 2026-07-12): o POST
-        // já vincula à institution logada — nada a mostrar.
-        if (_isSuper)
-          if (creating)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: SetesText('forms.user.institutionsSaveFirst'.tr()),
-            )
-          else
-            UserInstitutionsSection(
-              userId: editing.id!,
-              datasource: _datasource,
-            ),
+      ],
+      // Duas abas (pedido do Valdo 2026-07-12): Dados do Usuário ×
+      // Permissões (vínculos com estabelecimentos + privilégios de acesso).
+      mainTabLabel: 'forms.user.tabData'.tr(),
+      extraTabs: [
+        RegisterTab(
+          label: 'forms.user.tabPermissions'.tr(),
+          child: creating
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child:
+                        SetesText('forms.user.permissionsSaveFirst'.tr()),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Vínculos multi-institution: exclusivos do SUPER —
+                    // para o admin o institution é implícito (o POST já
+                    // vincula à institution logada).
+                    if (_isSuper)
+                      UserInstitutionsSection(
+                        userId: editing.id!,
+                        datasource: _datasource,
+                      ),
+                    // ACL (workflow 2026-07-12): vale p/ usuário REGULAR.
+                    UserPrivilegesSection(
+                      userId: editing.id!,
+                      datasource: _datasource,
+                      isSuper: _isSuper,
+                    ),
+                  ],
+                ),
+        ),
       ],
       onSave: (values) => _bloc.add(UserSaveRequested(
         user: UserEntity(

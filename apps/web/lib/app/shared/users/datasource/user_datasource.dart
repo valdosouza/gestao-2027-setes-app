@@ -19,6 +19,17 @@ abstract class UserDatasource {
   Future<void> put(UserEntity user);
   Future<void> delete(int id);
 
+  /// Privilégios de acesso do usuário no institution alvo (ACL —
+  /// workflow 2026-07-12). [institutionId] obrigatório para o super;
+  /// admin do cliente é forçado ao JWT (pode omitir).
+  Future<List<UserInterfacePrivileges>> getPrivileges(int userId,
+      {int? institutionId});
+
+  /// Sincroniza os privilégios de UMA interface (concede a lista, revoga o
+  /// resto; VISUALIZAR decide o menu do usuário regular).
+  Future<void> setPrivileges(int userId, int interfaceId,
+      List<int> privilegeIds, {int? institutionId});
+
   /// Vínculos multi-institution (EXCLUSIVO do super — 403 para admin).
   Future<List<UserInstitutionGrant>> getInstitutions(int userId);
 
@@ -69,6 +80,26 @@ class UserDatasourceImpl implements UserDatasource {
   @override
   Future<void> delete(int id) async {
     await client.delete('/api/users/$id');
+  }
+
+  @override
+  Future<List<UserInterfacePrivileges>> getPrivileges(int userId,
+      {int? institutionId}) async {
+    final query = institutionId != null ? '?institutionId=$institutionId' : '';
+    final json = await client.get('/api/users/$userId/privileges$query');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => UserInterfacePrivileges.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> setPrivileges(int userId, int interfaceId,
+      List<int> privilegeIds, {int? institutionId}) async {
+    await client.put('/api/users/$userId/privileges/$interfaceId', {
+      if (institutionId != null) 'institutionId': institutionId,
+      'privilegeIds': privilegeIds,
+    });
   }
 
   @override

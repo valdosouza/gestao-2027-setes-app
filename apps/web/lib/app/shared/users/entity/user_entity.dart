@@ -12,6 +12,7 @@ class UserListItem {
     this.name,
     this.email,
     this.active = true,
+    this.kind,
   });
 
   factory UserListItem.fromJson(Map<String, dynamic> json) => UserListItem(
@@ -19,12 +20,16 @@ class UserListItem {
         name:   json['name'] as String?,
         email:  json['email'] as String?,
         active: json['active'] == 'S',
+        kind:   json['kind'] as String?,
       );
 
   final int id;
   final String? name;
   final String? email;
   final bool active;
+
+  /// Perfil do vínculo com o institution do filtro (aba do Estabelecimento).
+  final String? kind;
 }
 
 /// Usuário completo (GET /api/users/:id) + payload do POST/PUT.
@@ -62,6 +67,77 @@ class UserEntity {
         if (password != null && password!.isNotEmpty) 'password': password,
         'active':      active ? 'S' : 'N',
       };
+}
+
+/// Um privilégio do catálogo da interface + concessão ao usuário
+/// (ACL — workflow 2026-07-12).
+class UserPrivilegeGrant {
+  const UserPrivilegeGrant({
+    required this.privilegeId,
+    this.description,
+    this.granted = false,
+  });
+
+  factory UserPrivilegeGrant.fromJson(Map<String, dynamic> json) =>
+      UserPrivilegeGrant(
+        privilegeId: (json['privilegeId'] as num).toInt(),
+        description: json['description'] as String?,
+        granted:     json['granted'] == 'S',
+      );
+
+  final int privilegeId;
+  final String? description;
+  final bool granted;
+
+  UserPrivilegeGrant copyWith({bool? granted}) => UserPrivilegeGrant(
+        privilegeId: privilegeId,
+        description: description,
+        granted: granted ?? this.granted,
+      );
+}
+
+/// Interface CONTRATADA pelo institution alvo + privilégios do catálogo
+/// com a concessão ao usuário (tela de Privilégios de Acesso).
+class UserInterfacePrivileges {
+  const UserInterfacePrivileges({
+    required this.interfaceId,
+    this.description,
+    this.i18nKey,
+    this.groupDefault,
+    this.moduleNames,
+    this.privileges = const [],
+  });
+
+  factory UserInterfacePrivileges.fromJson(Map<String, dynamic> json) =>
+      UserInterfacePrivileges(
+        interfaceId:  (json['interfaceId'] as num).toInt(),
+        description:  json['description'] as String?,
+        i18nKey:      json['i18nKey'] as String?,
+        groupDefault: json['groupDefault'] as String?,
+        moduleNames:  json['moduleNames'] as String?,
+        privileges: (json['privileges'] as List<dynamic>? ?? [])
+            .map((e) => UserPrivilegeGrant.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final int interfaceId;
+  final String? description;
+  final String? i18nKey;
+  final String? groupDefault;
+
+  /// Módulos do cliente que contêm a interface — filtro da tela.
+  final String? moduleNames;
+  final List<UserPrivilegeGrant> privileges;
+
+  UserInterfacePrivileges copyWith({List<UserPrivilegeGrant>? privileges}) =>
+      UserInterfacePrivileges(
+        interfaceId: interfaceId,
+        description: description,
+        i18nKey: i18nKey,
+        groupDefault: groupDefault,
+        moduleNames: moduleNames,
+        privileges: privileges ?? this.privileges,
+      );
 }
 
 /// Linha da seção Estabelecimentos: catálogo + situação do vínculo

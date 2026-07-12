@@ -78,7 +78,7 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
     }
   }
 
-  /// Clique na linha: edição básica (nome/apelido/email/senha/ativo).
+  /// Clique na linha: edição básica (nome/apelido/email/senha/ativo/perfil).
   Future<void> _editUser(UserListItem item) async {
     final saved = await showDialog<bool>(
       context: context,
@@ -86,6 +86,7 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
         institutionId: widget.institutionId!,
         datasource: widget.datasource,
         editingId: item.id,
+        initialKind: item.kind,
       ),
     );
     if (saved == true) {
@@ -125,6 +126,8 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
                   title: SetesText(user.name ?? ''),
                   subtitle: SetesText([
                     user.email ?? '',
+                    // Perfil do vínculo com ESTE institution (kind)
+                    '${'forms.user.kind'.tr()}: ${user.kind ?? '-'}',
                     user.active
                         ? 'forms.institution.active'.tr()
                         : 'forms.institution.inactive'.tr(),
@@ -139,17 +142,24 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
 
 /// Dialog do cadastro de usuário chamado pela aba — o institution já é
 /// conhecido: inclusão faz POST com institutionId+kind (vínculo na mesma
-/// transação); edição carrega o completo e faz PUT (senha vazia mantém).
+/// transação); edição carrega o completo, faz PUT (senha vazia mantém) e,
+/// se o PERFIL mudou, sincroniza o vínculo deste institution (a aba é do
+/// Super — setInstitutions preserva os demais vínculos do usuário).
+/// Perfil 'super' não é editável aqui (exclusivo da tela de Usuários).
 class _UserDialog extends StatefulWidget {
   const _UserDialog({
     required this.institutionId,
     required this.datasource,
     this.editingId,
+    this.initialKind,
   });
 
   final int institutionId;
   final UserDatasource datasource;
   final int? editingId;
+
+  /// Perfil atual do vínculo (edição) — null na inclusão.
+  final String? initialKind;
 
   @override
   State<_UserDialog> createState() => _UserDialogState();
@@ -161,16 +171,21 @@ class _UserDialogState extends State<_UserDialog> {
   final _nick  = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  String _kind = 'admin'; // objetivo da aba: liberar o primeiro admin
+  late String _kind;
   bool _active = true;
   bool _loading = false;
   bool _saving = false;
 
   bool get _creating => widget.editingId == null;
 
+  /// 'super' não se edita pela aba — dropdown escondido nesse caso.
+  bool get _kindEditable => _creating || _kinds.contains(widget.initialKind);
+
   @override
   void initState() {
     super.initState();
+    // Inclusão: objetivo da aba é liberar o primeiro admin do cliente.
+    _kind = _creating ? 'admin' : (widget.initialKind ?? 'user');
     if (!_creating) _loadUser();
   }
 
@@ -219,6 +234,22 @@ class _UserDialogState extends State<_UserDialog> {
             institutionId: widget.institutionId, kind: _kind);
       } else {
         await widget.datasource.put(user);
+        // Perfil mudou → sincroniza SÓ o vínculo deste institution,
+        // preservando os demais (a aba é do Super — endpoint de vínculos).
+        if (_kindEditable && _kind != widget.initialKind) {
+          final grants =
+              await widget.datasource.getInstitutions(widget.editingId!);
+          await widget.datasource.setInstitutions(widget.editingId!, [
+            for (final g in grants)
+              if (g.granted)
+                (
+                  institutionId: g.institutionId,
+                  kind: g.institutionId == widget.institutionId
+                      ? _kind
+                      : (g.kind ?? 'user'),
+                ),
+          ]);
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } on Failure catch (failure) {
@@ -248,7 +279,9 @@ class _UserDialogState extends State<_UserDialog> {
               ? const SetesCircularProgressIndicator()
               : Form(
                   key: _formKey,
-                  child: Column(
+                  // Scroll: garante o campo Perfil visível em janela baixa.
+                  child: SingleChildScrollView(
+                      child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SetesTextField(
@@ -289,13 +322,22 @@ class _UserDialogState extends State<_UserDialog> {
                             : SetesValidators.minLength(5)),
                       ),
                       const SizedBox(height: 8),
-                      if (_creating)
+                      // Perfil do vínculo com ESTE institution: editável na
+                      // inclusão E na edição; 'super' fica de fora da aba
+                      // (exclusivo da tela de Usuários do módulo Super).
+                      if (_kindEditable)
                         SetesDropdown<String>(
                           label: 'forms.user.kind'.tr(),
-                          value: _kind,
+                          value: _kinds.contains(_kind) ? _kind : 'user',
                           items: _kinds,
                           onChanged: (kind) =>
                               setState(() => _kind = kind ?? 'admin'),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: SetesText(
+                              '${'forms.user.kind'.tr()}: ${widget.initialKind ?? '-'}'),
                         ),
                       SetesCheckbox(
                         label: 'forms.user.active'.tr(),
@@ -306,6 +348,7 @@ class _UserDialogState extends State<_UserDialog> {
                     ],
                   ),
                 ),
+              ),
         ),
         actions: [
           SetesButton(

@@ -67,6 +67,16 @@ class RegisterField {
   final String? validatorMessage;
 }
 
+/// Aba extra do formulário (ex.: "Permissões" no cadastro de Usuário —
+/// pedido do Valdo 2026-07-12). O conteúdo é responsabilidade da página
+/// (rolagem própria); o estado deve viver na página/seções autônomas.
+class RegisterTab {
+  const RegisterTab({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+}
+
 /// Fábrica de cadastros (decisão 20) — formulário no contrato visual do
 /// customer_register (skill criar-formulario-cadastro.md) via [SetesFormShell].
 ///
@@ -74,6 +84,10 @@ class RegisterField {
 /// operações. [onSave]/[onDelete] apenas DISPARAM eventos no bloc do módulo;
 /// sucesso/erro viram SnackBar no BlocListener da página. O flag [saving]
 /// vem do estado do bloc e desabilita as ações.
+///
+/// Com [extraTabs], o form vira TabBar/TabBarView: os campos ficam na aba
+/// principal (mantida VIVA via keep-alive — o salvar valida o Form mesmo
+/// com outra aba aberta) e cada RegisterTab vira uma aba própria.
 class RegisterFormPage extends StatefulWidget {
   const RegisterFormPage({
     required this.title,
@@ -86,6 +100,8 @@ class RegisterFormPage extends StatefulWidget {
     this.canDelete = false,
     this.saving = false,
     this.extraChildren = const <Widget>[],
+    this.extraTabs = const <RegisterTab>[],
+    this.mainTabLabel,
     super.key,
   });
 
@@ -113,6 +129,13 @@ class RegisterFormPage extends StatefulWidget {
   /// privilégios na tela de Interfaces). O estado desses widgets vive na
   /// PÁGINA do módulo (como o id do lookup) — nunca nos values do onSave.
   final List<Widget> extraChildren;
+
+  /// Abas ALÉM da principal (campos + extraChildren). Vazio = layout de
+  /// aba única (comportamento original, sem TabBar).
+  final List<RegisterTab> extraTabs;
+
+  /// Rótulo da aba principal quando há [extraTabs] (default register.tabMain).
+  final String? mainTabLabel;
 
   @override
   State<RegisterFormPage> createState() => _RegisterFormPageState();
@@ -190,6 +213,53 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     final firstEditable = editableIndexes.isEmpty ? -1 : editableIndexes.first;
     final lastEditable = editableIndexes.isEmpty ? -1 : editableIndexes.last;
 
+    final formContent = Form(
+      key: _formKey,
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            for (final (index, field) in widget.fields.indexed) ...[
+              if (field.isLookup)
+                // FK: readOnly e fora do Tab (SetesLookupField já exclui).
+                SetesLookupField(
+                  label: field.label,
+                  display: field.display,
+                  onSearch: field.onPick ?? () {},
+                  validatorMessage: field.validatorMessage,
+                )
+              else
+                FocusTraversalOrder(
+                  order: NumericFocusOrder(index.toDouble()),
+                  child: SetesTextField(
+                    label: field.label,
+                    controller: _controllers[field.name],
+                    obscureText: field.obscure,
+                    readOnly: field.readOnly,
+                    autofocus: index == firstEditable,
+                    keyboardType: field.keyboardType,
+                    textInputAction: index == lastEditable
+                        ? TextInputAction.done
+                        : TextInputAction.next,
+                    // Valida e traduz: setes_validators devolve chave i18n
+                    // (.tr() em texto já traduzido devolve o próprio texto).
+                    validator: field.validator == null
+                        ? null
+                        : (value) => field.validator!(value)?.tr(),
+                    inputFormatters: field.mask == null
+                        ? null
+                        : [SetesMaskFormatter(field.mask!)],
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],
+            ...widget.extraChildren,
+          ],
+        ),
+      ),
+    );
+
     return SetesFormShell(
       title: widget.title,
       saving: widget.saving,
@@ -197,52 +267,53 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
       onSave: widget.canSave ? _save : null,
       onDelete:
           widget.canDelete && widget.onDelete != null ? _confirmDelete : null,
-      child: Form(
-        key: _formKey,
-        child: FocusTraversalGroup(
-          policy: OrderedTraversalPolicy(),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              for (final (index, field) in widget.fields.indexed) ...[
-                if (field.isLookup)
-                  // FK: readOnly e fora do Tab (SetesLookupField já exclui).
-                  SetesLookupField(
-                    label: field.label,
-                    display: field.display,
-                    onSearch: field.onPick ?? () {},
-                    validatorMessage: field.validatorMessage,
-                  )
-                else
-                  FocusTraversalOrder(
-                    order: NumericFocusOrder(index.toDouble()),
-                    child: SetesTextField(
-                      label: field.label,
-                      controller: _controllers[field.name],
-                      obscureText: field.obscure,
-                      readOnly: field.readOnly,
-                      autofocus: index == firstEditable,
-                      keyboardType: field.keyboardType,
-                      textInputAction: index == lastEditable
-                          ? TextInputAction.done
-                          : TextInputAction.next,
-                      // Valida e traduz: setes_validators devolve chave i18n
-                      // (.tr() em texto já traduzido devolve o próprio texto).
-                      validator: field.validator == null
-                          ? null
-                          : (value) => field.validator!(value)?.tr(),
-                      inputFormatters: field.mask == null
-                          ? null
-                          : [SetesMaskFormatter(field.mask!)],
+      child: widget.extraTabs.isEmpty
+          ? formContent
+          : DefaultTabController(
+              length: 1 + widget.extraTabs.length,
+              child: Column(
+                children: [
+                  TabBar(
+                    tabs: [
+                      Tab(text: widget.mainTabLabel ?? 'register.tabMain'.tr()),
+                      for (final tab in widget.extraTabs) Tab(text: tab.label),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // Keep-alive: o Form continua montado (e validável
+                        // pelo check do shell) com outra aba aberta.
+                        _KeepAlive(child: formContent),
+                        ...widget.extraTabs.map((tab) => tab.child),
+                      ],
                     ),
                   ),
-                const SizedBox(height: 16),
-              ],
-              ...widget.extraChildren,
-            ],
-          ),
-        ),
-      ),
+                ],
+              ),
+            ),
     );
+  }
+}
+
+/// Mantém a aba principal viva no TabBarView (AutomaticKeepAlive).
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

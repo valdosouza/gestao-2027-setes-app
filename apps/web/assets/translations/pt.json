@@ -163,7 +163,16 @@
       "institutions": "Estabelecimentos (o usuário só consegue entrar onde tiver vínculo ativo)",
       "institutionsSaved": "Vínculos do usuário atualizados",
       "institutionsSaveFirst": "Salve o usuário primeiro para vincular os estabelecimentos.",
-      "passwordKeepHint": "Vazio mantém a senha atual"
+      "passwordKeepHint": "Vazio mantém a senha atual",
+      "privilegesTitle": "Privilégios de Acesso (usuário regular: o menu mostra só as interfaces com Visualizar)",
+      "privilegesInstitution": "Estabelecimento",
+      "privilegesLinkFirst": "Vincule o usuário a um estabelecimento antes de definir privilégios.",
+      "privilegesNone": "Sem acesso",
+      "privilegesSaved": "Privilégios atualizados",
+      "privilegesVisualizarHint": "Marcar qualquer privilégio inclui Visualizar — sem ele a interface não aparece no menu.",
+      "tabData": "Dados do Usuário",
+      "tabPermissions": "Permissões",
+      "permissionsSaveFirst": "Salve o usuário primeiro — as permissões são liberadas após o cadastro."
     },
     "interface": {
       "code": "Código da Interface",

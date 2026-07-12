@@ -163,7 +163,16 @@
       "institutions": "Institutions (the user can only sign in where an active link exists)",
       "institutionsSaved": "User links updated",
       "institutionsSaveFirst": "Save the user first to link institutions.",
-      "passwordKeepHint": "Leave empty to keep the current password"
+      "passwordKeepHint": "Leave empty to keep the current password",
+      "privilegesTitle": "Access Privileges (regular user: the menu shows only interfaces with View)",
+      "privilegesInstitution": "Institution",
+      "privilegesLinkFirst": "Link the user to an institution before setting privileges.",
+      "privilegesNone": "No access",
+      "privilegesSaved": "Privileges updated",
+      "privilegesVisualizarHint": "Checking any privilege also grants View — without it the interface is hidden from the menu.",
+      "tabData": "User Data",
+      "tabPermissions": "Permissions",
+      "permissionsSaveFirst": "Save the user first — permissions are enabled after registration."
     },
     "interface": {
       "code": "Interface Code",
