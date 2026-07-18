@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/entity/data/entity_by_document_datasource.dart';
 import '../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
@@ -45,6 +46,9 @@ class InstitutionsModule extends Module {
               put:     i.get<InstitutionPut>(),
               delete:  i.get<InstitutionDelete>(),
             )),
+        // Prefill by-document na criação (Fase 3, decisões 3, 9 e 10)
+        Bind.lazySingleton<EntityByDocumentDatasource>(
+            (i) => EntityByDocumentDatasourceImpl(client: i.get<ApiClient>())),
         // Lookups (shared) — FKs da aba de Endereços (campo-lookup-fk.md)
         Bind.lazySingleton<CountryLookupDatasource>(
             (i) => CountryLookupDatasourceImpl(client: i.get<ApiClient>())),

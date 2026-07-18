@@ -2,8 +2,11 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../cities/cities_module.dart';
+import '../collaborators/collaborators_module.dart';
 import '../countries/countries_module.dart';
+import '../customers/customers_module.dart';
 import '../institutions/institutions_module.dart';
+import '../interface_configs/interface_configs_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
@@ -45,8 +48,14 @@ class HomeModule extends Module {
             ModuleRoute('/interfaces', module: InterfacesModule()),
             ModuleRoute('/privileges', module: PrivilegesModule()),
             ModuleRoute('/institutions', module: InstitutionsModule()),
+            // Fase 3 Entidade Única — primeiro papel novo (Customer)
+            ModuleRoute('/customers', module: CustomersModule()),
+            // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)
+            ModuleRoute('/collaborators', module: CollaboratorsModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
+            // Painel de configurações do sistema (Framework de Configurações)
+            ModuleRoute('/interface-configs', module: InterfaceConfigsModule()),
             ModuleRoute('/users', module: UsersModule()),
           ],
         ),

@@ -197,6 +197,8 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
 
   Widget _buildSearch(UserListState state) => RegisterSearchPage<UserListItem>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'users',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (u) => '${u.id}',

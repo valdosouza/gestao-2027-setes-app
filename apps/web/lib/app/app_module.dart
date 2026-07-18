@@ -3,6 +3,8 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import 'modules/home/home_module.dart';
 import 'shared/field_config/datasource/field_config_datasource.dart';
+import 'shared/interface_config/datasource/interface_config_datasource.dart';
+import 'shared/session/session_context.dart';
 import 'shared/users/datasource/user_datasource.dart';
 
 /// Módulo raiz (decisão 12: flutter_modular v5 para rotas e DI).
@@ -18,6 +20,13 @@ class AppModule extends Module {
         // cadastro consulta a config resolvida na montagem — bind global.
         Bind.lazySingleton<FieldConfigDatasource>(
             (i) => FieldConfigDatasourceImpl(client: i.get<ApiClient>())),
+        // Engine de CONFIGURAÇÕES do sistema (Framework de Configurações,
+        // decisão 4): config resolvida usuário → institution → default.
+        Bind.lazySingleton<InterfaceConfigDatasource>(
+            (i) => InterfaceConfigDatasourceImpl(client: i.get<ApiClient>())),
+        // SessionContext único (decisão 17 — fim das GB_* do Delphi):
+        // preenchido na entrada da Home, somente leitura para as telas.
+        Bind.singleton<SessionContext>((_) => SessionContext()),
         // Usuários (workflow 2026-07-12): compartilhado entre o módulo users
         // e a aba Usuários do Estabelecimento — bind global.
         Bind.lazySingleton<UserDatasource>(

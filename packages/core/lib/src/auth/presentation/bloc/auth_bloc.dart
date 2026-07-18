@@ -93,10 +93,14 @@ class AuthNeedsSelection extends AuthState {
 
 /// JWT final emitido — direto para a home.
 class AuthAuthenticated extends AuthState {
-  const AuthAuthenticated({required this.token});
+  const AuthAuthenticated({required this.token, this.context});
   final String token;
+
+  /// Bloco `context` do login (decisão 17 — estado de sessão derivado).
+  /// null no fluxo de seleção/refresh: o app re-hidrata via /api/core/me.
+  final Map<String, dynamic>? context;
   @override
-  List<Object?> get props => [token];
+  List<Object?> get props => [token, context];
 }
 
 class AuthError extends AuthState {
@@ -172,7 +176,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           emit(AuthNeedsSelection(session: session, defaultInstitutionId: defaultId));
         } else {
           await _setSession(session.token!);
-          emit(AuthAuthenticated(token: session.token!));
+          emit(AuthAuthenticated(token: session.token!, context: session.context));
         }
       },
     );

@@ -1,5 +1,7 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 /// Fábrica de cadastros (decisão 20 — composição + genéricos, não herança):
@@ -24,10 +26,27 @@ class RegisterSearchPage<T> extends StatefulWidget {
     this.avatarBuilder,
     this.canView = true,
     this.onNew,
+    this.actions,
+    this.banner,
+    this.configModuleKey,
     super.key,
   });
 
   final String title;
+
+  /// Ações extras do AppBar da lista. null = sem ações.
+  final List<Widget>? actions;
+
+  /// PADRÃO do produto (Framework de Configurações, decisão 11): toda lista
+  /// de cadastro informa a CHAVE do seu módulo e ganha a engrenagem no
+  /// AppBar — mesmo sem configurações no catálogo (o painel mostra "não há
+  /// configurações"). Abre /home/interface-configs/ já filtrado na
+  /// interface; o voltar do painel retorna para ESTA tela (returnTo).
+  final String? configModuleKey;
+
+  /// Widget informativo entre o filtro e a lista (ex.: aviso de filtro de
+  /// carteira travado — piloto da decisão 15). null = sem banner.
+  final Widget? banner;
 
   /// Itens prontos, vindos do estado do bloc.
   final List<T> items;
@@ -61,6 +80,17 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
   final _filter = TextEditingController();
 
   void _search() => widget.onFilterChanged(_filter.text.trim());
+
+  /// Engrenagem padrão (decisão 11): painel filtrado no módulo; o retorno
+  /// SEM arguments faz o módulo chamador recair no título trCatalog padrão.
+  void _openConfigs() {
+    Modular.to.navigate('/home/interface-configs/', arguments: {
+      'title': trCatalog('interface-configs', 'Interface Configs',
+          prefix: 'menu.interfaces'),
+      'moduleKey': widget.configModuleKey,
+      'returnTo': Modular.to.path,
+    });
+  }
 
   @override
   void dispose() {
@@ -97,6 +127,15 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(widget.title),
+          actions: [
+            ...?widget.actions,
+            if (widget.configModuleKey != null)
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'register.configTooltip'.tr(),
+                onPressed: _openConfigs,
+              ),
+          ],
         ),
         floatingActionButton: widget.onNew != null
             ? FloatingActionButton(
@@ -117,6 +156,10 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
                 onSuffixPressed: _search,
                 onSubmitted: (_) => _search(),
               ),
+              if (widget.banner != null) ...[
+                const SizedBox(height: 8),
+                widget.banner!,
+              ],
               const SizedBox(height: 16),
               Expanded(child: _buildList()),
             ],

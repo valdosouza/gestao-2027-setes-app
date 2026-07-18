@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../domain/entity/interface_config_catalog_entity.dart';
 import '../../domain/entity/interface_entity.dart';
 import '../../domain/entity/privilege_entity.dart';
 
@@ -13,6 +14,12 @@ abstract class InterfaceDatasource {
 
   /// Lista de apoio dos checkboxes de privilégios (tb_privilege).
   Future<List<PrivilegeEntity>> getPrivileges();
+
+  /// Catálogo de CONFIGURAÇÕES da interface (Framework de Configurações,
+  /// decisões 6 e 7 — seção "Configurações", CRUD autônomo na edição).
+  Future<List<InterfaceConfigCatalogEntity>> getConfigs(int interfaceId);
+  Future<void> saveConfig(int interfaceId, InterfaceConfigCatalogEntity config);
+  Future<void> deleteConfig(int interfaceId, String name);
 }
 
 class InterfaceDatasourceImpl implements InterfaceDatasource {
@@ -63,5 +70,27 @@ class InterfaceDatasourceImpl implements InterfaceDatasource {
     return data
         .map((e) => PrivilegeEntity.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<List<InterfaceConfigCatalogEntity>> getConfigs(int interfaceId) async {
+    final json = await client.get('/api/interfaces/$interfaceId/configs');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) =>
+            InterfaceConfigCatalogEntity.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> saveConfig(
+      int interfaceId, InterfaceConfigCatalogEntity config) async {
+    await client.put(
+        '/api/interfaces/$interfaceId/configs/${config.name}', config.toJson());
+  }
+
+  @override
+  Future<void> deleteConfig(int interfaceId, String name) async {
+    await client.delete('/api/interfaces/$interfaceId/configs/$name');
   }
 }

@@ -171,6 +171,8 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
 
   Widget _buildSearch(StateListState state) => RegisterSearchPage<StateEntity>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'states',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (s) => '${s.id}', // código IBGE da UF

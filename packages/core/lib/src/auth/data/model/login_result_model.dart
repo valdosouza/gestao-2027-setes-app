@@ -4,7 +4,12 @@ import '../../domain/entity/institution_option.dart';
 /// Model do POST /auth/login (contrato da Fase 2 do setes-api):
 /// `{ ok, token }` OU `{ ok, select: true, selectionToken, institutions: [...] }`
 class LoginResultModel extends AuthSession {
-  const LoginResultModel({super.token, super.selectionToken, super.institutions});
+  const LoginResultModel({
+    super.token,
+    super.selectionToken,
+    super.institutions,
+    super.context,
+  });
 
   factory LoginResultModel.fromJson(Map<String, dynamic> json) {
     if (json['select'] == true) {
@@ -16,7 +21,11 @@ class LoginResultModel extends AuthSession {
         institutions: list,
       );
     }
-    return LoginResultModel(token: json['token'] as String?);
+    return LoginResultModel(
+      token: json['token'] as String?,
+      // Estado de sessão derivado (decisão 17) — acompanha o token final.
+      context: json['context'] as Map<String, dynamic>?,
+    );
   }
 
   static LoginResultModel empty() => const LoginResultModel();

@@ -2,7 +2,7 @@ import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
-import '../../domain/entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../../domain/repository/interface_fields_repository.dart';
 import '../datasource/interface_fields_datasource.dart';
 

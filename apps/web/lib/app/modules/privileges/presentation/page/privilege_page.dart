@@ -85,6 +85,8 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
   Widget _buildSearch(PrivilegeListState state) =>
       RegisterSearchPage<PrivilegeEntity>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'privileges',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (p) => '${p.id}',

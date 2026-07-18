@@ -200,6 +200,8 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
 
   Widget _buildSearch(CityListState state) => RegisterSearchPage<CityEntity>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'cities',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (c) => '${c.id}', // código IBGE do município

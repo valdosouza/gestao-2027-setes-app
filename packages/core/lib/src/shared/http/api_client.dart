@@ -65,6 +65,9 @@ class ApiClient {
       throw Failure(
         message: (json['error'] as String?) ?? 'Erro ${response.statusCode}',
         statusCode: response.statusCode,
+        fields: (json['fields'] as List<dynamic>? ?? [])
+            .map((e) => FailureField.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
     }
     return json;

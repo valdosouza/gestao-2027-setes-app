@@ -1,7 +1,7 @@
 import 'package:core/core.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
-import '../../domain/entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 
 /// Datasource do painel de campos configuráveis: /api/interface-fields.
 /// Módulo do CLIENTE (decisão 9 — privilégio da tela, sem super).

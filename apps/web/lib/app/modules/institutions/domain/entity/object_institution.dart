@@ -51,9 +51,11 @@ class ObjectInstitution extends ObjectEntityFiscal {
     super.personType,
     super.person,
     super.company,
+    super.noDoc,
   });
 
-  /// null = inclusão (id nasce MAX+1 de tb_entity no backend).
+  /// null = inclusão (id nasce MAX+1 de tb_entity no backend; com CPF/CNPJ
+  /// já conhecido a API REAPROVEITA a entity — Fase 3, decisão 9).
   final int?   id;
   final String schemaName;
   final bool   active;
@@ -73,6 +75,9 @@ class ObjectInstitution extends ObjectEntityFiscal {
           : null,
       company: json['company'] != null
           ? CompanyData.fromJson(json['company'] as Map<String, dynamic>)
+          : null,
+      noDoc: json['noDoc'] != null
+          ? NoDocData.fromJson(json['noDoc'] as Map<String, dynamic>)
           : null,
       addresses: ObjectEntity.listFromJson(
           json['addresses'], EntityAddress.fromJson),
@@ -106,6 +111,7 @@ class ObjectInstitution extends ObjectEntityFiscal {
     String? personType,
     PersonData? person,
     CompanyData? company,
+    NoDocData? noDoc,
     String? schemaName,
     bool? active,
   }) =>
@@ -122,6 +128,7 @@ class ObjectInstitution extends ObjectEntityFiscal {
         personType:  personType ?? this.personType,
         person:      person ?? this.person,
         company:     company ?? this.company,
+        noDoc:       noDoc ?? this.noDoc,
       );
 
   /// Merge da fatia editada pela EntityMainTab (aba compartilhada devolve
@@ -140,6 +147,7 @@ class ObjectInstitution extends ObjectEntityFiscal {
         personType:  fiscal.personType,
         person:      fiscal.person,
         company:     fiscal.company,
+        noDoc:       fiscal.noDoc,
       );
 
   @override

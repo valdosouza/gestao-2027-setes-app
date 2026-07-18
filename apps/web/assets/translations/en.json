@@ -1,5 +1,7 @@
 {
-  "app": { "title": "Setes ERP" },
+  "app": {
+    "title": "Setes ERP"
+  },
   "auth": {
     "email": "E-mail",
     "emailHint": "Enter your e-mail",
@@ -59,12 +61,17 @@
     "saved": "Record saved",
     "deleted": "Record deleted",
     "confirmDelete": "Confirm deletion?",
-    "error": "The operation could not be completed"
+    "error": "The operation could not be completed",
+    "yes": "Yes",
+    "no": "No",
+    "configTooltip": "Settings for this screen"
   },
   "lookup": {
     "countries": "List of Countries",
     "states": "List of States",
-    "cities": "List of Cities"
+    "cities": "List of Cities",
+    "salesmen": "List of Salesmen",
+    "carriers": "List of Carriers"
   },
   "forms": {
     "validation": {
@@ -99,6 +106,21 @@
       "aniversary": "Anniversary",
       "personF": "Individual",
       "personJ": "Company",
+      "personN": "No Document",
+      "externalId": "External Identifier",
+      "prefillTitle": "Entity already registered",
+      "prefillRoles": "Existing roles: {}",
+      "prefillQuestion": "Load the existing data?",
+      "prefillLoad": "Load",
+      "role": {
+        "institution": "Institution",
+        "customer": "Customer",
+        "salesman": "Salesman",
+        "carrier": "Carrier",
+        "provider": "Provider",
+        "collaborator": "Collaborator",
+        "bank": "Bank"
+      },
       "cpf": "CPF",
       "cpfInvalid": "CPF must have 11 digits",
       "rg": "RG",
@@ -107,7 +129,9 @@
       "cnpjInvalid": "CNPJ must have 14 digits",
       "ie": "State Registration",
       "im": "Municipal Registration",
-      "dtFoundation": "Foundation Date"
+      "dtFoundation": "Foundation Date",
+      "nameCompanyPerson": "Full Name",
+      "nickTradePerson": "Nickname"
     },
     "address": {
       "dialogTitle": "Address",
@@ -181,11 +205,83 @@
       "i18nKey": "Translation Key (i18n)",
       "kind": "Kind",
       "position": "Menu Position",
-      "privileges": "Interface Privileges"
+      "privileges": "Interface Privileges",
+      "kindScreen": "Screen (shown in menu)",
+      "kindResource": "Resource/Tab (never in menu)",
+      "configs": "Interface Configurations",
+      "configsSaveFirst": "Save the interface before adding configurations.",
+      "configsEmpty": "No configurations registered for this interface.",
+      "configAdd": "New configuration",
+      "configSaved": "Configuration saved",
+      "configDeleted": "Configuration deleted",
+      "configName": "Name (key)",
+      "configNameHint": "lowercase snake_case, e.g. default_person_type",
+      "configNameInvalid": "Invalid name: use lowercase snake_case (up to 50 characters)",
+      "configDescription": "Description",
+      "configDescriptionHint": "What the configuration does, in customer-friendly language (it is the panel label)",
+      "configDescriptionRequired": "Description is required — it is what saves support",
+      "configKind": "Value kind",
+      "configOptions": "Options (closed list)",
+      "configOptionsHint": "value=Label separated by ; — e.g. C=Consumer;R=Reseller",
+      "configOptionsRequired": "Options kind requires the options list",
+      "configDefault": "Default value",
+      "configDefaultRequired": "Default value is required",
+      "configDefaultNotInOptions": "Default value must be in the options list",
+      "configBooleanDefault": "Boolean kind only accepts 'S' or 'N'",
+      "configScopeUserLabel": "Allow per-user value (personal override)",
+      "configScopeUser": "per user",
+      "configScopeInstitution": "per company"
     },
     "privilege": {
       "code": "Privilege Code",
       "description": "Privilege Description"
+    },
+    "customer": {
+      "tab": "Customer",
+      "salesman": "Salesman",
+      "carrier": "Carrier",
+      "creditStatus": "Credit Status",
+      "creditStatusReleased": "Released",
+      "creditStatusBlocked": "Blocked",
+      "creditValue": "Credit Limit",
+      "wallet": "Wallet",
+      "walletHelp": "\"Yes\" lets the customer buy now and pay later — the system uses the Wallet payment method.",
+      "multiplier": "Multiplier",
+      "multiplierHint": "Empty defaults to 1",
+      "active": "Active",
+      "inactive": "Inactive",
+      "reusedEntity": "Record saved — the registration reused an existing entity",
+      "duplicateRole": "This entity is already registered as a customer of this institution. Open the record for editing?",
+      "openEdit": "Open for editing",
+      "tax": {
+        "tab": "Taxation",
+        "consumer": "Final Consumer",
+        "regime": "Tax Regime",
+        "regimeSimples": "1 - Simples Nacional",
+        "regimeSimplesExcesso": "2 - Simples Nacional - gross revenue sublimit exceeded",
+        "regimeLucroReal": "3 - Normal Regime - Actual Profit (Lucro Real)",
+        "regimeLucroPresumido": "3 - Normal Regime - Presumed Profit (Lucro Presumido)",
+        "byPassSt": "Bypass ST",
+        "indIeDest": "Recipient State Registration (IE) Indicator",
+        "indIeDest1": "1 - ICMS taxpayer (provide the recipient's IE)",
+        "indIeDest2": "2 - Taxpayer exempt from ICMS registration",
+        "indIeDest9": "9 - Non-taxpayer (may or may not have an IE)",
+        "issExigibilidade": "ISS Enforceability",
+        "issExig01": "01 - Enforceable",
+        "issExig02": "02 - Non-incidence",
+        "issExig03": "03 - Exemption",
+        "issExig04": "04 - Export",
+        "issExig05": "05 - Immunity",
+        "issExig06": "06 - Suspended by court decision",
+        "issExig07": "07 - Suspended by administrative proceeding",
+        "issProcessNr": "Process Number (ISS)",
+        "issRetido": "Withheld ISS",
+        "issIndIncFiscal": "ISS Tax Incentive",
+        "autoSendInvoice": "Automatic invoice sending",
+        "autoSendInvoiceJustXml": "Send only the XML",
+        "byPassStHelp": "If enabled, products subject to tax substitution (ST) will be treated as without ST when issuing the invoice."
+      },
+      "walletLocked": "Showing only customers from your portfolio (filter fixed by the company)"
     },
     "country": {
       "code": "Country Code",
@@ -207,6 +303,38 @@
       "population": "Population",
       "density": "Density",
       "area": "Area"
+    },
+    "interfaceConfigs": {
+      "acquired": "Acquired",
+      "available": "Available",
+      "notAcquired": "Interface not acquired — contact Setes to purchase.",
+      "emptyCatalog": "There are no configurations for this interface.",
+      "saved": "Configuration saved",
+      "value": "Value",
+      "defaultValue": "System default",
+      "invalidValue": "Invalid value for the configuration kind",
+      "restoreDefault": "Restore default",
+      "originDefault": "Value: system default",
+      "originInstitution": "Value: set by the company",
+      "originUser": "Value: set by you"
+    },
+    "collaborator": {
+      "tab": "Collaborator",
+      "dtAdmission": "Admission Date",
+      "dtResignation": "Resignation Date",
+      "salary": "Salary",
+      "fathersName": "Father's Name",
+      "mothersName": "Mother's Name",
+      "voteNumber": "Voter Registration Number",
+      "voteZone": "Voting Zone",
+      "voteSection": "Voting Section",
+      "militaryCertificate": "Military Certificate",
+      "pis": "PIS",
+      "active": "Active",
+      "inactive": "Inactive",
+      "reusedEntity": "Existing entity reused — data updated.",
+      "duplicateRole": "This entity is already registered as a collaborator of this establishment. Open the existing record?",
+      "openEdit": "Open record"
     }
   },
   "theme": {
@@ -236,7 +364,10 @@
       "states": "States",
       "cities": "Cities",
       "cfop": "CFOP",
-      "interface-fields": "Interface Fields"
+      "interface-fields": "Interface Fields",
+      "interface-configs": "Interface Configurations",
+      "general-configs": "General Configurations",
+      "collaborators": "Collaborators"
     },
     "privileges": {
       "view": "View",

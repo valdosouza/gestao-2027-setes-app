@@ -35,6 +35,7 @@ class AuthRemoteDatasource {
       role: data['role'] as String? ?? '',
       institutionId: (data['institutionId'] as num?)?.toInt() ?? 0,
       institutionName: data['institutionName'] as String?,
+      context: data['context'] as Map<String, dynamic>?,
     );
   }
 

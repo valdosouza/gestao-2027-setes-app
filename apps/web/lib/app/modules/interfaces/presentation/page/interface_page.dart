@@ -13,6 +13,7 @@ import '../../data/datasource/interface_datasource.dart';
 import '../../domain/entity/interface_entity.dart';
 import '../../domain/entity/privilege_entity.dart';
 import '../bloc/interface_bloc.dart';
+import '../widget/interface_configs_section.dart';
 
 /// Tela de Interfaces — interface 'interfaces' (1 interface = 1 módulo,
 /// ARQUITETURA_MODULOS.md). Pesquisa ↔ formulário orquestrados pelo
@@ -47,6 +48,11 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
   /// Privilégios selecionados no formulário — estado da página.
   Set<int> _selectedPrivilegeIds = {};
 
+  /// kind da interface (decisão 13 do Framework de Configurações):
+  /// 'T' = tela (vai a menu), 'R' = recurso/aba vendável (nunca vai a menu).
+  /// Deixou de ser texto livre — dropdown no estado da página.
+  String _kind = 'T';
+
   @override
   void initState() {
     super.initState();
@@ -74,12 +80,18 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
   }
 
   void _openNew() {
-    setState(() => _selectedPrivilegeIds = {});
+    setState(() {
+      _selectedPrivilegeIds = {};
+      _kind = 'T';
+    });
     _bloc.add(const InterfaceNewPressed());
   }
 
   void _openEdit(InterfaceEntity entity) {
-    setState(() => _selectedPrivilegeIds = entity.privilegeIds.toSet());
+    setState(() {
+      _selectedPrivilegeIds = entity.privilegeIds.toSet();
+      _kind = entity.kind == 'R' ? 'R' : 'T';
+    });
     _bloc.add(InterfaceEditPressed(entity));
   }
 
@@ -90,6 +102,21 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
     final text = value?.trim() ?? '';
     return text.isEmpty ? null : text;
   }
+
+  /// kind da interface (decisão 13): dropdown Tela × Recurso — 'R' nunca
+  /// aparece no menu; a tela pai monta/omite a aba pelo contrato.
+  List<Widget> _buildKindSection() => [
+        SetesDropdown<String>(
+          label: 'forms.interface.kind'.tr(),
+          items: const ['T', 'R'],
+          value: _kind,
+          itemLabel: (kind) => kind == 'R'
+              ? 'forms.interface.kindResource'.tr()
+              : 'forms.interface.kindScreen'.tr(),
+          onChanged: (kind) => setState(() => _kind = kind ?? 'T'),
+        ),
+        const SizedBox(height: 16),
+      ];
 
   /// Seção de privilégios renderizada via [RegisterFormPage.extraChildren]:
   /// checkboxes fora do Tab (contrato visual, item 8).
@@ -132,7 +159,6 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
               'description':  editing.description ?? '',
               'groupDefault': editing.groupDefault ?? '',
               'i18nKey':      editing.i18nKey ?? '',
-              'kind':         editing.kind ?? '',
               'position':     editing.position ?? '',
             },
       fields: applyFieldConfig([
@@ -156,24 +182,32 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
           name:  'i18nKey',
           label: 'forms.interface.i18nKey'.tr(),
         ),
-        // kind e position são texto livre (decisão do Valdo 2026-07-11).
-        RegisterField(
-          name:  'kind',
-          label: 'forms.interface.kind'.tr(),
-        ),
+        // position é texto livre (decisão do Valdo 2026-07-11); kind virou
+        // dropdown T/R no extraChildren (decisão 13 — Framework de Configs).
         RegisterField(
           name:  'position',
           label: 'forms.interface.position'.tr(),
         ),
       ], fieldConfig),
-      extraChildren: _buildPrivilegesSection(),
+      extraChildren: [
+        ..._buildKindSection(),
+        ..._buildPrivilegesSection(),
+        const SizedBox(height: 16),
+        // Catálogo de configurações da interface (decisões 6 e 7) — CRUD
+        // autônomo; na inclusão orienta salvar primeiro.
+        InterfaceConfigsSection(
+          key: ValueKey('configs-${creating ? 'new' : editing.id}'),
+          interfaceId: creating ? null : editing.id,
+          datasource: _datasource,
+        ),
+      ],
       onSave: (values) => _bloc.add(InterfaceSaveRequested(
         entity: InterfaceEntity(
           id:           creating ? 0 : editing.id, // ignorado no POST
           description:  values['description'] ?? '',
           groupDefault: _nullIfEmpty(values['groupDefault']),
           i18nKey:      _nullIfEmpty(values['i18nKey']),
-          kind:         _nullIfEmpty(values['kind']),
+          kind:         _kind,
           position:     _nullIfEmpty(values['position']),
           privilegeIds: _selectedPrivilegeIds.toList()..sort(),
         ),
@@ -190,6 +224,8 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
   Widget _buildSearch(InterfaceListState state) =>
       RegisterSearchPage<InterfaceEntity>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'interfaces',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (e) => '${e.id}',

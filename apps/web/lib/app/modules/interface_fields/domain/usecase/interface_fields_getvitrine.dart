@@ -1,7 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
-import '../entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../repository/interface_fields_repository.dart';
 
 class InterfaceFieldsGetvitrine {

@@ -6,7 +6,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
-import '../../domain/entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../bloc/interface_fields_bloc.dart';
 
 /// Painel Sistema/Admin de campos configuráveis — interface

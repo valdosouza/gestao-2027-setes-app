@@ -89,6 +89,8 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
 
   Widget _buildSearch(CountryListState state) => RegisterSearchPage<CountryEntity>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'countries',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (c) => '${c.id}',

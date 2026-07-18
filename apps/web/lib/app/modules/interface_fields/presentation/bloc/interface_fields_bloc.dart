@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
-import '../../domain/entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../../domain/usecase/interface_fields_getfields.dart';
 import '../../domain/usecase/interface_fields_getvitrine.dart';
 import '../../domain/usecase/interface_fields_savefield.dart';

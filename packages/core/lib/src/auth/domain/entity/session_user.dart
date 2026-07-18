@@ -8,6 +8,7 @@ class SessionUser extends Equatable {
     required this.role,
     required this.institutionId,
     this.institutionName,
+    this.context,
   });
 
   final int userId;
@@ -16,6 +17,14 @@ class SessionUser extends Equatable {
   final int institutionId;
   final String? institutionName;
 
+  /// Estado de sessão derivado (decisão 17 do Framework de Configurações,
+  /// ex.: isSalesman) — re-hidrata o SessionContext do app no refresh.
+  final Map<String, dynamic>? context;
+
+  /// Perfil com poder de administração (super OU admin da institution).
+  bool get isAdmin => role == 'super' || role == 'admin';
+
   @override
-  List<Object?> get props => [userId, name, role, institutionId, institutionName];
+  List<Object?> get props =>
+      [userId, name, role, institutionId, institutionName, context];
 }

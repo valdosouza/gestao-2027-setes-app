@@ -58,6 +58,7 @@ class _SetesLookupBody<T> extends StatefulWidget {
 class _SetesLookupBodyState<T> extends State<_SetesLookupBody<T>> {
   List<T> _items = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -66,17 +67,39 @@ class _SetesLookupBodyState<T> extends State<_SetesLookupBody<T>> {
   }
 
   Future<void> _search(String filter) async {
-    setState(() => _loading = true);
-    final items = await widget.onSearch(filter);
-    if (!mounted) return;
     setState(() {
-      _items = items;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final items = await widget.onSearch(filter);
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (err) {
+      // Falha na consulta NUNCA deixa o dialog em loading infinito
+      // (fix 2026-07-18): mostra a mensagem e permite tentar outro filtro.
+      if (!mounted) return;
+      setState(() {
+        _items = [];
+        _loading = false;
+        _error = err.toString();
+      });
+    }
   }
 
   Widget _buildList() {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(_error!, textAlign: TextAlign.center),
+        ),
+      );
+    }
     if (_items.isEmpty) return Center(child: Text(widget.emptyText));
     return ListView.separated(
       itemCount: _items.length,

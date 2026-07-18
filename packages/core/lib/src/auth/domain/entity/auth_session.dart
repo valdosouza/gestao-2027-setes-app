@@ -10,14 +10,21 @@ class AuthSession extends Equatable {
     this.token,
     this.selectionToken,
     this.institutions = const [],
+    this.context,
   });
 
   final String? token;
   final String? selectionToken;
   final List<InstitutionOption> institutions;
 
+  /// Bloco `context` da resposta do login (decisão 17 do Framework de
+  /// Configurações — estado de sessão derivado, ex.: isSalesman). Só
+  /// acompanha o token FINAL; o SessionContext do app é preenchido a partir
+  /// dele (ou re-hidratado via GET /api/core/me no refresh).
+  final Map<String, dynamic>? context;
+
   bool get needsSelection => selectionToken != null;
 
   @override
-  List<Object?> get props => [token, selectionToken, institutions];
+  List<Object?> get props => [token, selectionToken, institutions, context];
 }

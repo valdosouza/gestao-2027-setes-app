@@ -2,7 +2,7 @@ import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
-import '../entity/interface_vitrine_entity.dart';
+import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 
 /// Contrato do repositório do painel de campos (decisão 12: Either/dartz).
 abstract class InterfaceFieldsRepository {

@@ -1,5 +1,7 @@
 {
-  "app": { "title": "Setes ERP" },
+  "app": {
+    "title": "Setes ERP"
+  },
   "auth": {
     "email": "E-mail",
     "emailHint": "Digite seu e-mail",
@@ -59,12 +61,17 @@
     "saved": "Registro salvo",
     "deleted": "Registro excluído",
     "confirmDelete": "Confirma a exclusão?",
-    "error": "Não foi possível concluir a operação"
+    "error": "Não foi possível concluir a operação",
+    "yes": "Sim",
+    "no": "Não",
+    "configTooltip": "Configurações desta tela"
   },
   "lookup": {
     "countries": "Lista de Países",
     "states": "Lista de Estados",
-    "cities": "Lista de Cidades"
+    "cities": "Lista de Cidades",
+    "salesmen": "Lista de Vendedores",
+    "carriers": "Lista de Transportadoras"
   },
   "forms": {
     "validation": {
@@ -99,6 +106,21 @@
       "aniversary": "Aniversário",
       "personF": "Pessoa Física",
       "personJ": "Pessoa Jurídica",
+      "personN": "Sem Documento",
+      "externalId": "Identificador Externo",
+      "prefillTitle": "Entidade já cadastrada",
+      "prefillRoles": "Papéis existentes: {}",
+      "prefillQuestion": "Carregar os dados existentes?",
+      "prefillLoad": "Carregar",
+      "role": {
+        "institution": "Estabelecimento",
+        "customer": "Cliente",
+        "salesman": "Vendedor",
+        "carrier": "Transportadora",
+        "provider": "Fornecedor",
+        "collaborator": "Colaborador",
+        "bank": "Banco"
+      },
       "cpf": "CPF",
       "cpfInvalid": "CPF deve ter 11 dígitos",
       "rg": "RG",
@@ -107,7 +129,9 @@
       "cnpjInvalid": "CNPJ deve ter 14 dígitos",
       "ie": "Inscrição Estadual",
       "im": "Inscrição Municipal",
-      "dtFoundation": "Data de Fundação"
+      "dtFoundation": "Data de Fundação",
+      "nameCompanyPerson": "Nome Completo",
+      "nickTradePerson": "Apelido"
     },
     "address": {
       "dialogTitle": "Endereço",
@@ -181,11 +205,83 @@
       "i18nKey": "Chave de Tradução (i18n)",
       "kind": "Tipo",
       "position": "Posição no Menu",
-      "privileges": "Privilégios da Interface"
+      "privileges": "Privilégios da Interface",
+      "kindScreen": "Tela (vai ao menu)",
+      "kindResource": "Recurso/Aba (não vai ao menu)",
+      "configs": "Configurações da Interface",
+      "configsSaveFirst": "Salve a interface para cadastrar configurações.",
+      "configsEmpty": "Nenhuma configuração cadastrada para esta interface.",
+      "configAdd": "Nova configuração",
+      "configSaved": "Configuração salva",
+      "configDeleted": "Configuração excluída",
+      "configName": "Nome (chave)",
+      "configNameHint": "snake_case minúsculo, ex.: default_person_type",
+      "configNameInvalid": "Nome inválido: use snake_case minúsculo (até 50 caracteres)",
+      "configDescription": "Descrição",
+      "configDescriptionHint": "O que a configuração faz, na linguagem do cliente (é o rótulo do painel)",
+      "configDescriptionRequired": "A descrição é obrigatória — é o que salva o suporte",
+      "configKind": "Tipo do valor",
+      "configOptions": "Opções (lista fechada)",
+      "configOptionsHint": "valor=Rótulo separados por ; — ex.: C=Consumidor;R=Revenda",
+      "configOptionsRequired": "Tipo Options exige a lista de opções",
+      "configDefault": "Valor padrão",
+      "configDefaultRequired": "O valor padrão é obrigatório",
+      "configDefaultNotInOptions": "O valor padrão precisa estar na lista de opções",
+      "configBooleanDefault": "Tipo Boolean aceita apenas 'S' ou 'N'",
+      "configScopeUserLabel": "Permitir valor por usuário (override pessoal)",
+      "configScopeUser": "por usuário",
+      "configScopeInstitution": "por empresa"
     },
     "privilege": {
       "code": "Código do Privilégio",
       "description": "Descrição do Privilégio"
+    },
+    "customer": {
+      "tab": "Cliente",
+      "salesman": "Vendedor",
+      "carrier": "Transportadora",
+      "creditStatus": "Situação de Crédito",
+      "creditStatusReleased": "Liberado",
+      "creditStatusBlocked": "Bloqueado",
+      "creditValue": "Limite de Crédito",
+      "wallet": "Carteira",
+      "walletHelp": "\"Sim\" permite ao cliente comprar para pagar depois — o sistema usa a forma de pagamento Carteira.",
+      "multiplier": "Multiplicador",
+      "multiplierHint": "Vazio assume 1",
+      "active": "Ativo",
+      "inactive": "Inativo",
+      "reusedEntity": "Registro salvo — o cadastro reaproveitou uma entidade existente",
+      "duplicateRole": "Esta entidade já está cadastrada como cliente deste estabelecimento. Abrir o cadastro em edição?",
+      "openEdit": "Abrir em edição",
+      "tax": {
+        "tab": "Tributação",
+        "consumer": "Consumidor Final",
+        "regime": "Regime Tributário",
+        "regimeSimples": "1 - Simples Nacional",
+        "regimeSimplesExcesso": "2 - Simples Nacional - excesso de sublimite de receita bruta",
+        "regimeLucroReal": "3 - Regime Normal - Lucro Real",
+        "regimeLucroPresumido": "3 - Regime Normal - Lucro Presumido",
+        "byPassSt": "Ignorar ST",
+        "indIeDest": "Indicador de IE do Destinatário",
+        "indIeDest1": "1 - Contribuinte ICMS (informar a IE do destinatário)",
+        "indIeDest2": "2 - Contribuinte isento de Inscrição no cadastro de Contribuintes do ICMS",
+        "indIeDest9": "9 - Não Contribuinte (pode ou não possuir IE)",
+        "issExigibilidade": "Exigibilidade do ISS",
+        "issExig01": "01 - Exigível",
+        "issExig02": "02 - Não incidência",
+        "issExig03": "03 - Isenção",
+        "issExig04": "04 - Exportação",
+        "issExig05": "05 - Imunidade",
+        "issExig06": "06 - Suspensa por decisão judicial",
+        "issExig07": "07 - Suspensa por processo administrativo",
+        "issProcessNr": "Número do Processo (ISS)",
+        "issRetido": "ISS Retido",
+        "issIndIncFiscal": "Incentivo Fiscal ISS",
+        "autoSendInvoice": "Envio automático da nota",
+        "autoSendInvoiceJustXml": "Enviar somente o XML",
+        "byPassStHelp": "Caso ative essa opção, os produtos sujeitos à substituição tributária serão tratados como sem S.T. na emissão da nota."
+      },
+      "walletLocked": "Exibindo apenas clientes da sua carteira (filtro fixado pela empresa)"
     },
     "country": {
       "code": "Código do País",
@@ -207,6 +303,38 @@
       "population": "População",
       "density": "Densidade",
       "area": "Área"
+    },
+    "interfaceConfigs": {
+      "acquired": "Adquirida",
+      "available": "Disponível",
+      "notAcquired": "Interface não adquirida — fale com a Setes para contratar.",
+      "emptyCatalog": "Não há configurações para esta interface.",
+      "saved": "Configuração salva",
+      "value": "Valor",
+      "defaultValue": "Padrão do sistema",
+      "invalidValue": "Valor inválido para o tipo da configuração",
+      "restoreDefault": "Restaurar padrão",
+      "originDefault": "Valor: padrão do sistema",
+      "originInstitution": "Valor: definido pela empresa",
+      "originUser": "Valor: definido por você"
+    },
+    "collaborator": {
+      "tab": "Colaborador",
+      "dtAdmission": "Data de Admissão",
+      "dtResignation": "Data de Demissão",
+      "salary": "Salário",
+      "fathersName": "Nome do Pai",
+      "mothersName": "Nome da Mãe",
+      "voteNumber": "Título de Eleitor",
+      "voteZone": "Zona Eleitoral",
+      "voteSection": "Seção Eleitoral",
+      "militaryCertificate": "Certificado Militar",
+      "pis": "PIS",
+      "active": "Ativo",
+      "inactive": "Inativo",
+      "reusedEntity": "Entidade já existente reaproveitada — dados atualizados.",
+      "duplicateRole": "Esta entidade já está cadastrada como colaborador deste estabelecimento. Deseja abrir o cadastro existente?",
+      "openEdit": "Abrir cadastro"
     }
   },
   "theme": {
@@ -236,7 +364,10 @@
       "states": "Estados",
       "cities": "Cidades",
       "cfop": "CFOP",
-      "interface-fields": "Campos das Interfaces"
+      "interface-fields": "Campos das Interfaces",
+      "interface-configs": "Configurações das Interfaces",
+      "general-configs": "Configurações Gerais",
+      "collaborators": "Colaboradores"
     },
     "privileges": {
       "view": "Visualizar",

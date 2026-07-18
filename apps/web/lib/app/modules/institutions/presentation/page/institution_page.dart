@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/entity/data/entity_by_document_datasource.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
@@ -45,6 +46,7 @@ class _InstitutionPageState extends State<InstitutionPage> {
   late final CountryLookupDatasource _countryLookup;
   late final StateLookupDatasource _stateLookup;
   late final CityLookupDatasource _cityLookup;
+  late final EntityByDocumentDatasource _byDocumentLookup;
 
   @override
   void initState() {
@@ -58,11 +60,14 @@ class _InstitutionPageState extends State<InstitutionPage> {
     _countryLookup = Modular.get<CountryLookupDatasource>();
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cityLookup = Modular.get<CityLookupDatasource>();
+    _byDocumentLookup = Modular.get<EntityByDocumentDatasource>();
   }
 
   Widget _buildSearch(InstitutionListState state) =>
       RegisterSearchPage<InstitutionListItem>(
         title: 'register.listTitle'.tr(args: [widget.title]),
+        // Engrenagem padrão da lista (Framework de Configurações, decisão 11)
+        configModuleKey: 'institutions',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (i) => '${i.id}',
@@ -92,6 +97,7 @@ class _InstitutionPageState extends State<InstitutionPage> {
         countryLookup: _countryLookup,
         stateLookup: _stateLookup,
         cityLookup: _cityLookup,
+        byDocumentLookup: _byDocumentLookup,
         onDraftChanged: (draft) => _bloc.add(InstitutionDraftChanged(draft)),
         onSave: () => _bloc.add(InstitutionSaveRequested(
             draft: state.draft, creating: state.creating)),
@@ -139,6 +145,7 @@ class _InstitutionFormView extends StatelessWidget {
     required this.countryLookup,
     required this.stateLookup,
     required this.cityLookup,
+    required this.byDocumentLookup,
     required this.onDraftChanged,
     required this.onSave,
     required this.onBack,
@@ -155,6 +162,7 @@ class _InstitutionFormView extends StatelessWidget {
   final CountryLookupDatasource countryLookup;
   final StateLookupDatasource stateLookup;
   final CityLookupDatasource cityLookup;
+  final EntityByDocumentDatasource byDocumentLookup;
   final ValueChanged<ObjectInstitution> onDraftChanged;
   final VoidCallback onSave;
   final VoidCallback onBack;
@@ -168,9 +176,13 @@ class _InstitutionFormView extends StatelessWidget {
   void _save(BuildContext context) {
     String? requiredKey;
     if (draft.nameCompany.trim().isEmpty) {
-      requiredKey = 'forms.entity.nameCompany';
+      requiredKey = draft.personType == 'J'
+          ? 'forms.entity.nameCompany'
+          : 'forms.entity.nameCompanyPerson';
     } else if (draft.nickTrade.trim().isEmpty) {
-      requiredKey = 'forms.entity.nickTrade';
+      requiredKey = draft.personType == 'J'
+          ? 'forms.entity.nickTrade'
+          : 'forms.entity.nickTradePerson';
     } else if (draft.personType == 'F' &&
         (draft.person?.cpfDigits ?? '').isEmpty) {
       requiredKey = 'forms.entity.cpf';
@@ -251,6 +263,9 @@ class _InstitutionFormView extends StatelessWidget {
                       value: draft,
                       onChanged: (fiscal) =>
                           onDraftChanged(draft.mergeFiscal(fiscal)),
+                      // Prefill by-document só na CRIAÇÃO (Fase 3, dec. 3/9/10)
+                      byDocumentLookup: byDocumentLookup,
+                      prefillEnabled: creating,
                     ),
                     AddressListTab(
                       items: draft.addresses,

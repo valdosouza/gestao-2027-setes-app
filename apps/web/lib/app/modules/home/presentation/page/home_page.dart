@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../../../shared/session/session_context.dart';
 import '../bloc/menu_bloc.dart';
 import '../content/content_home_desktop.dart';
 import '../content/content_home_mobile.dart';
@@ -30,6 +31,7 @@ class _HomePageState extends State<HomePage> {
       if (mounted && widget.bloc == null) {
         applyUserLocale(context, Modular.get<GetPreferencesUsecase>());
         Modular.get<ThemeCubit>().load();
+        _hydrateSessionContext();
         // RouterOutlet precisa de uma rota filha ativa: sem interface na URL
         // (login normal), abre o welcome. Refresh em /home/<interface>/ mantém.
         final path = Modular.to.path;
@@ -38,6 +40,18 @@ class _HomePageState extends State<HomePage> {
         }
       }
     });
+  }
+
+  /// SessionContext (decisão 17): re-hidrata os fatos derivados de sessão
+  /// via /api/core/me a CADA entrada na Home — cobre login, refresh (o
+  /// bloco `context` do login não sobrevive ao F5) e troca de institution.
+  /// Falha silenciosa: o contexto zerado só degrada UX (enforcement na API).
+  Future<void> _hydrateSessionContext() async {
+    final result = await Modular.get<GetMeUsecase>()();
+    result.fold(
+      (_) {},
+      (me) => Modular.get<SessionContext>().applyJson(me.context),
+    );
   }
 
   @override
