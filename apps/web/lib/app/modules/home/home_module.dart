@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../categories/categories_module.dart';
+import '../cfop/cfop_module.dart';
 import '../cities/cities_module.dart';
 import '../collaborators/collaborators_module.dart';
 import '../countries/countries_module.dart';
@@ -49,6 +50,8 @@ class HomeModule extends Module {
             ModuleRoute('/cities',     module: CitiesModule()),
             ModuleRoute('/interfaces', module: InterfacesModule()),
             ModuleRoute('/privileges', module: PrivilegesModule()),
+            // Referencia fiscal do catalogo central (modulo Super)
+            ModuleRoute('/cfop', module: CfopModule()),
             ModuleRoute('/institutions', module: InstitutionsModule()),
             // Fase 3 Entidade Única — primeiro papel novo (Customer)
             ModuleRoute('/customers', module: CustomersModule()),

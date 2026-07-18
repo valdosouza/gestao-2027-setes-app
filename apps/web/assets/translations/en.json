@@ -366,6 +366,22 @@
       "clusterAnalytic": "Analytic",
       "active": "Active",
       "inactiveRow": "Inactive"
+    },
+    "cfop": {
+      "code": "CFOP Code",
+      "codeInvalid": "Invalid CFOP code (digits and dots, up to 10)",
+      "description": "CFOP Description",
+      "concise": "Short Description",
+      "register": "Register",
+      "way": "Direction",
+      "wayIn": "Inbound",
+      "wayOut": "Outbound",
+      "jurisdiction": "Jurisdiction",
+      "jurisdictionState": "State",
+      "jurisdictionNational": "National",
+      "jurisdictionForeign": "Foreign",
+      "note": "Application",
+      "active": "Active"
     }
   },
   "theme": {

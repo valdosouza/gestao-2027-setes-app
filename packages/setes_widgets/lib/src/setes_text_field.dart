@@ -23,6 +23,7 @@ class SetesTextField extends StatelessWidget {
     this.suffixIcon,
     this.onSuffixPressed,
     this.hint,
+    this.maxLines = 1,
     super.key,
   });
 
@@ -57,6 +58,10 @@ class SetesTextField extends StatelessWidget {
   final VoidCallback? onSuffixPressed;
   final String? hint;
 
+  /// >1 = campo de texto longo (ex.: Aplicação do CFOP). Incompatível com
+  /// [obscureText] (regra do próprio TextFormField).
+  final int maxLines;
+
   @override
   Widget build(BuildContext context) {
     final field = TextFormField(
@@ -70,6 +75,7 @@ class SetesTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
+      maxLines: obscureText ? 1 : maxLines,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

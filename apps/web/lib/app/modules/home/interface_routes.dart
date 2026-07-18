@@ -13,6 +13,7 @@ const Map<String, String> interfaceRoutes = {
   'cities':     '/home/cities/',
   'interfaces': '/home/interfaces/',
   'privileges': '/home/privileges/',
+  'cfop':       '/home/cfop/',
   'institutions': '/home/institutions/',
   // Primeiro papel da Fase 3 Entidade Única (cadastro do CLIENTE)
   'customers':  '/home/customers/',
