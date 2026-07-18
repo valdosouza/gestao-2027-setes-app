@@ -15,4 +15,5 @@ export 'src/setes_radio_group.dart';
 export 'src/setes_scaffold.dart';
 export 'src/setes_switch.dart';
 export 'src/setes_text.dart';
+export 'src/setes_tree_view.dart';
 export 'src/setes_text_field.dart';

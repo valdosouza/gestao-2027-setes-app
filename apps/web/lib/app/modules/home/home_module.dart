@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../categories/categories_module.dart';
 import '../cities/cities_module.dart';
 import '../collaborators/collaborators_module.dart';
 import '../countries/countries_module.dart';
@@ -52,6 +53,8 @@ class HomeModule extends Module {
             ModuleRoute('/customers', module: CustomersModule()),
             // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)
             ModuleRoute('/collaborators', module: CollaboratorsModule()),
+            // Categorias de produtos e serviços (cadastro do cliente)
+            ModuleRoute('/categories', module: CategoriesModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
             // Painel de configurações do sistema (Framework de Configurações)

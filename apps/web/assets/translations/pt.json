@@ -335,6 +335,18 @@
       "reusedEntity": "Entidade já existente reaproveitada — dados atualizados.",
       "duplicateRole": "Esta entidade já está cadastrada como colaborador deste estabelecimento. Deseja abrir o cadastro existente?",
       "openEdit": "Abrir cadastro"
+    },
+    "category": {
+      "code": "Código",
+      "description": "Descrição",
+      "parent": "Nível Superior",
+      "rootLevel": "Nível raiz",
+      "newRoot": "Novo nível raiz",
+      "newChild": "Novo subnível",
+      "tabProducts": "Produtos",
+      "tabServices": "Serviços",
+      "active": "Ativa",
+      "inactiveRow": "Inativa"
     }
   },
   "theme": {
@@ -367,7 +379,8 @@
       "interface-fields": "Campos das Interfaces",
       "interface-configs": "Configurações das Interfaces",
       "general-configs": "Configurações Gerais",
-      "collaborators": "Colaboradores"
+      "collaborators": "Colaboradores",
+      "categories": "Categorias"
     },
     "privileges": {
       "view": "Visualizar",

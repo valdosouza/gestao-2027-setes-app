@@ -335,6 +335,18 @@
       "reusedEntity": "Existing entity reused — data updated.",
       "duplicateRole": "This entity is already registered as a collaborator of this establishment. Open the existing record?",
       "openEdit": "Open record"
+    },
+    "category": {
+      "code": "Code",
+      "description": "Description",
+      "parent": "Parent Level",
+      "rootLevel": "Root level",
+      "newRoot": "New root level",
+      "newChild": "New sublevel",
+      "tabProducts": "Products",
+      "tabServices": "Services",
+      "active": "Active",
+      "inactiveRow": "Inactive"
     }
   },
   "theme": {
@@ -367,7 +379,8 @@
       "interface-fields": "Interface Fields",
       "interface-configs": "Interface Configurations",
       "general-configs": "General Configurations",
-      "collaborators": "Collaborators"
+      "collaborators": "Collaborators",
+      "categories": "Categories"
     },
     "privileges": {
       "view": "View",

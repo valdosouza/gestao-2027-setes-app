@@ -18,6 +18,8 @@ const Map<String, String> interfaceRoutes = {
   'customers':  '/home/customers/',
   // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)
   'collaborators': '/home/collaborators/',
+  // Categorias de produtos e serviços (cadastro do cliente)
+  'categories': '/home/categories/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
   'interface-fields': '/home/interface-fields/',
   // Painel de configurações do sistema (Framework de Configurações, dec. 9)
