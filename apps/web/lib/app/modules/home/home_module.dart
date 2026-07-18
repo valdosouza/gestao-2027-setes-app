@@ -6,6 +6,7 @@ import '../cities/cities_module.dart';
 import '../collaborators/collaborators_module.dart';
 import '../countries/countries_module.dart';
 import '../customers/customers_module.dart';
+import '../financial_plans/financial_plans_module.dart';
 import '../institutions/institutions_module.dart';
 import '../interface_configs/interface_configs_module.dart';
 import '../interface_fields/interface_fields_module.dart';
@@ -55,6 +56,8 @@ class HomeModule extends Module {
             ModuleRoute('/collaborators', module: CollaboratorsModule()),
             // Categorias de produtos e serviços (cadastro do cliente)
             ModuleRoute('/categories', module: CategoriesModule()),
+            // Plano de Contas (2o cadastro em arvore)
+            ModuleRoute('/financial-plans', module: FinancialPlansModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
             // Painel de configurações do sistema (Framework de Configurações)

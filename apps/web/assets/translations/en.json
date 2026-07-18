@@ -347,6 +347,25 @@
       "tabServices": "Services",
       "active": "Active",
       "inactiveRow": "Inactive"
+    },
+    "financialPlan": {
+      "code": "Code",
+      "description": "Account Description",
+      "parent": "Parent Level",
+      "rootLevel": "Root level",
+      "newRoot": "New root level",
+      "newChild": "New sublevel",
+      "source": "Nature",
+      "sourceCredit": "Credit",
+      "sourceDebit": "Debit",
+      "kind": "Account Type",
+      "kindCost": "Cost Center",
+      "kindResult": "Result Accounts",
+      "cluster": "View Level",
+      "clusterSynthetic": "Synthetic",
+      "clusterAnalytic": "Analytic",
+      "active": "Active",
+      "inactiveRow": "Inactive"
     }
   },
   "theme": {
@@ -380,7 +399,8 @@
       "interface-configs": "Interface Configurations",
       "general-configs": "General Configurations",
       "collaborators": "Collaborators",
-      "categories": "Categories"
+      "categories": "Categories",
+      "financial-plans": "Chart of Accounts"
     },
     "privileges": {
       "view": "View",

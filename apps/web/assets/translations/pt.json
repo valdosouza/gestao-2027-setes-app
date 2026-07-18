@@ -347,6 +347,25 @@
       "tabServices": "Serviços",
       "active": "Ativa",
       "inactiveRow": "Inativa"
+    },
+    "financialPlan": {
+      "code": "Código",
+      "description": "Descrição da Conta",
+      "parent": "Nível Superior",
+      "rootLevel": "Nível raiz",
+      "newRoot": "Novo nível raiz",
+      "newChild": "Novo subnível",
+      "source": "Natureza",
+      "sourceCredit": "Credora",
+      "sourceDebit": "Devedora",
+      "kind": "Tipo da Conta",
+      "kindCost": "Centro de Custo",
+      "kindResult": "Contas de Resultado",
+      "cluster": "Nível de Visualização",
+      "clusterSynthetic": "Sintética",
+      "clusterAnalytic": "Analítica",
+      "active": "Ativa",
+      "inactiveRow": "Inativa"
     }
   },
   "theme": {
@@ -380,7 +399,8 @@
       "interface-configs": "Configurações das Interfaces",
       "general-configs": "Configurações Gerais",
       "collaborators": "Colaboradores",
-      "categories": "Categorias"
+      "categories": "Categorias",
+      "financial-plans": "Plano de Contas"
     },
     "privileges": {
       "view": "Visualizar",

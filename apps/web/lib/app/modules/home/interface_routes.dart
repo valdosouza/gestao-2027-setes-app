@@ -20,6 +20,8 @@ const Map<String, String> interfaceRoutes = {
   'collaborators': '/home/collaborators/',
   // Categorias de produtos e serviços (cadastro do cliente)
   'categories': '/home/categories/',
+  // Plano de Contas (2o cadastro em arvore)
+  'financial-plans': '/home/financial-plans/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
   'interface-fields': '/home/interface-fields/',
   // Painel de configurações do sistema (Framework de Configurações, dec. 9)
