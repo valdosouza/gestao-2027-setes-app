@@ -382,6 +382,34 @@
       "jurisdictionForeign": "Foreign",
       "note": "Application",
       "active": "Active"
+    },
+    "paymentType": {
+      "description": "Payment Type Description",
+      "descriptionHint": "Type or use the magnifier to search the catalog",
+      "catalog": "Payment Types Catalog",
+      "alreadyLinked": "already linked",
+      "idNfce": "NF-e Code",
+      "idNfceNone": "No code",
+      "enable": "Enabled",
+      "enabledRow": "Enabled",
+      "disabledRow": "Disabled",
+      "appMobile": "Available on Mobile App",
+      "tef": "Enable TEF — Electronic Funds Transfer",
+      "blockForCustomerBlocked": "Do not show for blocked customers",
+      "blockForCustomerNoLimit": "Block for customers without credit limit",
+      "maxParcels": "Maximum number of installments",
+      "maxParcelsHint": "Maximum installments allowed for this payment type",
+      "maxParcelsInvalid": "Enter a number of installments greater than or equal to 1",
+      "usagePreference": "Usage preference",
+      "usagePreferenceHelper": "Where this payment type can be used for postings",
+      "usageCashier": "Cashier",
+      "usageBank": "Bank",
+      "usageBoth": "Both",
+      "planCre": "Chart of Accounts — Result",
+      "planDeb": "Chart of Accounts — Cost Center",
+      "reused": "Payment type already existed in the catalog — linked to the establishment.",
+      "unlinked": "Payment type unlinked from the establishment.",
+      "confirmUnlink": "Unlink this payment type from the establishment? It remains in the catalog."
     }
   },
   "theme": {
@@ -398,7 +426,8 @@
     "groups": {
       "Registers": "Registers",
       "Super": "Super",
-      "System": "System"
+      "System": "System",
+      "Financial": "Financial"
     },
     "interfaces": {
       "privileges": "Privileges",
@@ -416,7 +445,8 @@
       "general-configs": "General Configurations",
       "collaborators": "Collaborators",
       "categories": "Categories",
-      "financial-plans": "Chart of Accounts"
+      "financial-plans": "Chart of Accounts",
+      "payment-types": "Payment Types"
     },
     "privileges": {
       "view": "View",

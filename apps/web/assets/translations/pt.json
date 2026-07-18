@@ -382,6 +382,34 @@
       "jurisdictionForeign": "Exterior",
       "note": "Aplicação",
       "active": "Ativo"
+    },
+    "paymentType": {
+      "description": "Descrição da Forma de Pagamento",
+      "descriptionHint": "Digite ou use a lupa para buscar no catálogo",
+      "catalog": "Catálogo de Formas de Pagamento",
+      "alreadyLinked": "já vinculada",
+      "idNfce": "Código para NF-e",
+      "idNfceNone": "Sem código",
+      "enable": "Habilitada",
+      "enabledRow": "Habilitada",
+      "disabledRow": "Desabilitada",
+      "appMobile": "Disponível no App Mobile",
+      "tef": "Ativar o uso do TEF — Transferência Eletrônica de Fundos",
+      "blockForCustomerBlocked": "Não mostrar para clientes bloqueados",
+      "blockForCustomerNoLimit": "Bloquear para clientes sem limite de crédito",
+      "maxParcels": "Número máximo de parcelas",
+      "maxParcelsHint": "Máximo de parcelas permitidas para esta forma de pagamento",
+      "maxParcelsInvalid": "Informe um número de parcelas maior ou igual a 1",
+      "usagePreference": "Preferência de uso",
+      "usagePreferenceHelper": "Onde esta forma de pagamento pode ser usada para lançamento",
+      "usageCashier": "Caixa",
+      "usageBank": "Banco",
+      "usageBoth": "Ambos",
+      "planCre": "Plano de Contas — Resultado",
+      "planDeb": "Plano de Contas — Centro de Custo",
+      "reused": "Forma já existia no catálogo — vinculada ao estabelecimento.",
+      "unlinked": "Forma desvinculada do estabelecimento.",
+      "confirmUnlink": "Desvincular esta forma de pagamento do estabelecimento? Ela permanece no catálogo."
     }
   },
   "theme": {
@@ -398,7 +426,8 @@
     "groups": {
       "Registers": "Cadastros",
       "Super": "Super",
-      "System": "Sistema"
+      "System": "Sistema",
+      "Financial": "Financeiro"
     },
     "interfaces": {
       "privileges": "Privilégios",
@@ -416,7 +445,8 @@
       "general-configs": "Configurações Gerais",
       "collaborators": "Colaboradores",
       "categories": "Categorias",
-      "financial-plans": "Plano de Contas"
+      "financial-plans": "Plano de Contas",
+      "payment-types": "Formas de Pagamento"
     },
     "privileges": {
       "view": "Visualizar",

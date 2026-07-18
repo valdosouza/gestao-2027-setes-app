@@ -10,6 +10,7 @@ import '../customers/customers_module.dart';
 import '../financial_plans/financial_plans_module.dart';
 import '../institutions/institutions_module.dart';
 import '../interface_configs/interface_configs_module.dart';
+import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
@@ -59,6 +60,8 @@ class HomeModule extends Module {
             ModuleRoute('/collaborators', module: CollaboratorsModule()),
             // Categorias de produtos e serviços (cadastro do cliente)
             ModuleRoute('/categories', module: CategoriesModule()),
+            // Formas de pagamento (grupo Financeiro)
+            ModuleRoute('/payment-types', module: PaymentTypesModule()),
             // Plano de Contas (2o cadastro em arvore)
             ModuleRoute('/financial-plans', module: FinancialPlansModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
