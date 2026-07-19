@@ -8,6 +8,7 @@ import '../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
 import 'data/datasource/customer_datasource.dart';
+import 'data/datasource/customer_partnership_datasource.dart';
 import 'data/repository/customer_repository_impl.dart';
 import 'domain/repository/customer_repository.dart';
 import 'domain/usecase/customer_delete.dart';
@@ -50,6 +51,9 @@ class CustomersModule extends Module {
         // Prefill by-document na criação (Fase 3, decisões 3, 9 e 10)
         Bind.lazySingleton<EntityByDocumentDatasource>(
             (i) => EntityByDocumentDatasourceImpl(client: i.get<ApiClient>())),
+        // Aba Parceria (Parceria v2 — angariação do cliente)
+        Bind.lazySingleton<CustomerPartnershipDatasource>((i) =>
+            CustomerPartnershipDatasourceImpl(client: i.get<ApiClient>())),
         // Lookups (shared) — FKs da aba de Endereços (campo-lookup-fk.md)
         Bind.lazySingleton<CountryLookupDatasource>(
             (i) => CountryLookupDatasourceImpl(client: i.get<ApiClient>())),

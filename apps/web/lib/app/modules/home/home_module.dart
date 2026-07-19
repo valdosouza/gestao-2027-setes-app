@@ -1,10 +1,12 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../bank_accounts/bank_accounts_module.dart';
 import '../categories/categories_module.dart';
 import '../cfop/cfop_module.dart';
 import '../cities/cities_module.dart';
 import '../collaborators/collaborators_module.dart';
+import '../contracts/contracts_module.dart';
 import '../countries/countries_module.dart';
 import '../customers/customers_module.dart';
 import '../financial_plans/financial_plans_module.dart';
@@ -14,6 +16,8 @@ import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
+import '../service_orders/service_orders_module.dart';
+import '../settlements/settlements_module.dart';
 import '../states/states_module.dart';
 import '../users/users_module.dart';
 import 'presentation/bloc/menu_bloc.dart';
@@ -64,6 +68,16 @@ class HomeModule extends Module {
             ModuleRoute('/payment-types', module: PaymentTypesModule()),
             // Plano de Contas (2o cadastro em arvore)
             ModuleRoute('/financial-plans', module: FinancialPlansModule()),
+            // Contratos de serviço (Módulo Software House)
+            ModuleRoute('/contracts', module: ContractsModule()),
+            // Contas Bancárias (Módulo Software House, grupo Financeiro)
+            ModuleRoute('/bank-accounts', module: BankAccountsModule()),
+            // Ordens de Serviço (Módulo Software House, grupo Serviços —
+            // 1ª tela de processo: ciclo mensal + Gerar Faturamento)
+            ModuleRoute('/service-orders', module: ServiceOrdersModule()),
+            // Baixa de Títulos (Módulo Software House, grupo Financeiro —
+            // 2ª tela de processo: carteira, baixa em lote, estorno, extrato)
+            ModuleRoute('/settlements', module: SettlementsModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
             // Painel de configurações do sistema (Framework de Configurações)

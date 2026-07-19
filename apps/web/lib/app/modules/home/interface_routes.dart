@@ -25,6 +25,14 @@ const Map<String, String> interfaceRoutes = {
   'payment-types': '/home/payment-types/',
   // Plano de Contas (2o cadastro em arvore)
   'financial-plans': '/home/financial-plans/',
+  // Contratos de serviço (Módulo Software House)
+  'contracts': '/home/contracts/',
+  // Contas Bancárias (Módulo Software House, grupo Financeiro)
+  'bank-accounts': '/home/bank-accounts/',
+  // Ordens de Serviço (Módulo Software House, grupo Serviços — 1ª tela de processo)
+  'service-orders': '/home/service-orders/',
+  // Baixa de Títulos (Módulo Software House, grupo Financeiro — 2ª tela de processo)
+  'settlements': '/home/settlements/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
   'interface-fields': '/home/interface-fields/',
   // Painel de configurações do sistema (Framework de Configurações, dec. 9)

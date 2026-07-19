@@ -17,16 +17,19 @@ import '../../../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/session/session_context.dart';
+import '../../data/datasource/customer_partnership_datasource.dart';
 import '../../domain/entity/object_customer.dart';
 import '../bloc/customer_bloc.dart';
+import '../widget/customer_partnership_tab.dart';
 import '../widget/customer_tab.dart';
 import '../widget/customer_tax_tab.dart';
 
 /// Tela de Clientes — interface 'customers' (1 interface = 1 módulo,
 /// ARQUITETURA_MODULOS.md). Primeiro papel novo da Fase 3 Entidade Única:
-/// form com 6 abas — 4 COMPARTILHADAS (shared/entity/widgets) + as
-/// específicas CustomerTab (decisão 11) e CustomerTaxTab (Rodada 4 —
-/// Tributação, tb_entity_tax).
+/// form com 7 abas — 4 COMPARTILHADAS (shared/entity/widgets) + as
+/// específicas CustomerTab (decisão 11), CustomerTaxTab (Rodada 4 —
+/// Tributação, tb_entity_tax) e CustomerPartnershipTab (Parceria v2 —
+/// angariação, aba autônoma via GET/PUT /api/customers/:id/partnership).
 ///
 /// O bloc guarda o DRAFT do ObjectCustomer inteiro; as abas editam fatias
 /// via onChanged; salvar = 1 evento com o objeto completo. Prefill
@@ -51,6 +54,7 @@ class _CustomerPageState extends State<CustomerPage>
   late final SalesmanLookupDatasource _salesmanLookup;
   late final CarrierLookupDatasource _carrierLookup;
   late final EntityByDocumentDatasource _byDocumentLookup;
+  late final CustomerPartnershipDatasource _partnershipDatasource;
 
   @override
   void initState() {
@@ -62,6 +66,7 @@ class _CustomerPageState extends State<CustomerPage>
     _salesmanLookup = Modular.get<SalesmanLookupDatasource>();
     _carrierLookup = Modular.get<CarrierLookupDatasource>();
     _byDocumentLookup = Modular.get<EntityByDocumentDatasource>();
+    _partnershipDatasource = Modular.get<CustomerPartnershipDatasource>();
     // Engine do Framework de Configurações (piloto — decisões 10, 14 e 15)
     loadInterfaceConfig('customers');
   }
@@ -130,6 +135,7 @@ class _CustomerPageState extends State<CustomerPage>
         salesmanLookup: _salesmanLookup,
         carrierLookup: _carrierLookup,
         byDocumentLookup: _byDocumentLookup,
+        partnershipDatasource: _partnershipDatasource,
         onDraftChanged: (draft) => _bloc.add(CustomerDraftChanged(draft)),
         onSave: () => _bloc.add(CustomerSaveRequested(
             draft: state.draft, creating: state.creating)),
@@ -207,6 +213,7 @@ class _CustomerFormView extends StatelessWidget {
     required this.salesmanLookup,
     required this.carrierLookup,
     required this.byDocumentLookup,
+    required this.partnershipDatasource,
     required this.onDraftChanged,
     required this.onSave,
     required this.onBack,
@@ -224,6 +231,7 @@ class _CustomerFormView extends StatelessWidget {
   final SalesmanLookupDatasource salesmanLookup;
   final CarrierLookupDatasource carrierLookup;
   final EntityByDocumentDatasource byDocumentLookup;
+  final CustomerPartnershipDatasource partnershipDatasource;
   final ValueChanged<ObjectCustomer> onDraftChanged;
   final VoidCallback onSave;
   final VoidCallback onBack;
@@ -297,7 +305,7 @@ class _CustomerFormView extends StatelessWidget {
         onSave: () => _save(context),
         onDelete: onDelete != null ? () => _confirmDelete(context) : null,
         child: DefaultTabController(
-          length: 6,
+          length: 7,
           child: Column(
             children: [
               TabBar(
@@ -310,6 +318,7 @@ class _CustomerFormView extends StatelessWidget {
                   Tab(text: 'register.tabSocialMedia'.tr()),
                   Tab(text: 'forms.customer.tab'.tr()),
                   Tab(text: 'forms.customer.tax.tab'.tr()),
+                  Tab(text: 'forms.customer.tabPartnership'.tr()),
                 ],
               ),
               Expanded(
@@ -353,6 +362,13 @@ class _CustomerFormView extends StatelessWidget {
                       value: draft.tax ?? const EntityTaxData(),
                       onChanged: (tax) =>
                           onDraftChanged(draft.copyWith(tax: tax)),
+                    ),
+                    // Parceria v2 (angariação): aba AUTÔNOMA — CRUD próprio
+                    // via GET/PUT /api/customers/:id/partnership, fora do
+                    // draft do bloc (só na edição).
+                    CustomerPartnershipTab(
+                      customerId: creating ? null : draft.id,
+                      datasource: partnershipDatasource,
                     ),
                   ],
                 ),
