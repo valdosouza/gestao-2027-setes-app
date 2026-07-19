@@ -58,7 +58,7 @@ class CollaboratorBloc extends Bloc<CollaboratorEvent, CollaboratorBlocState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(CollaboratorActionFailure(failure.message));
+        emit(CollaboratorActionFailure(failure));
         emit(const CollaboratorListState());
       },
       (items) => emit(CollaboratorListState(items: items)),
@@ -72,7 +72,7 @@ class CollaboratorBloc extends Bloc<CollaboratorEvent, CollaboratorBlocState> {
     final result = await get(event.id);
     result.fold(
       (failure) {
-        emit(CollaboratorActionFailure(failure.message));
+        emit(CollaboratorActionFailure(failure));
         emit(CollaboratorListState(items: _currentItems));
       },
       (collaborator) =>
@@ -93,10 +93,11 @@ class CollaboratorBloc extends Bloc<CollaboratorEvent, CollaboratorBlocState> {
     emit(CollaboratorFormState(draft: event.draft, creating: current.creating));
   }
 
-  /// 409 de papel duplicado carrega o id do registro existente em
+  /// 409 de papel duplicado: erro CONHECIDO do catálogo (code == 'DUP_ROLE',
+  /// R8 do Framework de Mensagens) — o id do registro existente vem em
   /// fields[0].message (contrato dos módulos da cadeia fiscal na API).
   int? _duplicateRoleId(Failure failure) {
-    if (failure.statusCode != 409) return null;
+    if (failure.code != 'DUP_ROLE') return null;
     final idText = failure.fieldMessage('id');
     return idText != null ? int.tryParse(idText) : null;
   }
@@ -111,7 +112,7 @@ class CollaboratorBloc extends Bloc<CollaboratorEvent, CollaboratorBlocState> {
       if (existingId != null) {
         emit(CollaboratorDuplicateRole(existingId));
       } else {
-        emit(CollaboratorActionFailure(failure.message));
+        emit(CollaboratorActionFailure(failure));
       }
       emit(CollaboratorFormState(draft: event.draft, creating: event.creating));
     }
@@ -144,7 +145,7 @@ class CollaboratorBloc extends Bloc<CollaboratorEvent, CollaboratorBlocState> {
       CollaboratorDeleteRequested event, Emitter<CollaboratorBlocState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(CollaboratorActionFailure(failure.message)),
+      (failure) async => emit(CollaboratorActionFailure(failure)),
       (_) async {
         emit(const CollaboratorActionSuccess('register.deleted'));
         await _reload(emit);

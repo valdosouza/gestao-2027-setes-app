@@ -46,22 +46,26 @@ class CategoryFormState extends CategoryState {
       [kind, editing, initialParentId, initialParentName, saving];
 }
 
-/// Efeito one-shot para SnackBar de sucesso (listener-only, não buildável).
+/// Efeito one-shot de sucesso (listener-only, não buildável) — a página
+/// entrega à ponte (showSuccessFeedback → SnackBar, R1).
 class CategoryActionSuccess extends CategoryState {
   const CategoryActionSuccess(this.messageKey);
 
-  /// Chave i18n ('register.saved' / 'register.deleted') — a página traduz.
+  /// Chave i18n ('register.saved' / 'register.deleted') — a ponte traduz.
   final String messageKey;
 
   @override
   List<Object?> get props => [messageKey];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only, não buildável).
+/// Efeito one-shot de falha (listener-only, não buildável). Carrega o
+/// [Failure] INTEIRO: a ponte deriva a natureza (validation × erro técnico
+/// com supportRef — R7) e o fields[] ancora no campo do formulário (409
+/// HAS_CHILDREN / TREE_CYCLE chegam com a mensagem da API).
 class CategoryActionFailure extends CategoryState {
-  const CategoryActionFailure(this.message);
-  final String message;
+  const CategoryActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }

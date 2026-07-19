@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -54,7 +55,7 @@ class InstitutionBloc extends Bloc<InstitutionEvent, InstitutionBlocState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(InstitutionActionFailure(failure.message));
+        emit(InstitutionActionFailure(failure));
         emit(const InstitutionListState());
       },
       (items) => emit(InstitutionListState(items: items)),
@@ -68,7 +69,7 @@ class InstitutionBloc extends Bloc<InstitutionEvent, InstitutionBlocState> {
     final result = await get(event.id);
     result.fold(
       (failure) {
-        emit(InstitutionActionFailure(failure.message));
+        emit(InstitutionActionFailure(failure));
         emit(InstitutionListState(items: _currentItems));
       },
       (institution) =>
@@ -98,7 +99,7 @@ class InstitutionBloc extends Bloc<InstitutionEvent, InstitutionBlocState> {
         : await put(event.draft);
     await result.fold(
       (failure) async {
-        emit(InstitutionActionFailure(failure.message));
+        emit(InstitutionActionFailure(failure));
         emit(InstitutionFormState(draft: event.draft, creating: event.creating));
       },
       (_) async {
@@ -112,7 +113,7 @@ class InstitutionBloc extends Bloc<InstitutionEvent, InstitutionBlocState> {
       InstitutionDeleteRequested event, Emitter<InstitutionBlocState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(InstitutionActionFailure(failure.message)),
+      (failure) async => emit(InstitutionActionFailure(failure)),
       (_) async {
         emit(const InstitutionActionSuccess('register.deleted'));
         await _reload(emit);

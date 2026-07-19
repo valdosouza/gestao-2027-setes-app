@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -44,7 +45,7 @@ class InterfaceFieldsBloc
     final result = await getVitrine(_filter);
     result.fold(
       (failure) {
-        emit(InterfaceFieldsActionFailure(failure.message));
+        emit(InterfaceFieldsActionFailure(failure));
         emit(const InterfaceFieldsVitrineState());
       },
       (items) => emit(InterfaceFieldsVitrineState(items: items)),
@@ -62,7 +63,7 @@ class InterfaceFieldsBloc
     final result = await getFields(iface.id);
     result.fold(
       (failure) {
-        emit(InterfaceFieldsActionFailure(failure.message));
+        emit(InterfaceFieldsActionFailure(failure));
         emit(const InterfaceFieldsVitrineState());
       },
       (fields) => emit(InterfaceFieldsFieldsState(iface: iface, fields: fields)),
@@ -85,7 +86,7 @@ class InterfaceFieldsBloc
     );
     await result.fold(
       (failure) async {
-        emit(InterfaceFieldsActionFailure(failure.message));
+        emit(InterfaceFieldsActionFailure(failure));
         emit(InterfaceFieldsFieldsState(
             iface: current.iface, fields: current.fields));
       },

@@ -2,32 +2,23 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../feedback/feedback.dart';
+
 /// Utilitários comuns das abas de lista da cadeia de entidade fiscal
 /// (Endereços/Fones/Redes Sociais) — CRUD inline no padrão do
 /// customer_register: lista + dialog de adicionar/editar + remover com
 /// confirmação. Kind é PK junto com o id — único por lista.
 
-/// Confirmação de remoção (mesmo contrato do RegisterFormPage).
+/// Confirmação de remoção via decisão TIPADA da ponte (R4 do Framework de
+/// Mensagens): Sim = excluir; Cancelar (ou fechar) = nada. Sem ação
+/// alternativa → sem botão Não.
 Future<bool> confirmEntityItemDelete(BuildContext context) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      content: SetesText('register.confirmDelete'.tr()),
-      actions: [
-        SetesButton(
-          label: 'register.cancel'.tr(),
-          kind: SetesButtonKind.text,
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-        ),
-        SetesButton(
-          label: 'register.delete'.tr(),
-          kind: SetesButtonKind.text,
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-        ),
-      ],
-    ),
+  final decision = await askDecision(
+    context,
+    message: 'register.confirmDelete'.tr(),
+    yesLabel: 'register.delete'.tr(),
   );
-  return confirmed == true;
+  return decision == SetesDecision.yes;
 }
 
 /// Validator do campo kind: obrigatório e ÚNICO na lista (PK id+kind).

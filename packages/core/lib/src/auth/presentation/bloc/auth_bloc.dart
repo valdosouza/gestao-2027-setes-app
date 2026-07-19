@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../error/failure.dart';
 import '../../../shared/http/api_client.dart';
 import '../../../shared/storage/local_prefs.dart';
 import '../../domain/entity/auth_session.dart';
@@ -103,11 +104,19 @@ class AuthAuthenticated extends AuthState {
   List<Object?> get props => [token, context];
 }
 
+/// Falha de qualquer passo do workflow. Carrega o [failure] INTEIRO
+/// (Framework de Mensagens, R7): a natureza técnica (supportRef/status>=500/
+/// rede) deriva do desfecho na apresentação — dialog de erro técnico via
+/// showSetesMessage; erro corrigível (credencial) pode permanecer inline.
 class AuthError extends AuthState {
-  const AuthError({required this.message});
-  final String message;
+  const AuthError({required this.failure});
+  final Failure failure;
+
+  /// Mensagem (pode ser chave i18n `core.errors.*`/`auth.*` — a UI traduz).
+  String get message => failure.message;
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }
 
 /// Código de recuperação solicitado — UI navega para a tela de alteração.
@@ -168,7 +177,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await localPrefs.setKeepConnected(event.keepConnected);
     final result = await loginUsecase(event.email, event.password);
     await result.fold(
-      (failure) async => emit(AuthError(message: failure.message)),
+      (failure) async => emit(AuthError(failure: failure)),
       (session) async {
         if (session.needsSelection) {
           _pendingSession = session;
@@ -185,7 +194,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onSelect(AuthInstitutionSelected event, Emitter<AuthState> emit) async {
     final selectionToken = _pendingSession?.selectionToken;
     if (selectionToken == null) {
-      emit(const AuthError(message: 'Sessão de seleção expirada — faça login novamente'));
+      // Chave i18n (a UI traduz com .tr()) — zero string hardcoded.
+      emit(const AuthError(failure: Failure(message: 'auth.selectionExpired')));
       return;
     }
     emit(AuthLoading());
@@ -196,7 +206,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     final result = await selectUsecase(selectionToken, event.institutionId);
     await result.fold(
-      (failure) async => emit(AuthError(message: failure.message)),
+      (failure) async => emit(AuthError(failure: failure)),
       (token) async {
         await _setSession(token);
         emit(AuthAuthenticated(token: token));
@@ -208,7 +218,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     final result = await recoveryUsecase(event.email);
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) => emit(AuthError(failure: failure)),
       (_) {
         _recoveryEmail = event.email;
         emit(AuthRecoveryEmailSent(email: event.email));
@@ -220,13 +230,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       AuthChangePasswordRequested event, Emitter<AuthState> emit) async {
     final email = (event.email?.isNotEmpty ?? false) ? event.email : _recoveryEmail;
     if (email == null || email.isEmpty) {
-      emit(const AuthError(message: 'Informe o e-mail da conta'));
+      emit(const AuthError(failure: Failure(message: 'auth.informEmail')));
       return;
     }
     emit(AuthLoading());
     final result = await changePasswordUsecase(email, event.code, event.newPassword);
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) => emit(AuthError(failure: failure)),
       (_) {
         _recoveryEmail = null;
         emit(AuthPasswordChanged());

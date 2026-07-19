@@ -70,7 +70,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(CustomerActionFailure(failure.message));
+        emit(CustomerActionFailure(failure));
         emit(const CustomerListState());
       },
       (items) => emit(CustomerListState(items: items)),
@@ -84,7 +84,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
     final result = await get(event.id);
     result.fold(
       (failure) {
-        emit(CustomerActionFailure(failure.message));
+        emit(CustomerActionFailure(failure));
         emit(CustomerListState(items: _currentItems));
       },
       (customer) => emit(CustomerFormState(draft: customer, creating: false)),
@@ -104,10 +104,11 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
     emit(CustomerFormState(draft: event.draft, creating: current.creating));
   }
 
-  /// 409 de papel duplicado carrega o id do registro existente em
+  /// 409 de papel duplicado: erro CONHECIDO do catálogo (code == 'DUP_ROLE',
+  /// R8 do Framework de Mensagens) — o id do registro existente vem em
   /// fields[0].message (contrato do módulo customers da API).
   int? _duplicateRoleId(Failure failure) {
-    if (failure.statusCode != 409) return null;
+    if (failure.code != 'DUP_ROLE') return null;
     final idText = failure.fieldMessage('id');
     return idText != null ? int.tryParse(idText) : null;
   }
@@ -122,7 +123,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
       if (existingId != null) {
         emit(CustomerDuplicateRole(existingId));
       } else {
-        emit(CustomerActionFailure(failure.message));
+        emit(CustomerActionFailure(failure));
       }
       emit(CustomerFormState(draft: event.draft, creating: event.creating));
     }
@@ -155,7 +156,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
       CustomerDeleteRequested event, Emitter<CustomerBlocState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(CustomerActionFailure(failure.message)),
+      (failure) async => emit(CustomerActionFailure(failure)),
       (_) async {
         emit(const CustomerActionSuccess('register.deleted'));
         await _reload(emit);

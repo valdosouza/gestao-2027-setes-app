@@ -48,14 +48,17 @@ class ServiceOrderActionSuccess extends ServiceOrderState {
   List<Object?> get props => [messageKey, args];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only) — mensagem da
-/// API (inclui os 409 de trava D5 / ordem faturada).
+/// Efeito one-shot de falha (listener-only, não buildável). Carrega o
+/// [Failure] INTEIRO: a ponte deriva a natureza (validation × erro técnico
+/// com supportRef — R7); os 409 de negócio (trava D5, ordem faturada) viram
+/// dialog de validação com a mensagem da API e o fields[] do 400 ancora a
+/// mensagem no campo apontado.
 class ServiceOrderActionFailure extends ServiceOrderState {
-  const ServiceOrderActionFailure(this.message);
-  final String message;
+  const ServiceOrderActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }
 
 /// Efeito one-shot com o RELATÓRIO da rotina mensal (listener-only) — a

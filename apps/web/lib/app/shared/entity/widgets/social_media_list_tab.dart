@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../feedback/form_pendency.dart';
 import '../domain/object_entity.dart';
 import 'entity_list_common.dart';
 
@@ -74,7 +75,10 @@ class _SocialMediaDialog extends StatefulWidget {
 }
 
 class _SocialMediaDialogState extends State<_SocialMediaDialog> {
-  final _formKey = GlobalKey<FormState>();
+  final _kindFocus = FocusNode();
+  final _linkFocus = FocusNode();
+  final _kindKey = GlobalKey<FormFieldState<String>>();
+  final _linkKey = GlobalKey<FormFieldState<String>>();
   late final TextEditingController _kind;
   late final TextEditingController _link;
 
@@ -89,11 +93,30 @@ class _SocialMediaDialogState extends State<_SocialMediaDialog> {
   void dispose() {
     _kind.dispose();
     _link.dispose();
+    _kindFocus.dispose();
+    _linkFocus.dispose();
     super.dispose();
   }
 
-  void _confirm() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  /// Campos NA ORDEM da tela (R3) — uma pendência por vez via ponte.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'kind',
+          focusNode: _kindFocus,
+          fieldKey: _kindKey,
+          validate: () => kindValidator(widget.takenKinds)(_kind.text),
+        ),
+        PendencyField(
+          name: 'link',
+          focusNode: _linkFocus,
+          fieldKey: _linkKey,
+          validate: () => _validateRequired(_link.text),
+        ),
+      ];
+
+  Future<void> _confirm() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
     Navigator.of(context).pop(EntitySocialMedia(
       kind: _kind.text.trim(),
       link: _link.text.trim().isEmpty ? null : _link.text.trim(),
@@ -108,7 +131,6 @@ class _SocialMediaDialogState extends State<_SocialMediaDialog> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Form(
-            key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -138,6 +160,8 @@ class _SocialMediaDialogState extends State<_SocialMediaDialog> {
                       SetesTextField(
                         label: 'forms.socialMedia.kind'.tr(),
                         controller: _kind,
+                        focusNode: _kindFocus,
+                        fieldKey: _kindKey,
                         autofocus: true,
                         textInputAction: TextInputAction.next,
                         validator: kindValidator(widget.takenKinds),
@@ -146,6 +170,8 @@ class _SocialMediaDialogState extends State<_SocialMediaDialog> {
                       SetesTextField(
                         label: 'forms.socialMedia.link'.tr(),
                         controller: _link,
+                        focusNode: _linkFocus,
+                        fieldKey: _linkKey,
                         keyboardType: TextInputType.url,
                         textInputAction: TextInputAction.done,
                         validator: _validateRequired,

@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:dartz/dartz.dart' show unit;
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -76,7 +77,7 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
     final result = await getlist();
     result.fold(
       (failure) {
-        emit(BankAccountActionFailure(failure.message));
+        emit(BankAccountActionFailure(failure));
         emit(const BankAccountListState());
       },
       (items) {
@@ -92,7 +93,7 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
     final result = await get(event.id);
     await result.fold(
       (failure) async {
-        emit(BankAccountActionFailure(failure.message));
+        emit(BankAccountActionFailure(failure));
         emit(BankAccountListState(items: _filtered));
       },
       (full) async {
@@ -112,9 +113,9 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
 
     await result.fold(
       (failure) async {
-        emit(BankAccountActionFailure(failure.message));
-        // Mesmo editing → mesma ValueKey na página: o form preserva o
-        // que o usuário digitou.
+        emit(BankAccountActionFailure(failure));
+        // Mesmo editing → o form continua montado: preserva o que o
+        // usuário digitou e permite ancorar o fields[] no campo.
         emit(BankAccountFormState(editing: _editing));
       },
       (_) async {
@@ -128,7 +129,7 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
       BankAccountDeleteRequested event, Emitter<BankAccountState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(BankAccountActionFailure(failure.message)),
+      (failure) async => emit(BankAccountActionFailure(failure)),
       (_) async {
         emit(const BankAccountActionSuccess('register.deleted'));
         await _reload(emit);

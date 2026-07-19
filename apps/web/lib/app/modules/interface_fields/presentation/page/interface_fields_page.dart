@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
@@ -40,8 +42,9 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
   void _openInterface(InterfaceVitrineEntity iface) {
     if (!iface.acquired) {
       // Vitrine comercial (decisão 6): mostra que existe, instiga a compra.
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: SetesText('forms.interfaceFields.notAcquired'.tr())));
+      // Bloqueio corrigível pelo usuário → dialog de validação via ponte.
+      showValidationFeedback(
+          context, 'forms.interfaceFields.notAcquired'.tr());
       return;
     }
     _bloc.add(InterfaceFieldsInterfaceOpened(iface));
@@ -113,12 +116,15 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
         listenWhen: (_, current) =>
             current is InterfaceFieldsActionSuccess ||
             current is InterfaceFieldsActionFailure,
+        // PONTE de feedback (Framework de Mensagens): sucesso = SnackBar
+        // via ponte (R1); falha = dialog — a ponte deriva a natureza (R7).
         listener: (context, state) {
-          final message = state is InterfaceFieldsActionSuccess
-              ? state.messageKey.tr()
-              : (state as InterfaceFieldsActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is InterfaceFieldsActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          showFailureFeedback(
+              context, (state as InterfaceFieldsActionFailure).failure);
         },
         buildWhen: (_, current) =>
             current is InterfaceFieldsVitrineState ||
@@ -147,6 +153,11 @@ class _FieldConfigDialogState extends State<_FieldConfigDialog> {
   late final TextEditingController _mask;
   late bool _required;
 
+  final _captionFocus = FocusNode();
+  final _captionKey = GlobalKey<FormFieldState<String>>();
+  final _maskFocus = FocusNode();
+  final _maskKey = GlobalKey<FormFieldState<String>>();
+
   @override
   void initState() {
     super.initState();
@@ -159,7 +170,59 @@ class _FieldConfigDialogState extends State<_FieldConfigDialog> {
   void dispose() {
     _caption.dispose();
     _mask.dispose();
+    _captionFocus.dispose();
+    _maskFocus.dispose();
     super.dispose();
+  }
+
+  /// Baseline do DTO da API (fieldConfigDto): caption até 100 caracteres.
+  String? _validateCaption() =>
+      _caption.text.trim().length > 100
+          ? 'forms.interfaceFields.captionTooLong'.tr()
+          : null;
+
+  /// Baseline do DTO (mask até 50) + semântica do setes_validators:
+  /// # = dígito, A = letra, demais literais — máscara sem placeholder
+  /// não formata nada (entrada inválida).
+  String? _validateMask() {
+    final mask = _mask.text.trim();
+    if (mask.isEmpty) return null; // sem máscara = volta a herdar
+    if (mask.length > 50 || !(mask.contains('#') || mask.contains('A'))) {
+      return 'forms.interfaceFields.invalidMask'.tr();
+    }
+    return null;
+  }
+
+  /// Campos do dialog NA ORDEM da tela (R3 — uma pendência por vez).
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'fieldCaption',
+          validate: _validateCaption,
+          focusNode: _captionFocus,
+          fieldKey: _captionKey,
+        ),
+        PendencyField(
+          name: 'mask',
+          validate: _validateMask,
+          focusNode: _maskFocus,
+          fieldKey: _maskKey,
+        ),
+      ];
+
+  Future<void> _submit() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
+    final field = widget.field;
+    Navigator.of(context).pop(
+      InterfaceFieldsFieldSaveRequested(
+        fieldName: field.fieldName,
+        caption: _caption.text.trim(),
+        // required técnico não é config do cliente (a API rejeitaria
+        // afrouxo; apertado só vale nos campos liberados)
+        required: !field.requiredTech && _required,
+        mask: _mask.text.trim(),
+      ),
+    );
   }
 
   @override
@@ -177,12 +240,18 @@ class _FieldConfigDialogState extends State<_FieldConfigDialog> {
               hint: 'forms.interfaceFields.captionHint'.tr(),
               controller: _caption,
               autofocus: true,
+              focusNode: _captionFocus,
+              fieldKey: _captionKey,
+              validator: (_) => _validateCaption(),
             ),
             const SizedBox(height: 16),
             SetesTextField(
               label: 'forms.interfaceFields.mask'.tr(),
               hint: 'forms.interfaceFields.maskHint'.tr(),
               controller: _mask,
+              focusNode: _maskFocus,
+              fieldKey: _maskKey,
+              validator: (_) => _validateMask(),
             ),
             const SizedBox(height: 8),
             SetesCheckbox(
@@ -206,16 +275,7 @@ class _FieldConfigDialogState extends State<_FieldConfigDialog> {
         SetesButton(
           label: 'register.save'.tr(),
           kind: SetesButtonKind.text,
-          onPressed: () => Navigator.of(context).pop(
-            InterfaceFieldsFieldSaveRequested(
-              fieldName: field.fieldName,
-              caption: _caption.text.trim(),
-              // required técnico não é config do cliente (a API rejeitaria
-              // afrouxo; apertado só vale nos campos liberados)
-              required: !field.requiredTech && _required,
-              mask: _mask.text.trim(),
-            ),
-          ),
+          onPressed: _submit,
         ),
       ],
     );

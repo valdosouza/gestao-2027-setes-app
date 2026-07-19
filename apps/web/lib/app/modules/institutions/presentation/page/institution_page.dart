@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/data/entity_by_document_datasource.dart';
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
@@ -48,6 +51,11 @@ class _InstitutionPageState extends State<InstitutionPage> {
   late final CityLookupDatasource _cityLookup;
   late final EntityByDocumentDatasource _byDocumentLookup;
 
+  /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
+  /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
+  /// lista o currentState é null.
+  final _formViewKey = GlobalKey<_InstitutionFormViewState>();
+
   @override
   void initState() {
     super.initState();
@@ -85,9 +93,7 @@ class _InstitutionPageState extends State<InstitutionPage> {
       );
 
   Widget _buildForm(InstitutionFormState state) => _InstitutionFormView(
-        // Troca de registro reinicia abas e controllers.
-        key: ValueKey(
-            state.creating ? 'institution-new' : 'institution-${state.draft.id}'),
+        key: _formViewKey,
         title: widget.title,
         draft: state.draft,
         creating: state.creating,
@@ -114,12 +120,22 @@ class _InstitutionPageState extends State<InstitutionPage> {
         listenWhen: (_, current) =>
             current is InstitutionActionSuccess ||
             current is InstitutionActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo (aba
+        // certa + foco) quando o form está montado.
         listener: (context, state) {
-          final message = state is InstitutionActionSuccess
-              ? state.messageKey.tr()
-              : (state as InstitutionActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is InstitutionActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as InstitutionActionFailure).failure;
+          final form = _formViewKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is InstitutionListState || current is InstitutionFormState,
@@ -134,7 +150,11 @@ class _InstitutionPageState extends State<InstitutionPage> {
 /// Form artesanal com SetesFormShell + TabBar/TabBarView (caso de grupos
 /// naturais da criar-formulario-cadastro.md, item 2). O estado do form é o
 /// DRAFT no bloc — este widget é apresentação: repassa fatias editadas.
-class _InstitutionFormView extends StatelessWidget {
+///
+/// Stateful pelo Framework de Mensagens (Onda B): o TabController próprio
+/// permite à mecânica uma-pendência (R3) e ao fields[] do servidor TROCAR
+/// para a aba do campo antes do foco (beforeFocus dos PendencyFields).
+class _InstitutionFormView extends StatefulWidget {
   const _InstitutionFormView({
     required this.title,
     required this.draft,
@@ -168,146 +188,228 @@ class _InstitutionFormView extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onDelete;
 
-  void _snack(BuildContext context, String message) => ScaffoldMessenger.of(
-      context).showSnackBar(SnackBar(content: SetesText(message)));
+  @override
+  State<_InstitutionFormView> createState() => _InstitutionFormViewState();
+}
 
-  /// Validação do draft inteiro (as abas podem estar desmontadas — a fonte
-  /// de verdade é o draft do bloc, não os Form das abas).
-  void _save(BuildContext context) {
-    String? requiredKey;
-    if (draft.nameCompany.trim().isEmpty) {
-      requiredKey = draft.personType == 'J'
-          ? 'forms.entity.nameCompany'
-          : 'forms.entity.nameCompanyPerson';
-    } else if (draft.nickTrade.trim().isEmpty) {
-      requiredKey = draft.personType == 'J'
-          ? 'forms.entity.nickTrade'
-          : 'forms.entity.nickTradePerson';
-    } else if (draft.personType == 'F' &&
-        (draft.person?.cpfDigits ?? '').isEmpty) {
-      requiredKey = 'forms.entity.cpf';
-    } else if (draft.personType == 'J' &&
-        (draft.company?.cnpjDigits ?? '').isEmpty) {
-      requiredKey = 'forms.entity.cnpj';
-    } else if (creating && draft.schemaName.trim().isEmpty) {
-      requiredKey = 'forms.institution.schemaName';
-    }
-    if (requiredKey != null) {
-      _snack(context, 'register.requiredField'.tr(args: [requiredKey.tr()]));
-      return;
-    }
-    if (draft.personType == 'F' && draft.person!.cpfDigits.length != 11) {
-      _snack(context, 'forms.entity.cpfInvalid'.tr());
-      return;
-    }
-    if (draft.personType == 'J' && draft.company!.cnpjDigits.length != 14) {
-      _snack(context, 'forms.entity.cnpjInvalid'.tr());
-      return;
-    }
-    if (creating &&
-        !RegExp(r'^setes_[a-z0-9_]+$').hasMatch(draft.schemaName.trim())) {
-      _snack(context, 'forms.institution.schemaNameInvalid'.tr());
-      return;
-    }
-    onSave();
+class _InstitutionFormViewState extends State<_InstitutionFormView>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 7, vsync: this);
+
+  /// Ganchos de foco/marcação dos campos da aba Principal (R3) e do
+  /// schemaName da aba Estabelecimento.
+  final _mainHooks = EntityMainTabHooks();
+  final _schemaNameFocus = FocusNode();
+  final _schemaNameKey = GlobalKey<FormFieldState<String>>();
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _mainHooks.dispose();
+    _schemaNameFocus.dispose();
+    super.dispose();
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
+  ObjectInstitution get _draft => widget.draft;
+
+  /// Validação do draft inteiro (as abas podem estar desmontadas — a fonte
+  /// de verdade é o draft do bloc), NA ORDEM das abas e dos campos na tela
+  /// (R3): aba Principal primeiro, depois o schemaName da aba
+  /// Estabelecimento (só na inclusão). Os names casam com o payload da API
+  /// — por eles o fields[] do servidor ancora no campo, trocando para a aba
+  /// certa antes do foco.
+  List<PendencyField> get _pendencyFields {
+    void toMainTab() => _tabs.animateTo(0);
+    void toInstitutionTab() => _tabs.animateTo(4);
+    final isCompany = _draft.personType == 'J';
+    return [
+      PendencyField(
+        name: 'nameCompany',
+        beforeFocus: toMainTab,
+        focusNode: _mainHooks.nameCompanyFocus,
+        fieldKey: _mainHooks.nameCompanyKey,
+        validate: () => _draft.nameCompany.trim().isEmpty
+            ? 'register.requiredField'.tr(args: [
+                (isCompany
+                        ? 'forms.entity.nameCompany'
+                        : 'forms.entity.nameCompanyPerson')
+                    .tr()
+              ])
+            : null,
       ),
+      PendencyField(
+        name: 'nickTrade',
+        beforeFocus: toMainTab,
+        focusNode: _mainHooks.nickTradeFocus,
+        fieldKey: _mainHooks.nickTradeKey,
+        validate: () => _draft.nickTrade.trim().isEmpty
+            ? 'register.requiredField'.tr(args: [
+                (isCompany
+                        ? 'forms.entity.nickTrade'
+                        : 'forms.entity.nickTradePerson')
+                    .tr()
+              ])
+            : null,
+      ),
+      if (_draft.personType == 'F')
+        PendencyField(
+          name: 'cpf',
+          beforeFocus: toMainTab,
+          focusNode: _mainHooks.cpfFocus,
+          fieldKey: _mainHooks.cpfKey,
+          validate: () {
+            final digits = _draft.person?.cpfDigits ?? '';
+            if (digits.isEmpty) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.entity.cpf'.tr()]);
+            }
+            if (digits.length != 11) return 'forms.entity.cpfInvalid'.tr();
+            return null;
+          },
+        ),
+      if (_draft.personType == 'J')
+        PendencyField(
+          name: 'cnpj',
+          beforeFocus: toMainTab,
+          focusNode: _mainHooks.cnpjFocus,
+          fieldKey: _mainHooks.cnpjKey,
+          validate: () {
+            final digits = _draft.company?.cnpjDigits ?? '';
+            if (digits.isEmpty) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.entity.cnpj'.tr()]);
+            }
+            if (digits.length != 14) return 'forms.entity.cnpjInvalid'.tr();
+            return null;
+          },
+        ),
+      if (widget.creating)
+        PendencyField(
+          name: 'schemaName',
+          beforeFocus: toInstitutionTab,
+          focusNode: _schemaNameFocus,
+          fieldKey: _schemaNameKey,
+          validate: () {
+            final text = _draft.schemaName.trim();
+            if (text.isEmpty) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.institution.schemaName'.tr()]);
+            }
+            if (!RegExp(r'^setes_[a-z0-9_]+$').hasMatch(text)) {
+              return 'forms.institution.schemaNameInvalid'.tr();
+            }
+            return null;
+          },
+        ),
+    ];
+  }
+
+  /// Ancora o fields[] do envelope 400/409 no campo — aba certa + foco
+  /// (chamado pelo listener do bloc via GlobalKey).
+  Future<void> showServerFieldError(Failure failure) =>
+      showServerFieldFeedback(context, failure, _pendencyFields);
+
+  Future<void> _save() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    widget.onSave();
+  }
+
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
+  Future<void> _confirmDelete() async {
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   @override
-  Widget build(BuildContext context) => SetesFormShell(
-        title: title,
-        saving: saving,
-        onBack: onBack,
-        onSave: () => _save(context),
-        onDelete: onDelete != null ? () => _confirmDelete(context) : null,
-        child: DefaultTabController(
-          length: 7,
-          child: Column(
-            children: [
-              TabBar(
-                tabs: [
-                  Tab(text: 'register.tabMain'.tr()),
-                  Tab(text: 'register.tabAddresses'.tr()),
-                  Tab(text: 'register.tabPhones'.tr()),
-                  Tab(text: 'register.tabSocialMedia'.tr()),
-                  Tab(text: 'forms.institution.tab'.tr()),
-                  Tab(text: 'forms.institution.tabInterfaces'.tr()),
-                  Tab(text: 'forms.institution.tabUsers'.tr()),
+  Widget build(BuildContext context) {
+    final draft = _draft;
+    final creating = widget.creating;
+    return SetesFormShell(
+      title: widget.title,
+      saving: widget.saving,
+      onBack: widget.onBack,
+      onSave: _save,
+      onDelete: widget.onDelete != null ? _confirmDelete : null,
+      // Troca de registro reinicia abas e controllers.
+      child: KeyedSubtree(
+        key: ValueKey(
+            creating ? 'institution-new' : 'institution-${draft.id}'),
+        child: Column(
+          children: [
+            TabBar(
+              controller: _tabs,
+              tabs: [
+                Tab(text: 'register.tabMain'.tr()),
+                Tab(text: 'register.tabAddresses'.tr()),
+                Tab(text: 'register.tabPhones'.tr()),
+                Tab(text: 'register.tabSocialMedia'.tr()),
+                Tab(text: 'forms.institution.tab'.tr()),
+                Tab(text: 'forms.institution.tabInterfaces'.tr()),
+                Tab(text: 'forms.institution.tabUsers'.tr()),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  EntityMainTab(
+                    value: draft,
+                    onChanged: (fiscal) =>
+                        widget.onDraftChanged(draft.mergeFiscal(fiscal)),
+                    // Prefill by-document só na CRIAÇÃO (Fase 3, dec. 3/9/10)
+                    byDocumentLookup: widget.byDocumentLookup,
+                    prefillEnabled: creating,
+                    hooks: _mainHooks,
+                  ),
+                  AddressListTab(
+                    items: draft.addresses,
+                    countryLookup: widget.countryLookup,
+                    stateLookup: widget.stateLookup,
+                    cityLookup: widget.cityLookup,
+                    onChanged: (list) => widget
+                        .onDraftChanged(draft.copyWith(addresses: list)),
+                  ),
+                  PhoneListTab(
+                    items: draft.phones,
+                    onChanged: (list) =>
+                        widget.onDraftChanged(draft.copyWith(phones: list)),
+                  ),
+                  SocialMediaListTab(
+                    items: draft.socialMedia,
+                    onChanged: (list) => widget
+                        .onDraftChanged(draft.copyWith(socialMedia: list)),
+                  ),
+                  InstitutionTab(
+                    value: draft,
+                    creating: creating,
+                    onChanged: widget.onDraftChanged,
+                    schemaNameFocus: _schemaNameFocus,
+                    schemaNameKey: _schemaNameKey,
+                  ),
+                  // Contrato comercial de interfaces — CRUD autônomo
+                  // (sincroniza a cada toggle; só na edição).
+                  InstitutionInterfacesTab(
+                    institutionId: creating ? null : draft.id,
+                    datasource: widget.datasource,
+                  ),
+                  // Usuários do institution (workflow 2026-07-12): lista
+                  // filtrada + botão + com o institution IMPLÍCITO —
+                  // facilita liberar o primeiro admin do cliente.
+                  InstitutionUsersTab(
+                    institutionId: creating ? null : draft.id,
+                    datasource: widget.userDatasource,
+                  ),
                 ],
               ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    EntityMainTab(
-                      value: draft,
-                      onChanged: (fiscal) =>
-                          onDraftChanged(draft.mergeFiscal(fiscal)),
-                      // Prefill by-document só na CRIAÇÃO (Fase 3, dec. 3/9/10)
-                      byDocumentLookup: byDocumentLookup,
-                      prefillEnabled: creating,
-                    ),
-                    AddressListTab(
-                      items: draft.addresses,
-                      countryLookup: countryLookup,
-                      stateLookup: stateLookup,
-                      cityLookup: cityLookup,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(addresses: list)),
-                    ),
-                    PhoneListTab(
-                      items: draft.phones,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(phones: list)),
-                    ),
-                    SocialMediaListTab(
-                      items: draft.socialMedia,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(socialMedia: list)),
-                    ),
-                    InstitutionTab(
-                      value: draft,
-                      creating: creating,
-                      onChanged: onDraftChanged,
-                    ),
-                    // Contrato comercial de interfaces — CRUD autônomo
-                    // (sincroniza a cada toggle; só na edição).
-                    InstitutionInterfacesTab(
-                      institutionId: creating ? null : draft.id,
-                      datasource: datasource,
-                    ),
-                    // Usuários do institution (workflow 2026-07-12): lista
-                    // filtrada + botão + com o institution IMPLÍCITO —
-                    // facilita liberar o primeiro admin do cliente.
-                    InstitutionUsersTab(
-                      institutionId: creating ? null : draft.id,
-                      datasource: userDatasource,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }

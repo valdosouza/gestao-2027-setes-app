@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../interface_routes.dart';
 import '../bloc/menu_bloc.dart';
 
@@ -17,14 +18,21 @@ class ContentHomeDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<MenuBloc, MenuState>(
+    return BlocConsumer<MenuBloc, MenuState>(
       bloc: bloc,
+      // Erro na carga dos menus = dialog via PONTE (Framework de Mensagens,
+      // R1/R7 — técnico ganha código de suporte); o corpo mantém a mensagem
+      // como pano de fundo neutro.
+      listener: (context, state) {
+        if (state is MenuError) showFailureFeedback(context, state.failure);
+      },
       builder: (context, state) {
         if (state is MenuLoading || state is MenuInitial) {
           return const SetesScaffold(body: SetesCircularProgressIndicator());
         }
         if (state is MenuError) {
-          return SetesScaffold(body: Center(child: SetesText(state.message)));
+          return SetesScaffold(
+              body: Center(child: SetesText(state.message.tr())));
         }
         final loaded = state as MenuLoaded;
 

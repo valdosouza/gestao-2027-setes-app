@@ -27,22 +27,25 @@ class ContractFormState extends ContractState {
   List<Object?> get props => [editing, saving];
 }
 
-/// Efeito one-shot para SnackBar de sucesso (listener-only, não buildável).
+/// Efeito one-shot de sucesso (listener-only, não buildável) — a página
+/// entrega à ponte (showSuccessFeedback → SnackBar, R1).
 class ContractActionSuccess extends ContractState {
   const ContractActionSuccess(this.messageKey);
 
-  /// Chave i18n — a página traduz.
+  /// Chave i18n ('register.saved' / 'register.deleted') — a ponte traduz.
   final String messageKey;
 
   @override
   List<Object?> get props => [messageKey];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only, não buildável).
+/// Efeito one-shot de falha (listener-only, não buildável). Carrega o
+/// [Failure] INTEIRO: a ponte deriva a natureza (validation × erro técnico
+/// com supportRef — R7) e o fields[] ancora no campo do formulário.
 class ContractActionFailure extends ContractState {
-  const ContractActionFailure(this.message);
-  final String message;
+  const ContractActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }

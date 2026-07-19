@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 
@@ -44,8 +45,12 @@ class _UserInstitutionsSectionState extends State<UserInstitutionsSection> {
     _load();
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Falha = dialog via PONTE de feedback (Framework de Mensagens) —
+  /// a seção nunca chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -53,9 +58,9 @@ class _UserInstitutionsSectionState extends State<UserInstitutionsSection> {
       final grants = await widget.datasource.getInstitutions(widget.userId);
       if (mounted) setState(() => _grants = grants);
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -73,17 +78,15 @@ class _UserInstitutionsSectionState extends State<UserInstitutionsSection> {
           if (g.granted)
             (institutionId: g.institutionId, kind: g.kind ?? 'user'),
       ]);
-      if (mounted) _snack('forms.user.institutionsSaved'.tr());
+      if (mounted) {
+        await showSuccessFeedback(context, 'forms.user.institutionsSaved');
+      }
     } on Failure catch (failure) {
-      if (mounted) {
-        setState(() => _grants = previous);
-        _snack(failure.message);
-      }
+      if (mounted) setState(() => _grants = previous);
+      _fail(failure);
     } catch (_) {
-      if (mounted) {
-        setState(() => _grants = previous);
-        _snack('register.error'.tr());
-      }
+      if (mounted) setState(() => _grants = previous);
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

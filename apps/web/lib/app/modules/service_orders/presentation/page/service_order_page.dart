@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../data/datasource/service_order_datasource.dart';
 import '../../domain/entity/service_order_entity.dart';
@@ -82,7 +83,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   // -------------------------------------------------------------------
 
   /// FAB "Abrir OS": lookup de cliente → POST (409 da trava D5 vira
-  /// SnackBar com a mensagem da API, via one-shot do bloc).
+  /// dialog de validação com a mensagem da API, via one-shot + ponte).
   Future<void> _openNewOrder() async {
     final picked = await showSetesLookup<ServiceCustomerLookup>(
       context: context,
@@ -111,6 +112,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     }
   }
 
+  /// RELATÓRIO da rotina mensal — dialog INFORMATIVO próprio (estrutura de
+  /// linhas + erros por cliente), mantido fora da ponte por decisão do
+  /// framework (Onda B): não é feedback de desfecho simples.
   Future<void> _showMonthlyReport(MonthlyRunReport report) => showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -284,18 +288,28 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             current is ServiceOrderActionSuccess ||
             current is ServiceOrderActionFailure ||
             current is ServiceOrderMonthlyRunDone,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
+        // via ponte (R1); falha = dialog (os 409 de negócio — trava D5,
+        // ordem faturada — viram validação com a mensagem da API); 400 com
+        // fields[] mostra a message do campo apontado (o dialog de ação já
+        // fechou — sem campo montado para focar).
         listener: (context, state) {
           if (state is ServiceOrderMonthlyRunDone) {
             _showMonthlyReport(state.report);
             return;
           }
-          final message = state is ServiceOrderActionSuccess
-              ? (state.args.isEmpty
-                  ? state.messageKey.tr()
-                  : state.messageKey.tr(args: state.args))
-              : (state as ServiceOrderActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is ServiceOrderActionSuccess) {
+            showSuccessFeedback(context, state.messageKey,
+                args: state.args.isEmpty ? null : state.args);
+            return;
+          }
+          final failure = (state as ServiceOrderActionFailure).failure;
+          if (failure.fields.isNotEmpty) {
+            showValidationFeedback(context, failure.fields.first.message.tr());
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is ServiceOrderListState ||
@@ -313,6 +327,38 @@ String _quantityText(double quantity) =>
     quantity == quantity.roundToDouble()
         ? '${quantity.toInt()}'
         : quantity.toString().replaceAll('.', ',');
+
+/// Checagem de UM campo de dialog de ação: [validate] devolve a chave i18n
+/// (ou texto pronto) da pendência; [focusNode]/[fieldKey] ancoram o retorno
+/// do foco e a marca inline SÓ nele.
+class _DialogCheck {
+  const _DialogCheck({required this.validate, this.focusNode, this.fieldKey});
+
+  final String? Function() validate;
+  final FocusNode? focusNode;
+  final GlobalKey<FormFieldState<String>>? fieldKey;
+}
+
+/// R3 — UMA pendência por vez nos dialogs de ação (mesma mecânica da
+/// fábrica register_form_page): percorre as checagens NA ORDEM declarada
+/// e, na PRIMEIRA mensagem, mostra o dialog da ponte → OK → marca SÓ o
+/// campo pendente e devolve o foco a ele. true = tudo passou.
+Future<bool> _firstPendingCheck(
+    BuildContext context, List<_DialogCheck> checks) async {
+  for (final check in checks) {
+    final message = check.validate();
+    if (message != null) {
+      // .tr() em texto já traduzido devolve o próprio texto.
+      await showValidationFeedback(context, message.tr());
+      if (context.mounted) {
+        check.fieldKey?.currentState?.validate();
+        check.focusNode?.requestFocus();
+      }
+      return false;
+    }
+  }
+  return true;
+}
 
 /// Detalhe da OS: cabeçalho (cliente/nº/data/status/total), itens e — na
 /// ABERTA — ações de item, Cancelar OS (delete_outline na AppBar) e o
@@ -343,26 +389,16 @@ class _ServiceOrderDetailView extends StatelessWidget {
   ServiceOrderFull get order => state.order;
   bool get busy => state.saving;
 
+  /// Cancelamento confirmado via decisão TIPADA da ponte (R4): Sim =
+  /// cancelar a OS; Cancelar (ou fechar) = nada. Sem ação alternativa →
+  /// sem botão Não.
   Future<void> _confirmCancel(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('forms.serviceOrder.confirmCancel'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'forms.serviceOrder.cancelOs'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'forms.serviceOrder.confirmCancel'.tr(),
+      yesLabel: 'forms.serviceOrder.cancelOs'.tr(),
     );
-    if (confirmed == true) onCancel();
+    if (decision == SetesDecision.yes) onCancel();
   }
 
   Future<void> _openItemDialog(BuildContext context,
@@ -375,27 +411,15 @@ class _ServiceOrderDetailView extends StatelessWidget {
     if (input != null) onItemSave(existing?.id, input);
   }
 
+  /// Remoção de item confirmada via decisão TIPADA da ponte (R4).
   Future<void> _confirmRemoveItem(
       BuildContext context, ServiceOrderItem item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) onItemRemove(item.id);
+    if (decision == SetesDecision.yes) onItemRemove(item.id);
   }
 
   Future<void> _openInvoiceDialog(BuildContext context) async {
@@ -560,6 +584,8 @@ class _MonthlyRunDialog extends StatefulWidget {
 class _MonthlyRunDialogState extends State<_MonthlyRunDialog> {
   late int _month;
   late final TextEditingController _year;
+  final _yearFocus = FocusNode();
+  final _yearKey = GlobalKey<FormFieldState<String>>();
 
   @override
   void initState() {
@@ -572,19 +598,28 @@ class _MonthlyRunDialogState extends State<_MonthlyRunDialog> {
   @override
   void dispose() {
     _year.dispose();
+    _yearFocus.dispose();
     super.dispose();
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  String? _validateYear(String? value) {
+    final year = int.tryParse(value?.trim() ?? '');
+    return (year == null || year < 2020 || year > 2100)
+        ? 'forms.serviceOrder.yearInvalid'
+        : null;
+  }
 
-  void _confirm() {
-    final year = int.tryParse(_year.text.trim());
-    if (year == null || year < 2020 || year > 2100) {
-      _warn('forms.serviceOrder.yearInvalid'.tr());
-      return;
-    }
-    Navigator.of(context).pop((year, _month));
+  /// Valida via ponte — R3: UMA pendência por vez com foco no campo.
+  Future<void> _confirm() async {
+    final ok = await _firstPendingCheck(context, [
+      _DialogCheck(
+        validate: () => _validateYear(_year.text),
+        focusNode: _yearFocus,
+        fieldKey: _yearKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
+    Navigator.of(context).pop((int.parse(_year.text.trim()), _month));
   }
 
   @override
@@ -607,7 +642,10 @@ class _MonthlyRunDialogState extends State<_MonthlyRunDialog> {
               SetesTextField(
                 label: 'forms.serviceOrder.year'.tr(),
                 controller: _year,
+                focusNode: _yearFocus,
+                fieldKey: _yearKey,
                 keyboardType: TextInputType.number,
+                validator: (value) => _validateYear(value)?.tr(),
                 onSubmitted: (_) => _confirm(),
               ),
             ],
@@ -646,6 +684,12 @@ class _ServiceOrderItemDialogState extends State<_ServiceOrderItemDialog> {
   late final TextEditingController _quantity;
   late final TextEditingController _unitValue;
   late final TextEditingController _discountValue;
+  final _quantityFocus = FocusNode();
+  final _unitValueFocus = FocusNode();
+  final _discountValueFocus = FocusNode();
+  final _quantityKey = GlobalKey<FormFieldState<String>>();
+  final _unitValueKey = GlobalKey<FormFieldState<String>>();
+  final _discountValueKey = GlobalKey<FormFieldState<String>>();
 
   int? _productId;
   String _productDescription = '';
@@ -676,6 +720,9 @@ class _ServiceOrderItemDialogState extends State<_ServiceOrderItemDialog> {
     _quantity.dispose();
     _unitValue.dispose();
     _discountValue.dispose();
+    _quantityFocus.dispose();
+    _unitValueFocus.dispose();
+    _discountValueFocus.dispose();
     super.dispose();
   }
 
@@ -697,41 +744,67 @@ class _ServiceOrderItemDialogState extends State<_ServiceOrderItemDialog> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
-
   double? _parse(String text) =>
       double.tryParse(text.trim().replaceAll(',', '.'));
 
-  void _confirm() {
-    if (_productId == null) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.serviceOrder.product'.tr()]));
-      return;
-    }
-    final quantity = _parse(_quantity.text);
-    if (quantity == null || quantity <= 0) {
-      _warn('forms.serviceOrder.quantityInvalid'.tr());
-      return;
-    }
-    final unitValue = _parse(_unitValue.text);
-    if (unitValue == null || unitValue < 0) {
-      _warn('forms.serviceOrder.unitValueInvalid'.tr());
-      return;
-    }
-    double? discountValue;
-    if (_discountValue.text.trim().isNotEmpty) {
-      discountValue = _parse(_discountValue.text);
-      if (discountValue == null || discountValue < 0) {
-        _warn('forms.serviceOrder.discountInvalid'.tr());
-        return;
-      }
-    }
+  String? _validateQuantity(String? value) {
+    final quantity = _parse(value ?? '');
+    return (quantity == null || quantity <= 0)
+        ? 'forms.serviceOrder.quantityInvalid'
+        : null;
+  }
+
+  String? _validateUnitValue(String? value) {
+    final unitValue = _parse(value ?? '');
+    return (unitValue == null || unitValue < 0)
+        ? 'forms.serviceOrder.unitValueInvalid'
+        : null;
+  }
+
+  /// Desconto é OPCIONAL — válido SE preenchido (convenção setes_validators).
+  String? _validateDiscount(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final discount = _parse(value);
+    return (discount == null || discount < 0)
+        ? 'forms.serviceOrder.discountInvalid'
+        : null;
+  }
+
+  /// Valida via ponte — R3: UMA pendência por vez, na ORDEM dos campos,
+  /// com foco no pendente (o lookup de produto não recebe foco/marca —
+  /// padrão da fábrica para FK).
+  Future<void> _confirm() async {
+    final ok = await _firstPendingCheck(context, [
+      _DialogCheck(
+        validate: () => _productId == null
+            ? 'register.requiredField'
+                .tr(args: ['forms.serviceOrder.product'.tr()])
+            : null,
+      ),
+      _DialogCheck(
+        validate: () => _validateQuantity(_quantity.text),
+        focusNode: _quantityFocus,
+        fieldKey: _quantityKey,
+      ),
+      _DialogCheck(
+        validate: () => _validateUnitValue(_unitValue.text),
+        focusNode: _unitValueFocus,
+        fieldKey: _unitValueKey,
+      ),
+      _DialogCheck(
+        validate: () => _validateDiscount(_discountValue.text),
+        focusNode: _discountValueFocus,
+        fieldKey: _discountValueKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
     Navigator.of(context).pop(ServiceOrderItemInput(
       productId:     _productId!,
-      quantity:      quantity,
-      unitValue:     unitValue,
-      discountValue: discountValue,
+      quantity:      _parse(_quantity.text)!,
+      unitValue:     _parse(_unitValue.text)!,
+      discountValue: _discountValue.text.trim().isEmpty
+          ? null
+          : _parse(_discountValue.text),
     ));
   }
 
@@ -754,20 +827,29 @@ class _ServiceOrderItemDialogState extends State<_ServiceOrderItemDialog> {
               SetesTextField(
                 label: 'forms.serviceOrder.quantity'.tr(),
                 controller: _quantity,
+                focusNode: _quantityFocus,
+                fieldKey: _quantityKey,
                 autofocus: _editing,
                 keyboardType: TextInputType.number,
+                validator: (value) => _validateQuantity(value)?.tr(),
               ),
               const SizedBox(height: 16),
               SetesTextField(
                 label: 'forms.serviceOrder.unitValue'.tr(),
                 controller: _unitValue,
+                focusNode: _unitValueFocus,
+                fieldKey: _unitValueKey,
                 keyboardType: TextInputType.number,
+                validator: (value) => _validateUnitValue(value)?.tr(),
               ),
               const SizedBox(height: 16),
               SetesTextField(
                 label: 'forms.serviceOrder.discountValue'.tr(),
                 controller: _discountValue,
+                focusNode: _discountValueFocus,
+                fieldKey: _discountValueKey,
                 keyboardType: TextInputType.number,
+                validator: (value) => _validateDiscount(value)?.tr(),
                 onSubmitted: (_) => _confirm(),
               ),
             ],
@@ -804,6 +886,10 @@ class _InvoiceDialog extends StatefulWidget {
 class _InvoiceDialogState extends State<_InvoiceDialog> {
   late final TextEditingController _parcels;
   final _dtExpiration = TextEditingController();
+  final _parcelsFocus = FocusNode();
+  final _dtExpirationFocus = FocusNode();
+  final _parcelsKey = GlobalKey<FormFieldState<String>>();
+  final _dtExpirationKey = GlobalKey<FormFieldState<String>>();
 
   int? _paymentTypeId;
   String _paymentTypeDescription = '';
@@ -819,6 +905,8 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
   void dispose() {
     _parcels.dispose();
     _dtExpiration.dispose();
+    _parcelsFocus.dispose();
+    _dtExpirationFocus.dispose();
     super.dispose();
   }
 
@@ -866,29 +954,43 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  String? _validateParcels(String? value) {
+    final parcels = int.tryParse(value?.trim() ?? '');
+    return (parcels == null || parcels < 1 || parcels > 99)
+        ? 'forms.serviceOrder.parcelsInvalid'
+        : null;
+  }
 
-  void _confirm() {
-    if (_paymentTypeId == null) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.serviceOrder.paymentType'.tr()]));
-      return;
-    }
-    final parcels = int.tryParse(_parcels.text.trim());
-    if (parcels == null || parcels < 1 || parcels > 99) {
-      _warn('forms.serviceOrder.parcelsInvalid'.tr());
-      return;
-    }
-    final dtExpirationIso = displayDateToIso(_dtExpiration.text);
-    if (dtExpirationIso == null) {
-      _warn('register.invalidDate'.tr());
-      return;
-    }
+  /// Vencimento é OBRIGATÓRIO na decisão do faturamento (vazio = inválido).
+  String? _validateDtExpiration(String? value) =>
+      displayDateToIso(value ?? '') == null ? 'register.invalidDate' : null;
+
+  /// Valida via ponte — R3: UMA pendência por vez, na ORDEM dos campos,
+  /// com foco no pendente (lookup de forma de pagamento sem foco/marca).
+  Future<void> _confirm() async {
+    final ok = await _firstPendingCheck(context, [
+      _DialogCheck(
+        validate: () => _paymentTypeId == null
+            ? 'register.requiredField'
+                .tr(args: ['forms.serviceOrder.paymentType'.tr()])
+            : null,
+      ),
+      _DialogCheck(
+        validate: () => _validateParcels(_parcels.text),
+        focusNode: _parcelsFocus,
+        fieldKey: _parcelsKey,
+      ),
+      _DialogCheck(
+        validate: () => _validateDtExpiration(_dtExpiration.text),
+        focusNode: _dtExpirationFocus,
+        fieldKey: _dtExpirationKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
     Navigator.of(context).pop(ServiceOrderInvoiceInput(
-      dtExpiration:  dtExpirationIso,
+      dtExpiration:  displayDateToIso(_dtExpiration.text)!,
       paymentTypeId: _paymentTypeId!,
-      parcels:       parcels,
+      parcels:       int.parse(_parcels.text.trim()),
     ));
   }
 
@@ -909,14 +1011,19 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
               SetesTextField(
                 label: 'forms.serviceOrder.parcels'.tr(),
                 controller: _parcels,
+                focusNode: _parcelsFocus,
+                fieldKey: _parcelsKey,
                 keyboardType: TextInputType.number,
+                validator: (value) => _validateParcels(value)?.tr(),
               ),
               const SizedBox(height: 16),
               SetesTextField(
                 label: 'forms.serviceOrder.dtExpiration'.tr(),
                 hint: 'register.dateHint'.tr(),
                 controller: _dtExpiration,
-                validator: validateOptionalDate,
+                focusNode: _dtExpirationFocus,
+                fieldKey: _dtExpirationKey,
+                validator: (value) => _validateDtExpiration(value)?.tr(),
                 onSubmitted: (_) => _confirm(),
               ),
             ],

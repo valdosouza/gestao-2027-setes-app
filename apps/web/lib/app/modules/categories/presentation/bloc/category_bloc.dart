@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,7 +15,9 @@ part 'category_state.dart';
 /// decisões do Valdo 2026-07-18): duas árvores por kind (abas Produtos ×
 /// Serviços), alterna árvore ↔ formulário; criar nasce como nível raiz
 /// (FAB) ou subnível (ação no nó); mover de pai é da API (PUT com
-/// parentId); excluir com subníveis devolve 409 (SnackBar).
+/// parentId); excluir com subníveis devolve 409 HAS_CHILDREN — os
+/// desfechos viram estados one-shot que a página entrega à PONTE de
+/// feedback (Framework de Mensagens, Onda B).
 class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
   CategoryBloc({
     required this.getlist,
@@ -50,7 +53,7 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
     final result = await getlist(_kind);
     result.fold(
       (failure) {
-        emit(CategoryActionFailure(failure.message));
+        emit(CategoryActionFailure(failure));
         emit(CategoryTreeState(kind: _kind));
       },
       (items) => emit(CategoryTreeState(kind: _kind, items: items)),
@@ -77,7 +80,7 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         : await put(event.category);
     await result.fold(
       (failure) async {
-        emit(CategoryActionFailure(failure.message));
+        emit(CategoryActionFailure(failure));
         emit(CategoryFormState(
             kind: event.category.kind,
             editing: event.creating ? null : event.category));
@@ -93,8 +96,9 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
       CategoryDeleteRequested event, Emitter<CategoryState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      // 409 = possui subníveis (decisão: bloquear — mensagem da API)
-      (failure) async => emit(CategoryActionFailure(failure.message)),
+      // 409 HAS_CHILDREN = possui subníveis (decisão: bloquear — a ponte
+      // mostra a mensagem da API como dialog de validação)
+      (failure) async => emit(CategoryActionFailure(failure)),
       (_) async {
         emit(const CategoryActionSuccess('register.deleted'));
         await _reload(emit);

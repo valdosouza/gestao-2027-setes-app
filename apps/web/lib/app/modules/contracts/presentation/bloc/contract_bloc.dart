@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:dartz/dartz.dart' show unit;
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -72,7 +73,7 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
     final result = await getlist();
     result.fold(
       (failure) {
-        emit(ContractActionFailure(failure.message));
+        emit(ContractActionFailure(failure));
         emit(const ContractListState());
       },
       (items) {
@@ -88,7 +89,7 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
     final result = await get(event.id);
     await result.fold(
       (failure) async {
-        emit(ContractActionFailure(failure.message));
+        emit(ContractActionFailure(failure));
         emit(ContractListState(items: _filtered));
       },
       (full) async {
@@ -108,9 +109,9 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
 
     await result.fold(
       (failure) async {
-        emit(ContractActionFailure(failure.message));
-        // Mesmo editing → mesma ValueKey na página: o form preserva o
-        // que o usuário digitou.
+        emit(ContractActionFailure(failure));
+        // Mesmo editing → o form continua montado: preserva o que o
+        // usuário digitou e permite ancorar o fields[] no campo.
         emit(ContractFormState(editing: _editing));
       },
       (_) async {
@@ -124,7 +125,7 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
       ContractDeleteRequested event, Emitter<ContractState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(ContractActionFailure(failure.message)),
+      (failure) async => emit(ContractActionFailure(failure)),
       (_) async {
         emit(const ContractActionSuccess('register.deleted'));
         await _reload(emit);

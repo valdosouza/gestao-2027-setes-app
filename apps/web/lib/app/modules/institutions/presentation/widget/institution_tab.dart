@@ -16,12 +16,19 @@ class InstitutionTab extends StatefulWidget {
     required this.value,
     required this.creating,
     required this.onChanged,
+    this.schemaNameFocus,
+    this.schemaNameKey,
     super.key,
   });
 
   final ObjectInstitution value;
   final bool creating;
   final ValueChanged<ObjectInstitution> onChanged;
+
+  /// Ganchos da mecânica uma-pendência do form composto (R3) — opcionais:
+  /// foco/marca dirigidos ao campo após o dialog da ponte.
+  final FocusNode? schemaNameFocus;
+  final GlobalKey<FormFieldState<String>>? schemaNameKey;
 
   @override
   State<InstitutionTab> createState() => _InstitutionTabState();
@@ -42,6 +49,17 @@ class _InstitutionTabState extends State<InstitutionTab> {
     super.dispose();
   }
 
+  /// Mesmo julgamento do salvar (required + padrão `setes_<nome>`) — a
+  /// marca inline nunca mente para a pendência (R3). Só vale na inclusão.
+  String? _validateSchemaName(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'register.required'.tr();
+    if (!RegExp(r'^setes_[a-z0-9_]+$').hasMatch(text)) {
+      return 'forms.institution.schemaNameInvalid'.tr();
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) => FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
@@ -54,9 +72,12 @@ class _InstitutionTabState extends State<InstitutionTab> {
                 label: 'forms.institution.schemaName'.tr(),
                 hint: 'forms.institution.schemaNameHint'.tr(),
                 controller: _schemaName,
+                focusNode: widget.schemaNameFocus,
+                fieldKey: widget.schemaNameKey,
                 readOnly: !widget.creating,
                 autofocus: widget.creating,
                 textInputAction: TextInputAction.done,
+                validator: widget.creating ? _validateSchemaName : null,
                 onChanged: (t) =>
                     widget.onChanged(widget.value.copyWith(schemaName: t)),
               ),

@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/interface_config/entity/interface_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
@@ -77,8 +79,9 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
 
   void _openInterface(InterfaceVitrineEntity iface) {
     if (!iface.acquired) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: SetesText('forms.interfaceConfigs.notAcquired'.tr())));
+      // Bloqueio corrigível pelo usuário → dialog de validação via ponte.
+      showValidationFeedback(
+          context, 'forms.interfaceConfigs.notAcquired'.tr());
       return;
     }
     _bloc.add(InterfaceConfigsInterfaceOpened(iface));
@@ -251,12 +254,15 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
         listenWhen: (_, current) =>
             current is InterfaceConfigsActionSuccess ||
             current is InterfaceConfigsActionFailure,
+        // PONTE de feedback (Framework de Mensagens): sucesso = SnackBar
+        // via ponte (R1); falha = dialog — a ponte deriva a natureza (R7).
         listener: (context, state) {
-          final message = state is InterfaceConfigsActionSuccess
-              ? state.messageKey.tr()
-              : (state as InterfaceConfigsActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is InterfaceConfigsActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          showFailureFeedback(
+              context, (state as InterfaceConfigsActionFailure).failure);
         },
         buildWhen: (_, current) =>
             current is InterfaceConfigsVitrineState ||
@@ -289,7 +295,8 @@ class _ConfigValueDialog extends StatefulWidget {
 
 class _ConfigValueDialogState extends State<_ConfigValueDialog> {
   late final TextEditingController _value;
-  String? _error;
+  final _valueFocus = FocusNode();
+  final _valueKey = GlobalKey<FormFieldState<String>>();
 
   @override
   void initState() {
@@ -300,6 +307,7 @@ class _ConfigValueDialogState extends State<_ConfigValueDialog> {
   @override
   void dispose() {
     _value.dispose();
+    _valueFocus.dispose();
     super.dispose();
   }
 
@@ -309,13 +317,39 @@ class _ConfigValueDialogState extends State<_ConfigValueDialog> {
         _ => content.length <= 100,
       };
 
-  void _submit() {
+  /// Validação do kind (mesma regra do validator inline do campo).
+  String? _validateValue() {
     final content = _value.text.trim();
-    if (content.isEmpty || !_isValid(content)) {
-      setState(() => _error = 'forms.interfaceConfigs.invalidValue'.tr());
-      return;
-    }
-    Navigator.of(context).pop(_ValueDialogResult(content));
+    return (content.isEmpty || !_isValid(content))
+        ? 'forms.interfaceConfigs.invalidValue'.tr()
+        : null;
+  }
+
+  /// UMA pendência por vez (R3): dialog da ponte → OK → foco no campo.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'content',
+          validate: _validateValue,
+          focusNode: _valueFocus,
+          fieldKey: _valueKey,
+        ),
+      ];
+
+  Future<void> _submit() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
+    Navigator.of(context).pop(_ValueDialogResult(_value.text.trim()));
+  }
+
+  /// Restaurar o herdado é uma DECISÃO (R4): Sim = limpar o valor próprio
+  /// (volta a herdar institution → default); Cancelar = nada.
+  Future<void> _confirmRestore() async {
+    final decision = await askDecision(
+      context,
+      message: 'forms.interfaceConfigs.restoreConfirm'.tr(),
+    );
+    if (decision != SetesDecision.yes || !mounted) return;
+    Navigator.of(context).pop(const _ValueDialogResult(null));
   }
 
   @override
@@ -335,17 +369,16 @@ class _ConfigValueDialogState extends State<_ConfigValueDialog> {
               label: 'forms.interfaceConfigs.value'.tr(),
               controller: _value,
               autofocus: true,
+              focusNode: _valueFocus,
+              fieldKey: _valueKey,
               keyboardType: numeric ? TextInputType.number : null,
               inputFormatters: config.kind == 'Integer'
                   ? [FilteringTextInputFormatter.allow(RegExp(r'[-0-9]'))]
                   : null,
+              // marca SÓ este campo após o OK do dialog de pendência (R3)
+              validator: (_) => _validateValue(),
               onSubmitted: (_) => _submit(),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              SetesText(_error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ],
             const SizedBox(height: 8),
             SetesText(
                 '${'forms.interfaceConfigs.defaultValue'.tr()}: ${config.defaultContent}'),
@@ -356,8 +389,7 @@ class _ConfigValueDialogState extends State<_ConfigValueDialog> {
         SetesButton(
           label: 'forms.interfaceConfigs.restoreDefault'.tr(),
           kind: SetesButtonKind.text,
-          onPressed: () =>
-              Navigator.of(context).pop(const _ValueDialogResult(null)),
+          onPressed: _confirmRestore,
         ),
         SetesButton(
           label: 'register.cancel'.tr(),

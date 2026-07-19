@@ -2,6 +2,19 @@
   "app": {
     "title": "Setes ERP"
   },
+  "core": {
+    "errors": {
+      "network": "Connection failure with the server",
+      "unauthorized": "Not authorized",
+      "session": "Invalid or expired session",
+      "generic": "The operation could not be completed"
+    }
+  },
+  "feedback": {
+    "errorTitle": "Error",
+    "validationTitle": "Attention",
+    "supportRef": "Report code {} to support"
+  },
   "auth": {
     "email": "E-mail",
     "emailHint": "Enter your e-mail",
@@ -30,7 +43,9 @@
     "changePassword": "Change password",
     "passwordChanged": "Password changed successfully",
     "passwordsDontMatch": "Passwords don't match",
-    "passwordTooShort": "Password must have at least 5 characters"
+    "passwordTooShort": "Password must have at least 5 characters",
+    "selectionExpired": "Selection session expired — sign in again",
+    "informEmail": "Enter the account e-mail"
   },
   "home": {
     "modules": "Modules",
@@ -64,6 +79,7 @@
     "error": "The operation could not be completed",
     "yes": "Yes",
     "no": "No",
+    "ok": "OK",
     "configTooltip": "Settings for this screen",
     "close": "Close"
   },
@@ -105,6 +121,8 @@
       "requiredTech": "Required by the system (cannot be turned off)",
       "mask": "Mask",
       "maskHint": "# = digit, A = letter — e.g. (##) #-####-####",
+      "captionTooLong": "Field label too long (maximum 100 characters)",
+      "invalidMask": "Invalid mask — use # for digit and A for letter (maximum 50 characters)",
       "saved": "Field configuration saved"
     },
     "entity": {
@@ -323,6 +341,7 @@
       "defaultValue": "System default",
       "invalidValue": "Invalid value for the configuration kind",
       "restoreDefault": "Restore default",
+      "restoreConfirm": "Restore this configuration's default value?",
       "originDefault": "Value: system default",
       "originInstitution": "Value: set by the company",
       "originUser": "Value: set by you"
@@ -589,7 +608,8 @@
     "uploadLogo": "Upload logo",
     "logoTooBig": "Image too large (max 1.4 MB)",
     "apply": "Apply and save",
-    "resetToDefault": "Reset to Setes default"
+    "resetToDefault": "Reset to Setes default",
+    "resetConfirm": "Reset to the default Setes colors?"
   },
   "menu": {
     "groups": {

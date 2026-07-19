@@ -3,6 +3,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../data/datasource/customer_partnership_datasource.dart';
 import '../../domain/entity/customer_partnership.dart';
 
@@ -47,8 +49,12 @@ class _CustomerPartnershipTabState extends State<CustomerPartnershipTab> {
     if (widget.customerId != null) _load();
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Falhas SEMPRE via ponte (Framework de Mensagens, R1/R7) — a aba nunca
+  /// chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -56,9 +62,9 @@ class _CustomerPartnershipTabState extends State<CustomerPartnershipTab> {
       final partners = await widget.datasource.getPartners(widget.customerId!);
       if (mounted) setState(() => _partners = partners);
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -93,46 +99,38 @@ class _CustomerPartnershipTabState extends State<CustomerPartnershipTab> {
     });
   }
 
-  /// Remoção na linha com confirmação (a gravação só acontece no salvar).
+  /// Remoção na linha confirmada via decisão TIPADA da ponte (R4): Sim =
+  /// remover; Cancelar = nada (a gravação só acontece no salvar).
   Future<void> _removePartner(CustomerPartnershipPartner partner) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) setState(() => _partners.remove(partner));
+    if (decision == SetesDecision.yes && mounted) {
+      setState(() => _partners.remove(partner));
+    }
   }
 
   /// Salvar DA ABA: PUT com a lista completa (vazia remove a parceria).
+  /// Pendência local (teto 90) = dialog de validação da ponte (R3).
   Future<void> _save() async {
     if (_totalActiveRate > 90) {
-      _snack('forms.partnership.rateSumExceeded'.tr());
+      await showValidationFeedback(
+          context, 'forms.partnership.rateSumExceeded'.tr());
       return;
     }
     setState(() => _saving = true);
     try {
       await widget.datasource.putPartners(widget.customerId!, _partners);
       if (mounted) {
-        _snack('register.saved'.tr());
+        await showSuccessFeedback(context, 'register.saved');
         await _load();
       }
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -263,6 +261,8 @@ class _PartnerDialog extends StatefulWidget {
 
 class _PartnerDialogState extends State<_PartnerDialog> {
   late final TextEditingController _rate;
+  final _rateFocus = FocusNode();
+  final _rateKey = GlobalKey<FormFieldState<String>>();
 
   int? _collaboratorId;
   String _collaboratorName = '';
@@ -285,6 +285,7 @@ class _PartnerDialogState extends State<_PartnerDialog> {
   @override
   void dispose() {
     _rate.dispose();
+    _rateFocus.dispose();
     super.dispose();
   }
 
@@ -306,26 +307,42 @@ class _PartnerDialogState extends State<_PartnerDialog> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
-
-  void _confirm() {
-    if (_collaboratorId == null) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.partnership.collaborator'.tr()]));
-      return;
-    }
-    if (widget.usedCollaboratorIds.contains(_collaboratorId)) {
-      _warn('forms.partnership.duplicatePartner'.tr());
-      return;
-    }
-    final parsed =
-        double.tryParse(_rate.text.trim().replaceAll(',', '.'));
+  String? _validateRate(String? value) {
+    final parsed = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
     if (parsed == null || parsed <= 0 || parsed > 90) {
-      _warn('forms.partnership.rateInvalid'.tr());
-      return;
+      return 'forms.partnership.rateInvalid'.tr();
     }
+    return null;
+  }
+
+  /// Campos NA ORDEM da tela (R3) — uma pendência por vez via ponte.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'collaboratorId',
+          validate: () {
+            if (_collaboratorId == null) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.partnership.collaborator'.tr()]);
+            }
+            if (widget.usedCollaboratorIds.contains(_collaboratorId)) {
+              return 'forms.partnership.duplicatePartner'.tr();
+            }
+            return null;
+          },
+        ),
+        PendencyField(
+          name: 'rate',
+          focusNode: _rateFocus,
+          fieldKey: _rateKey,
+          validate: () => _validateRate(_rate.text),
+        ),
+      ];
+
+  Future<void> _confirm() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
     // 2 casas decimais (padrão do percentual da parceria).
+    final parsed = double.parse(_rate.text.trim().replaceAll(',', '.'));
     final rate = (parsed * 100).round() / 100;
     Navigator.of(context).pop(CustomerPartnershipPartner(
       collaboratorId:   _collaboratorId!,
@@ -363,8 +380,11 @@ class _PartnerDialogState extends State<_PartnerDialog> {
               SetesTextField(
                 label: 'forms.partnership.rate'.tr(),
                 controller: _rate,
+                focusNode: _rateFocus,
+                fieldKey: _rateKey,
                 autofocus: _editing,
                 keyboardType: TextInputType.number,
+                validator: _validateRate,
                 onSubmitted: (_) => _confirm(),
               ),
               const SizedBox(height: 8),

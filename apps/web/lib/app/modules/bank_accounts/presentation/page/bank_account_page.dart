@@ -1,11 +1,18 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
+import '../../../../shared/field_config/entity/field_config_entity.dart';
+import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../data/datasource/bank_account_datasource.dart';
 import '../../domain/entity/bank_account_entity.dart';
@@ -18,6 +25,11 @@ import '../bloc/bank_account_bloc.dart';
 /// agência/conta e gerente. Form = banco (lookup /api/bank-accounts/banks),
 /// agência + DV e conta + DV lado a lado, datas de abertura/contrato,
 /// telefone, gerente e limite.
+///
+/// Feedback 100% via PONTE (Framework de Mensagens, Onda B): validação
+/// uma-pendência-por-vez (R3), fields[] do servidor ancorado no campo,
+/// exclusão via decisão tipada (R4). Catálogo de campos (seed sql/17)
+/// aplicado pelo FieldConfigLoader (caption/required/mask do cliente).
 class BankAccountPage extends StatefulWidget {
   const BankAccountPage({required this.title, super.key});
 
@@ -28,9 +40,15 @@ class BankAccountPage extends StatefulWidget {
   State<BankAccountPage> createState() => _BankAccountPageState();
 }
 
-class _BankAccountPageState extends State<BankAccountPage> {
+class _BankAccountPageState extends State<BankAccountPage>
+    with FieldConfigLoader {
   late final BankAccountBloc _bloc;
   late final BankAccountDatasource _datasource;
+
+  /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
+  /// campo (equivalente local do showServerFieldError da fábrica). O form
+  /// só está montado no modo formulário — na lista o currentState é null.
+  final _formViewKey = GlobalKey<_BankAccountFormViewState>();
 
   @override
   void initState() {
@@ -38,6 +56,7 @@ class _BankAccountPageState extends State<BankAccountPage> {
     _bloc = Modular.get<BankAccountBloc>()
       ..add(const BankAccountListRequested('', refresh: true));
     _datasource = Modular.get<BankAccountDatasource>();
+    loadFieldConfig('bank-accounts'); // engine de campos configuráveis (dec. 7)
   }
 
   Widget _buildSearch(BankAccountListState state) =>
@@ -64,10 +83,11 @@ class _BankAccountPageState extends State<BankAccountPage> {
       );
 
   Widget _buildForm(BankAccountFormState state) => _BankAccountFormView(
-        key: ValueKey(state.editing?.id ?? 'bank-account-new'),
+        key: _formViewKey,
         title: widget.title,
         state: state,
         datasource: _datasource,
+        fieldConfig: fieldConfig,
         onSave: (event) => _bloc.add(event),
         onBack: () => _bloc.add(const BankAccountBackToListPressed()),
         onDelete: state.editing == null
@@ -82,12 +102,22 @@ class _BankAccountPageState extends State<BankAccountPage> {
         listenWhen: (_, current) =>
             current is BankAccountActionSuccess ||
             current is BankAccountActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is BankAccountActionSuccess
-              ? state.messageKey.tr()
-              : (state as BankAccountActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is BankAccountActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as BankAccountActionFailure).failure;
+          final form = _formViewKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is BankAccountListState || current is BankAccountFormState,
@@ -107,6 +137,7 @@ class _BankAccountFormView extends StatefulWidget {
     required this.title,
     required this.state,
     required this.datasource,
+    required this.fieldConfig,
     required this.onSave,
     required this.onBack,
     required this.onDelete,
@@ -116,6 +147,9 @@ class _BankAccountFormView extends StatefulWidget {
   final String title;
   final BankAccountFormState state;
   final BankAccountDatasource datasource;
+
+  /// Catálogo resolvido da interface (tb_interface_has_field × cliente).
+  final List<FieldConfigEntity> fieldConfig;
   final void Function(BankAccountSaveRequested event) onSave;
   final VoidCallback onBack;
   final VoidCallback? onDelete;
@@ -134,6 +168,21 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
   late final TextEditingController _manager;
   late final TextEditingController _limitValue;
   late final TextEditingController _dtContract;
+
+  // R3: foco programático + marca inline SÓ do campo pendente.
+  final _focus = {
+    for (final name in _fieldNames) name: FocusNode(),
+  };
+  final _keys = {
+    for (final name in _fieldNames) name: GlobalKey<FormFieldState<String>>(),
+  };
+
+  /// Nomes do PAYLOAD (camelCase) na ordem da tela — casam com o fields[]
+  /// do servidor (DTO Zod do módulo bank-accounts).
+  static const _fieldNames = [
+    'agency', 'agencyDv', 'number', 'numberDv', 'dtOpening',
+    'phone', 'manager', 'limitValue', 'dtContract',
+  ];
 
   /// Banco escolhido no lookup — id salvo, "número - descrição" exibido.
   int? _bankId;
@@ -172,6 +221,9 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
     _manager.dispose();
     _limitValue.dispose();
     _dtContract.dispose();
+    for (final node in _focus.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -193,96 +245,173 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  // ------------------------------------------------------------------
+  // Catálogo de campos (decisão 7): caption/required/mask do cliente.
+  // ------------------------------------------------------------------
 
-  /// null limpo, '' vira null (a API aceita nullable).
-  static String? _optional(TextEditingController controller) {
+  FieldConfigEntity? _cfg(String field) =>
+      fieldConfigOf(widget.fieldConfig, field);
+
+  String _label(String field, String i18nKey) =>
+      _cfg(field)?.caption ?? i18nKey.tr();
+
+  bool _requiredCfg(String field) => _cfg(field)?.required ?? false;
+
+  /// Formatter: máscara custom do cliente substitui o limitador default
+  /// (campos String do catálogo — decisão 16).
+  List<TextInputFormatter> _formatters(
+      String field, TextInputFormatter fallback) {
+    final mask = _cfg(field)?.mask;
+    return [mask == null ? fallback : SetesMaskFormatter(mask)];
+  }
+
+  /// Valor preenchido precisa CASAR com a máscara custom (se houver).
+  String? _maskError(String field, String text) {
+    final mask = _cfg(field)?.mask;
+    if (mask == null || text.isEmpty) return null;
+    return matchesMask(mask, text) ? null : 'forms.validation.mask'.tr();
+  }
+
+  /// Decisão 19: campo mascarado grava só o que o usuário digitou.
+  String _unmasked(String field, TextEditingController controller) {
     final text = controller.text.trim();
+    return _cfg(field)?.mask == null ? text : unmask(text);
+  }
+
+  /// null limpo: '' vira null (a API aceita nullable).
+  String? _optionalUnmasked(String field, TextEditingController controller) {
+    final text = _unmasked(field, controller);
     return text.isEmpty ? null : text;
   }
 
-  void _save() {
-    if (_bankId == null) {
-      _warn('register.requiredField'.tr(args: ['forms.bankAccount.bank'.tr()]));
-      return;
+  // ------------------------------------------------------------------
+  // Validação (R3/R6): catálogo (seed sql/17) + DTO Zod como fontes; os
+  // validators servem o inline (SetesTextField) E a cadeia do salvar.
+  // ------------------------------------------------------------------
+
+  /// Texto OBRIGATÓRIO pelo baseline técnico (agency/number).
+  String? _validateRequiredText(String field, String i18nKey, String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return 'register.requiredField'.tr(args: [_label(field, i18nKey)]);
     }
-    final agency = _agency.text.trim();
-    if (agency.isEmpty) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.bankAccount.agency'.tr()]));
-      return;
+    return _maskError(field, text);
+  }
+
+  /// Texto OPCIONAL — cliente pode apertar (required) e mascarar.
+  String? _validateOptionalText(String field, String i18nKey, String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return _requiredCfg(field)
+          ? 'register.requiredField'.tr(args: [_label(field, i18nKey)])
+          : null;
     }
-    final number = _number.text.trim();
-    if (number.isEmpty) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.bankAccount.number'.tr()]));
-      return;
+    return _maskError(field, text);
+  }
+
+  /// Data OPCIONAL — cliente pode apertar (required); formato é do código.
+  String? _validateOptionalDateCfg(
+      String field, String i18nKey, String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return _requiredCfg(field)
+          ? 'register.requiredField'.tr(args: [_label(field, i18nKey)])
+          : null;
     }
-    String? dtOpeningIso;
-    if (_dtOpening.text.trim().isNotEmpty) {
-      dtOpeningIso = displayDateToIso(_dtOpening.text);
-      if (dtOpeningIso == null) {
-        _warn('register.invalidDate'.tr());
-        return;
-      }
+    return displayDateToIso(text) == null ? 'register.invalidDate'.tr() : null;
+  }
+
+  /// Limite: parse pt-BR ("1.234,56"), >= 0 quando preenchido.
+  String? _validateLimit(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return _requiredCfg('limit_value')
+          ? 'register.requiredField'.tr(
+              args: [_label('limit_value', 'forms.bankAccount.limitValue')])
+          : null;
     }
-    String? dtContractIso;
-    if (_dtContract.text.trim().isNotEmpty) {
-      dtContractIso = displayDateToIso(_dtContract.text);
-      if (dtContractIso == null) {
-        _warn('register.invalidDate'.tr());
-        return;
-      }
+    final parsed =
+        double.tryParse(text.replaceAll('.', '').replaceAll(',', '.'));
+    if (parsed == null || parsed < 0) {
+      return 'forms.bankAccount.limitInvalid'.tr();
     }
-    double? limitValue;
+    return null;
+  }
+
+  /// Campos NA ORDEM da tela (R3). Os names casam com o payload da API —
+  /// é por eles que o fields[] do servidor ancora no campo.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'bankId',
+          validate: () => _bankId == null
+              ? 'register.requiredField'
+                  .tr(args: [_label('tb_bank_id', 'forms.bankAccount.bank')])
+              : null,
+        ),
+        _text('agency', () => _validateRequiredText(
+            'agency', 'forms.bankAccount.agency', _agency.text)),
+        _text('agencyDv', () => _validateOptionalText(
+            'agency_dv', 'forms.bankAccount.agencyDv', _agencyDv.text)),
+        _text('number', () => _validateRequiredText(
+            'number', 'forms.bankAccount.number', _number.text)),
+        _text('numberDv', () => _validateOptionalText(
+            'number_dv', 'forms.bankAccount.numberDv', _numberDv.text)),
+        _text('dtOpening', () => _validateOptionalDateCfg(
+            'dt_opening', 'forms.bankAccount.dtOpening', _dtOpening.text)),
+        _text('phone', () => _validateOptionalText(
+            'phone', 'forms.bankAccount.phone', _phone.text)),
+        _text('manager', () => _validateOptionalText(
+            'manager', 'forms.bankAccount.manager', _manager.text)),
+        _text('limitValue', () => _validateLimit(_limitValue.text)),
+        _text('dtContract', () => _validateOptionalDateCfg(
+            'dt_contract', 'forms.bankAccount.dtContract', _dtContract.text)),
+      ];
+
+  PendencyField _text(String name, String? Function() validate) =>
+      PendencyField(
+        name: name,
+        focusNode: _focus[name],
+        fieldKey: _keys[name],
+        validate: validate,
+      );
+
+  /// Ancora o fields[] do envelope 400/409 no campo (chamado pelo listener
+  /// do bloc via GlobalKey — equivalente local da fábrica).
+  Future<void> showServerFieldError(Failure failure) =>
+      showServerFieldFeedback(context, failure, _pendencyFields);
+
+  Future<void> _save() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
     final limitText = _limitValue.text.trim();
-    if (limitText.isNotEmpty) {
-      // Parse pt-BR: "1.234,56" → 1234.56 (vírgula decimal).
-      limitValue =
-          double.tryParse(limitText.replaceAll('.', '').replaceAll(',', '.'));
-      if (limitValue == null || limitValue < 0) {
-        _warn('forms.bankAccount.limitInvalid'.tr());
-        return;
-      }
-    }
     widget.onSave(BankAccountSaveRequested(
       editingId: _editing?.id,
       input: BankAccountInput(
         bankId:     _bankId!,
-        agency:     agency,
-        agencyDv:   _optional(_agencyDv),
-        number:     number,
-        numberDv:   _optional(_numberDv),
-        dtOpening:  dtOpeningIso,
-        phone:      _optional(_phone),
-        manager:    _optional(_manager),
-        limitValue: limitValue,
-        dtContract: dtContractIso,
+        agency:     _unmasked('agency', _agency),
+        agencyDv:   _optionalUnmasked('agency_dv', _agencyDv),
+        number:     _unmasked('number', _number),
+        numberDv:   _optionalUnmasked('number_dv', _numberDv),
+        dtOpening:  displayDateToIso(_dtOpening.text),
+        phone:      _optionalUnmasked('phone', _phone),
+        manager:    _optionalUnmasked('manager', _manager),
+        limitValue: limitText.isEmpty
+            ? null
+            : double.parse(
+                limitText.replaceAll('.', '').replaceAll(',', '.')),
+        dtContract: displayDateToIso(_dtContract.text),
       ),
     ));
   }
 
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) widget.onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   @override
@@ -305,7 +434,7 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
           padding: const EdgeInsets.all(16),
           children: [
             SetesLookupField(
-              label: 'forms.bankAccount.bank'.tr(),
+              label: _label('tb_bank_id', 'forms.bankAccount.bank'),
               display: _bankDisplay,
               onSearch: _pickBank,
               onClear: () => setState(() {
@@ -321,22 +450,32 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
                 Expanded(
                   flex: 3,
                   child: field(SetesTextField(
-                    label: 'forms.bankAccount.agency'.tr(),
+                    label: _label('agency', 'forms.bankAccount.agency'),
                     controller: _agency,
+                    focusNode: _focus['agency'],
+                    fieldKey: _keys['agency'],
                     autofocus: true,
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    inputFormatters: [LengthLimitingTextInputFormatter(8)],
+                    validator: (v) => _validateRequiredText(
+                        'agency', 'forms.bankAccount.agency', v),
+                    inputFormatters: _formatters(
+                        'agency', LengthLimitingTextInputFormatter(8)),
                   )),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: field(SetesTextField(
-                    label: 'forms.bankAccount.agencyDv'.tr(),
+                    label: _label('agency_dv', 'forms.bankAccount.agencyDv'),
                     controller: _agencyDv,
+                    focusNode: _focus['agencyDv'],
+                    fieldKey: _keys['agencyDv'],
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    inputFormatters: [LengthLimitingTextInputFormatter(2)],
+                    validator: (v) => _validateOptionalText(
+                        'agency_dv', 'forms.bankAccount.agencyDv', v),
+                    inputFormatters: _formatters(
+                        'agency_dv', LengthLimitingTextInputFormatter(2)),
                   )),
                 ),
               ],
@@ -349,62 +488,91 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
                 Expanded(
                   flex: 3,
                   child: field(SetesTextField(
-                    label: 'forms.bankAccount.number'.tr(),
+                    label: _label('number', 'forms.bankAccount.number'),
                     controller: _number,
+                    focusNode: _focus['number'],
+                    fieldKey: _keys['number'],
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    inputFormatters: [LengthLimitingTextInputFormatter(10)],
+                    validator: (v) => _validateRequiredText(
+                        'number', 'forms.bankAccount.number', v),
+                    inputFormatters: _formatters(
+                        'number', LengthLimitingTextInputFormatter(10)),
                   )),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: field(SetesTextField(
-                    label: 'forms.bankAccount.numberDv'.tr(),
+                    label: _label('number_dv', 'forms.bankAccount.numberDv'),
                     controller: _numberDv,
+                    focusNode: _focus['numberDv'],
+                    fieldKey: _keys['numberDv'],
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    inputFormatters: [LengthLimitingTextInputFormatter(2)],
+                    validator: (v) => _validateOptionalText(
+                        'number_dv', 'forms.bankAccount.numberDv', v),
+                    inputFormatters: _formatters(
+                        'number_dv', LengthLimitingTextInputFormatter(2)),
                   )),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.bankAccount.dtOpening'.tr(),
+              label: _label('dt_opening', 'forms.bankAccount.dtOpening'),
               hint: 'register.dateHint'.tr(),
               controller: _dtOpening,
+              focusNode: _focus['dtOpening'],
+              fieldKey: _keys['dtOpening'],
               textInputAction: TextInputAction.next,
-              validator: validateOptionalDate,
+              validator: (v) => _validateOptionalDateCfg(
+                  'dt_opening', 'forms.bankAccount.dtOpening', v),
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.bankAccount.phone'.tr(),
+              label: _label('phone', 'forms.bankAccount.phone'),
               controller: _phone,
+              focusNode: _focus['phone'],
+              fieldKey: _keys['phone'],
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              inputFormatters: [LengthLimitingTextInputFormatter(10)],
+              validator: (v) => _validateOptionalText(
+                  'phone', 'forms.bankAccount.phone', v),
+              inputFormatters: _formatters(
+                  'phone', LengthLimitingTextInputFormatter(10)),
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.bankAccount.manager'.tr(),
+              label: _label('manager', 'forms.bankAccount.manager'),
               controller: _manager,
+              focusNode: _focus['manager'],
+              fieldKey: _keys['manager'],
               textInputAction: TextInputAction.next,
-              inputFormatters: [LengthLimitingTextInputFormatter(25)],
+              validator: (v) => _validateOptionalText(
+                  'manager', 'forms.bankAccount.manager', v),
+              inputFormatters: _formatters(
+                  'manager', LengthLimitingTextInputFormatter(25)),
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.bankAccount.limitValue'.tr(),
+              label: _label('limit_value', 'forms.bankAccount.limitValue'),
               controller: _limitValue,
+              focusNode: _focus['limitValue'],
+              fieldKey: _keys['limitValue'],
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
+              validator: _validateLimit,
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.bankAccount.dtContract'.tr(),
+              label: _label('dt_contract', 'forms.bankAccount.dtContract'),
               hint: 'register.dateHint'.tr(),
               controller: _dtContract,
+              focusNode: _focus['dtContract'],
+              fieldKey: _keys['dtContract'],
               textInputAction: TextInputAction.done,
-              validator: validateOptionalDate,
+              validator: (v) => _validateOptionalDateCfg(
+                  'dt_contract', 'forms.bankAccount.dtContract', v),
             )),
           ],
         ),

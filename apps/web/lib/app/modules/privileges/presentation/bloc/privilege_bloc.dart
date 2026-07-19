@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'privilege_state.dart';
 
 /// Orquestra o CRUD de Privilégio: alterna pesquisa ↔ formulário e executa
 /// as operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register*
-/// é apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// é apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, Onda B).
 class PrivilegeBloc extends Bloc<PrivilegeEvent, PrivilegeState> {
   PrivilegeBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class PrivilegeBloc extends Bloc<PrivilegeEvent, PrivilegeState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(PrivilegeActionFailure(failure.message));
+        emit(PrivilegeActionFailure(failure));
         emit(const PrivilegeListState());
       },
       (items) => emit(PrivilegeListState(items: items)),
@@ -64,7 +66,7 @@ class PrivilegeBloc extends Bloc<PrivilegeEvent, PrivilegeState> {
         : await put(event.privilege);
     await result.fold(
       (failure) async {
-        emit(PrivilegeActionFailure(failure.message));
+        emit(PrivilegeActionFailure(failure));
         emit(PrivilegeFormState(
             editing: event.creating ? null : event.privilege));
       },
@@ -79,7 +81,7 @@ class PrivilegeBloc extends Bloc<PrivilegeEvent, PrivilegeState> {
       PrivilegeDeleteRequested event, Emitter<PrivilegeState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(PrivilegeActionFailure(failure.message)),
+      (failure) async => emit(PrivilegeActionFailure(failure)),
       (_) async {
         emit(const PrivilegeActionSuccess('register.deleted'));
         await _reload(emit);

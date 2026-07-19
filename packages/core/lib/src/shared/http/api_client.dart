@@ -58,16 +58,27 @@ class ApiClient {
         ? <String, dynamic>{}
         : jsonDecode(response.body) as Map<String, dynamic>;
 
+    // Contrato do Framework de Mensagens: `{ error, code?, ref?, fields[] }` —
+    // code = catálogo de erros conhecidos (R8); ref = rastro do 500 na
+    // tb_crashlytics central (R2). Mensagens default são CHAVES i18n
+    // core.errors.* (a ponte de feedback traduz; chave inexistente passa
+    // a própria string, então o PT do backend chega intacto).
     if (response.statusCode == 401) {
-      throw UnauthorizedFailure(message: (json['error'] as String?) ?? 'Não autorizado');
+      throw UnauthorizedFailure(
+        message: (json['error'] as String?) ?? 'core.errors.unauthorized',
+        code: json['code'] as String?,
+        supportRef: json['ref'] as String?,
+      );
     }
     if (response.statusCode >= 400) {
       throw Failure(
-        message: (json['error'] as String?) ?? 'Erro ${response.statusCode}',
+        message: (json['error'] as String?) ?? 'core.errors.generic',
         statusCode: response.statusCode,
         fields: (json['fields'] as List<dynamic>? ?? [])
             .map((e) => FailureField.fromJson(e as Map<String, dynamic>))
             .toList(),
+        code: json['code'] as String?,
+        supportRef: json['ref'] as String?,
       );
     }
     return json;

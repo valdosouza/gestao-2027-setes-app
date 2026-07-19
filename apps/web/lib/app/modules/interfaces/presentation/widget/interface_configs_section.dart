@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../data/datasource/interface_datasource.dart';
 import '../../domain/entity/interface_config_catalog_entity.dart';
 
@@ -46,18 +47,19 @@ class _InterfaceConfigsSectionState extends State<InterfaceConfigsSection> {
       final configs = await widget.datasource.getConfigs(id);
       if (mounted) setState(() => _configs = configs);
     } on Failure catch (failure) {
-      _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _snack(String message) {
+  /// Falha = dialog via PONTE de feedback (Framework de Mensagens) —
+  /// a seção nunca chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: SetesText(message)));
+    showFailureFeedback(context, failure);
   }
 
   Future<void> _edit([InterfaceConfigCatalogEntity? config]) async {
@@ -68,43 +70,35 @@ class _InterfaceConfigsSectionState extends State<InterfaceConfigsSection> {
     if (result == null) return;
     try {
       await widget.datasource.saveConfig(widget.interfaceId!, result);
-      _snack('forms.interface.configSaved'.tr());
+      if (mounted) {
+        await showSuccessFeedback(context, 'forms.interface.configSaved');
+      }
       await _reload();
     } on Failure catch (failure) {
-      _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     }
   }
 
   Future<void> _delete(InterfaceConfigCatalogEntity config) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    // Decisão TIPADA da ponte (R4): Sim = excluir; Cancelar = nada.
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed != true) return;
+    if (decision != SetesDecision.yes) return;
     try {
       await widget.datasource.deleteConfig(widget.interfaceId!, config.name);
-      _snack('forms.interface.configDeleted'.tr());
+      if (mounted) {
+        await showSuccessFeedback(context, 'forms.interface.configDeleted');
+      }
       await _reload();
     } on Failure catch (failure) {
-      _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     }
   }
 
@@ -187,7 +181,6 @@ class _ConfigCatalogDialogState extends State<_ConfigCatalogDialog> {
   late final TextEditingController _defaultContent;
   late String _kind;
   late bool _scopeUser;
-  String? _error;
 
   bool get _editing => widget.config != null;
 
@@ -243,12 +236,15 @@ class _ConfigCatalogDialogState extends State<_ConfigCatalogDialog> {
     return null;
   }
 
-  void _submit() {
+  /// UMA pendência por vez (R3): a primeira falha do [_validate] vira
+  /// dialog da ponte e o cadastro segue aberto para correção.
+  Future<void> _submit() async {
     final error = _validate();
     if (error != null) {
-      setState(() => _error = error);
+      await showValidationFeedback(context, error);
       return;
     }
+    if (!mounted) return;
     Navigator.of(context).pop(InterfaceConfigCatalogEntity(
       name:           _name.text.trim(),
       description:    _description.text.trim(),
@@ -311,12 +307,6 @@ class _ConfigCatalogDialogState extends State<_ConfigCatalogDialog> {
                   onChanged: (checked) =>
                       setState(() => _scopeUser = checked ?? false),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  SetesText(_error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
-                ],
               ],
             ),
           ),

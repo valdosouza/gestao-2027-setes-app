@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 
@@ -45,8 +47,12 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
     if (widget.institutionId != null) _load();
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Falhas SEMPRE via ponte (Framework de Mensagens, R1/R7) — a aba nunca
+  /// chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -55,9 +61,9 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
           .getList('', institutionId: widget.institutionId);
       if (mounted) setState(() => _users = users);
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -72,8 +78,8 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
         datasource: widget.datasource,
       ),
     );
-    if (saved == true) {
-      _snack('register.saved'.tr());
+    if (saved == true && mounted) {
+      await showSuccessFeedback(context, 'register.saved');
       await _load();
     }
   }
@@ -89,8 +95,8 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
         initialKind: item.kind,
       ),
     );
-    if (saved == true) {
-      _snack('register.saved'.tr());
+    if (saved == true && mounted) {
+      await showSuccessFeedback(context, 'register.saved');
       await _load();
     }
   }
@@ -166,11 +172,18 @@ class _UserDialog extends StatefulWidget {
 }
 
 class _UserDialogState extends State<_UserDialog> {
-  final _formKey = GlobalKey<FormState>();
   final _name  = TextEditingController();
   final _nick  = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _nameFocus = FocusNode();
+  final _nickFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _nameKey = GlobalKey<FormFieldState<String>>();
+  final _nickKey = GlobalKey<FormFieldState<String>>();
+  final _emailKey = GlobalKey<FormFieldState<String>>();
+  final _passwordKey = GlobalKey<FormFieldState<String>>();
   late String _kind;
   bool _active = true;
   bool _loading = false;
@@ -201,6 +214,11 @@ class _UserDialogState extends State<_UserDialog> {
           _active     = user.active;
         });
       }
+    } on Failure catch (failure) {
+      if (mounted) {
+        await showFailureFeedback(context, failure);
+        if (mounted) Navigator.of(context).pop(false);
+      }
     } catch (_) {
       if (mounted) Navigator.of(context).pop(false);
     } finally {
@@ -214,11 +232,53 @@ class _UserDialogState extends State<_UserDialog> {
     _nick.dispose();
     _email.dispose();
     _password.dispose();
+    for (final node in [_nameFocus, _nickFocus, _emailFocus, _passwordFocus]) {
+      node.dispose();
+    }
     super.dispose();
   }
 
+  /// Campos NA ORDEM da tela (R3) — uma pendência por vez via ponte:
+  /// dialog → foco/marca SÓ no campo apontado; nunca o dialog inteiro
+  /// vermelho.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'name',
+          focusNode: _nameFocus,
+          fieldKey: _nameKey,
+          validate: () => _tr(SetesValidators.required())(_name.text),
+        ),
+        PendencyField(
+          name: 'nick',
+          focusNode: _nickFocus,
+          fieldKey: _nickKey,
+          validate: () => _tr(SetesValidators.required())(_nick.text),
+        ),
+        PendencyField(
+          name: 'email',
+          focusNode: _emailFocus,
+          fieldKey: _emailKey,
+          validate: () => _tr(SetesValidators.compose([
+            SetesValidators.required(),
+            SetesValidators.email(),
+          ]))(_email.text),
+        ),
+        PendencyField(
+          name: 'password',
+          focusNode: _passwordFocus,
+          fieldKey: _passwordKey,
+          validate: () => _tr(_creating
+              ? SetesValidators.compose([
+                  SetesValidators.required(),
+                  SetesValidators.minLength(5),
+                ])
+              : SetesValidators.minLength(5))(_password.text),
+        ),
+      ];
+
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
     setState(() => _saving = true);
     try {
       final user = UserEntity(
@@ -255,14 +315,15 @@ class _UserDialogState extends State<_UserDialog> {
     } on Failure catch (failure) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: SetesText(failure.message)));
+        // Falha via ponte, ancorando o fields[] do servidor no campo do
+        // dialog quando a API apontar (ex.: e-mail já cadastrado).
+        await showServerFieldFeedback(context, failure, _pendencyFields);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: SetesText('register.error'.tr())));
+        await showFailureFeedback(
+            context, const Failure(message: 'register.error'));
       }
     }
   }
@@ -278,7 +339,6 @@ class _UserDialogState extends State<_UserDialog> {
           child: _loading
               ? const SetesCircularProgressIndicator()
               : Form(
-                  key: _formKey,
                   // Scroll: garante o campo Perfil visível em janela baixa.
                   child: SingleChildScrollView(
                       child: Column(
@@ -287,6 +347,8 @@ class _UserDialogState extends State<_UserDialog> {
                       SetesTextField(
                         label: 'forms.user.name'.tr(),
                         controller: _name,
+                        focusNode: _nameFocus,
+                        fieldKey: _nameKey,
                         autofocus: true,
                         validator: _tr(SetesValidators.required()),
                       ),
@@ -294,12 +356,16 @@ class _UserDialogState extends State<_UserDialog> {
                       SetesTextField(
                         label: 'forms.user.nick'.tr(),
                         controller: _nick,
+                        focusNode: _nickFocus,
+                        fieldKey: _nickKey,
                         validator: _tr(SetesValidators.required()),
                       ),
                       const SizedBox(height: 16),
                       SetesTextField(
                         label: 'forms.user.email'.tr(),
                         controller: _email,
+                        focusNode: _emailFocus,
+                        fieldKey: _emailKey,
                         keyboardType: TextInputType.emailAddress,
                         validator: _tr(SetesValidators.compose([
                           SetesValidators.required(),
@@ -313,6 +379,8 @@ class _UserDialogState extends State<_UserDialog> {
                             ? null
                             : 'forms.user.passwordKeepHint'.tr(),
                         controller: _password,
+                        focusNode: _passwordFocus,
+                        fieldKey: _passwordKey,
                         obscureText: true,
                         validator: _tr(_creating
                             ? SetesValidators.compose([

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
@@ -41,6 +42,10 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
   late final InterfaceBloc _bloc;
   late final InterfaceDatasource _datasource;
 
+  /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
+  /// (showServerFieldError — Framework de Mensagens, Onda B).
+  final _formPageKey = GlobalKey<RegisterFormPageState>();
+
   /// Lista de apoio dos checkboxes (tb_privilege) — carregada uma vez
   /// no initState via datasource (mesmo padrão dos lookups FK).
   List<PrivilegeEntity> _privileges = [];
@@ -67,14 +72,12 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
       final privileges = await _datasource.getPrivileges();
       if (mounted) setState(() => _privileges = privileges);
     } on Failure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: SetesText(failure.message)));
-      }
+      // PONTE de feedback (Framework de Mensagens) — nunca ScaffoldMessenger.
+      if (mounted) await showFailureFeedback(context, failure);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: SetesText('register.error'.tr())));
+        await showFailureFeedback(
+            context, const Failure(message: 'register.error'));
       }
     }
   }
@@ -150,6 +153,7 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
     final editing = state.editing;
     final creating = editing == null;
     return RegisterFormPage(
+      key: _formPageKey,
       title: widget.title,
       saving: state.saving,
       initialValues: creating
@@ -246,12 +250,22 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
         listenWhen: (_, current) =>
             current is InterfaceActionSuccess ||
             current is InterfaceActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is InterfaceActionSuccess
-              ? state.messageKey.tr()
-              : (state as InterfaceActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is InterfaceActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as InterfaceActionFailure).failure;
+          final form = _formPageKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is InterfaceListState || current is InterfaceFormState,

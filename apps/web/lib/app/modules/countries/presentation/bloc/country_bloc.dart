@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'country_state.dart';
 
 /// Orquestra o CRUD de País: alterna pesquisa ↔ formulário e executa as
 /// operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register* é
-/// apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, piloto Onda A).
 class CountryBloc extends Bloc<CountryEvent, CountryState> {
   CountryBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class CountryBloc extends Bloc<CountryEvent, CountryState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(CountryActionFailure(failure.message));
+        emit(CountryActionFailure(failure));
         emit(const CountryListState());
       },
       (items) => emit(CountryListState(items: items)),
@@ -64,7 +66,7 @@ class CountryBloc extends Bloc<CountryEvent, CountryState> {
         : await put(event.country);
     await result.fold(
       (failure) async {
-        emit(CountryActionFailure(failure.message));
+        emit(CountryActionFailure(failure));
         emit(CountryFormState(
             editing: event.creating ? null : event.country));
       },
@@ -79,7 +81,7 @@ class CountryBloc extends Bloc<CountryEvent, CountryState> {
       CountryDeleteRequested event, Emitter<CountryState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(CountryActionFailure(failure.message)),
+      (failure) async => emit(CountryActionFailure(failure)),
       (_) async {
         emit(const CountryActionSuccess('register.deleted'));
         await _reload(emit);

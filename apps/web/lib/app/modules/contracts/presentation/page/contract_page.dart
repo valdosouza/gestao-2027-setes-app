@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,11 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
+import '../../../../shared/field_config/entity/field_config_entity.dart';
+import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../data/datasource/contract_datasource.dart';
@@ -19,6 +25,11 @@ import '../bloc/contract_bloc.dart';
 /// (lookup /api/customers), datas, dia de vencimento INFORMATIVO (DP1) e
 /// os ITENS do contrato (D9/DP3): produto (lookup /api/contracts/products)
 /// + valor mensal, com total exibido e atualizado localmente.
+///
+/// Feedback 100% via PONTE (Framework de Mensagens, Onda B): validação
+/// uma-pendência-por-vez (R3), fields[] do servidor ancorado no campo,
+/// exclusão via decisão tipada (R4). Catálogo de campos (seed sql/16)
+/// aplicado pelo FieldConfigLoader (caption/required do cliente).
 class ContractPage extends StatefulWidget {
   const ContractPage({required this.title, super.key});
 
@@ -29,9 +40,14 @@ class ContractPage extends StatefulWidget {
   State<ContractPage> createState() => _ContractPageState();
 }
 
-class _ContractPageState extends State<ContractPage> {
+class _ContractPageState extends State<ContractPage> with FieldConfigLoader {
   late final ContractBloc _bloc;
   late final ContractDatasource _datasource;
+
+  /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
+  /// campo (equivalente local do showServerFieldError da fábrica). O form
+  /// só está montado no modo formulário — na lista o currentState é null.
+  final _formViewKey = GlobalKey<_ContractFormViewState>();
 
   @override
   void initState() {
@@ -39,6 +55,7 @@ class _ContractPageState extends State<ContractPage> {
     _bloc = Modular.get<ContractBloc>()
       ..add(const ContractListRequested('', refresh: true));
     _datasource = Modular.get<ContractDatasource>();
+    loadFieldConfig('contracts'); // engine de campos configuráveis (decisão 7)
   }
 
   /// Vigência: "dd/mm/aaaa – dd/mm/aaaa" ou "Desde dd/mm/aaaa".
@@ -69,10 +86,11 @@ class _ContractPageState extends State<ContractPage> {
       );
 
   Widget _buildForm(ContractFormState state) => _ContractFormView(
-        key: ValueKey(state.editing?.id ?? 'contract-new'),
+        key: _formViewKey,
         title: widget.title,
         state: state,
         datasource: _datasource,
+        fieldConfig: fieldConfig,
         onSave: (event) => _bloc.add(event),
         onBack: () => _bloc.add(const ContractBackToListPressed()),
         onDelete: state.editing == null
@@ -85,12 +103,22 @@ class _ContractPageState extends State<ContractPage> {
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is ContractActionSuccess || current is ContractActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is ContractActionSuccess
-              ? state.messageKey.tr()
-              : (state as ContractActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is ContractActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as ContractActionFailure).failure;
+          final form = _formViewKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is ContractListState || current is ContractFormState,
@@ -109,6 +137,7 @@ class _ContractFormView extends StatefulWidget {
     required this.title,
     required this.state,
     required this.datasource,
+    required this.fieldConfig,
     required this.onSave,
     required this.onBack,
     required this.onDelete,
@@ -118,6 +147,9 @@ class _ContractFormView extends StatefulWidget {
   final String title;
   final ContractFormState state;
   final ContractDatasource datasource;
+
+  /// Catálogo resolvido da interface (tb_interface_has_field × cliente).
+  final List<FieldConfigEntity> fieldConfig;
   final void Function(ContractSaveRequested event) onSave;
   final VoidCallback onBack;
   final VoidCallback? onDelete;
@@ -130,6 +162,14 @@ class _ContractFormViewState extends State<_ContractFormView> {
   late final TextEditingController _dtStart;
   late final TextEditingController _dtEnd;
   late final TextEditingController _paymentDay;
+
+  // R3: foco programático + marca inline SÓ do campo pendente.
+  final _dtStartFocus = FocusNode();
+  final _dtEndFocus = FocusNode();
+  final _paymentDayFocus = FocusNode();
+  final _dtStartKey = GlobalKey<FormFieldState<String>>();
+  final _dtEndKey = GlobalKey<FormFieldState<String>>();
+  final _paymentDayKey = GlobalKey<FormFieldState<String>>();
 
   /// Cliente escolhido no lookup — id salvo, nome exibido (JOIN da API).
   int? _customerId;
@@ -163,8 +203,23 @@ class _ContractFormViewState extends State<_ContractFormView> {
     _dtStart.dispose();
     _dtEnd.dispose();
     _paymentDay.dispose();
+    _dtStartFocus.dispose();
+    _dtEndFocus.dispose();
+    _paymentDayFocus.dispose();
     super.dispose();
   }
+
+  // ------------------------------------------------------------------
+  // Catálogo de campos (decisão 7): caption e required do cliente.
+  // ------------------------------------------------------------------
+
+  FieldConfigEntity? _cfg(String field) =>
+      fieldConfigOf(widget.fieldConfig, field);
+
+  String _label(String field, String i18nKey) =>
+      _cfg(field)?.caption ?? i18nKey.tr();
+
+  bool _requiredCfg(String field) => _cfg(field)?.required ?? false;
 
   Future<void> _pickCustomer() async {
     final picked = await showSetesLookup<ContractCustomerLookup>(
@@ -192,6 +247,7 @@ class _ContractFormViewState extends State<_ContractFormView> {
       builder: (_) => _ContractItemDialog(
         datasource: widget.datasource,
         existing: existing,
+        fieldConfig: widget.fieldConfig,
         usedProductIds: {
           for (final item in _items)
             if (item.productId != existing?.productId) item.productId,
@@ -210,80 +266,110 @@ class _ContractFormViewState extends State<_ContractFormView> {
     });
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  // ------------------------------------------------------------------
+  // Validação (R3/R6): catálogo + DTO como fontes; validators servem o
+  // inline (SetesTextField) E a cadeia uma-pendência-por-vez do salvar.
+  // ------------------------------------------------------------------
 
-  void _save() {
-    if (_customerId == null) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.contract.customer'.tr()]));
-      return;
+  String? _validateDtStart(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return 'register.requiredField'
+          .tr(args: [_label('dt_start', 'forms.contract.dtStart')]);
     }
-    if (_dtStart.text.trim().isEmpty) {
-      _warn('register.requiredField'
-          .tr(args: ['forms.contract.dtStart'.tr()]));
-      return;
+    return displayDateToIso(text) == null ? 'register.invalidDate'.tr() : null;
+  }
+
+  String? _validateDtEnd(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return _requiredCfg('dt_end')
+          ? 'register.requiredField'
+              .tr(args: [_label('dt_end', 'forms.contract.dtEnd')])
+          : null;
     }
-    final dtStartIso = displayDateToIso(_dtStart.text);
-    if (dtStartIso == null) {
-      _warn('register.invalidDate'.tr());
-      return;
+    final iso = displayDateToIso(text);
+    if (iso == null) return 'register.invalidDate'.tr();
+    final startIso = displayDateToIso(_dtStart.text);
+    // ISO compara cronologicamente como string.
+    if (startIso != null && iso.compareTo(startIso) < 0) {
+      return 'forms.contract.dtEndBeforeStart'.tr();
     }
-    String? dtEndIso;
-    if (_dtEnd.text.trim().isNotEmpty) {
-      dtEndIso = displayDateToIso(_dtEnd.text);
-      if (dtEndIso == null) {
-        _warn('register.invalidDate'.tr());
-        return;
-      }
-      // ISO compara cronologicamente como string.
-      if (dtEndIso.compareTo(dtStartIso) < 0) {
-        _warn('forms.contract.dtEndBeforeStart'.tr());
-        return;
-      }
+    return null;
+  }
+
+  String? _validatePaymentDay(String? value) {
+    final day = int.tryParse(value?.trim() ?? '');
+    if (day == null || day < 1 || day > 28) {
+      return 'forms.contract.paymentDayInvalid'.tr();
     }
-    final paymentDay = int.tryParse(_paymentDay.text.trim());
-    if (paymentDay == null || paymentDay < 1 || paymentDay > 28) {
-      _warn('forms.contract.paymentDayInvalid'.tr());
-      return;
-    }
-    if (_items.isEmpty) {
-      _warn('forms.contract.noItems'.tr());
-      return;
-    }
+    return null;
+  }
+
+  /// Campos NA ORDEM da tela (R3). Os names casam com o payload da API —
+  /// é por eles que o fields[] do servidor ancora no campo.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'customerId',
+          validate: () => _customerId == null
+              ? 'register.requiredField'.tr(
+                  args: [_label('tb_customer_id', 'forms.contract.customer')])
+              : null,
+        ),
+        PendencyField(
+          name: 'dtStart',
+          focusNode: _dtStartFocus,
+          fieldKey: _dtStartKey,
+          validate: () => _validateDtStart(_dtStart.text),
+        ),
+        PendencyField(
+          name: 'dtEnd',
+          focusNode: _dtEndFocus,
+          fieldKey: _dtEndKey,
+          validate: () => _validateDtEnd(_dtEnd.text),
+        ),
+        PendencyField(
+          name: 'paymentDay',
+          focusNode: _paymentDayFocus,
+          fieldKey: _paymentDayKey,
+          validate: () => _validatePaymentDay(_paymentDay.text),
+        ),
+        PendencyField(
+          name: 'items',
+          validate: () =>
+              _items.isEmpty ? 'forms.contract.noItems'.tr() : null,
+        ),
+      ];
+
+  /// Ancora o fields[] do envelope 400/409 no campo (chamado pelo listener
+  /// do bloc via GlobalKey — equivalente local da fábrica).
+  Future<void> showServerFieldError(Failure failure) =>
+      showServerFieldFeedback(context, failure, _pendencyFields);
+
+  Future<void> _save() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
     widget.onSave(ContractSaveRequested(
       editingId: _editing?.id,
       input: ContractInput(
         customerId: _customerId!,
-        dtStart:    dtStartIso,
-        dtEnd:      dtEndIso,
-        paymentDay: paymentDay,
+        dtStart:    displayDateToIso(_dtStart.text)!,
+        dtEnd:      displayDateToIso(_dtEnd.text),
+        paymentDay: int.parse(_paymentDay.text.trim()),
         active:     _active,
         items:      _items,
       ),
     ));
   }
 
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) widget.onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   /// Seção de itens (D9): lista local + adicionar/editar/remover; o total
@@ -366,7 +452,7 @@ class _ContractFormViewState extends State<_ContractFormView> {
           padding: const EdgeInsets.all(16),
           children: [
             SetesLookupField(
-              label: 'forms.contract.customer'.tr(),
+              label: _label('tb_customer_id', 'forms.contract.customer'),
               display: _customerName,
               onSearch: _pickCustomer,
               onClear: () => setState(() {
@@ -376,33 +462,40 @@ class _ContractFormViewState extends State<_ContractFormView> {
             ),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.contract.dtStart'.tr(),
+              label: _label('dt_start', 'forms.contract.dtStart'),
               hint: 'register.dateHint'.tr(),
               controller: _dtStart,
+              focusNode: _dtStartFocus,
+              fieldKey: _dtStartKey,
               autofocus: true,
               textInputAction: TextInputAction.next,
-              validator: validateOptionalDate,
+              validator: _validateDtStart,
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.contract.dtEnd'.tr(),
+              label: _label('dt_end', 'forms.contract.dtEnd'),
               hint: 'register.dateHint'.tr(),
               controller: _dtEnd,
+              focusNode: _dtEndFocus,
+              fieldKey: _dtEndKey,
               textInputAction: TextInputAction.next,
-              validator: validateOptionalDate,
+              validator: _validateDtEnd,
             )),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: 'forms.contract.paymentDay'.tr(),
+              label: _label('payment_day', 'forms.contract.paymentDay'),
               hint: 'forms.contract.paymentDayHint'.tr(),
               controller: _paymentDay,
+              focusNode: _paymentDayFocus,
+              fieldKey: _paymentDayKey,
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
+              validator: _validatePaymentDay,
             )),
             const SizedBox(height: 8),
             ExcludeFocusTraversal(
               child: SetesCheckbox(
-                label: 'forms.contract.active'.tr(),
+                label: _label('active', 'forms.contract.active'),
                 value: _active,
                 onChanged: (checked) =>
                     setState(() => _active = checked ?? true),
@@ -419,11 +512,13 @@ class _ContractFormViewState extends State<_ContractFormView> {
 
 /// Dialog de item do contrato: produto (lookup dos ATIVOS) + valor mensal.
 /// Na edição o produto é travado (chave do sync por productId) — só o
-/// valor muda. Devolve o [ContractItem] via Navigator.pop.
+/// valor muda. Devolve o [ContractItem] via Navigator.pop. Validação
+/// interna também uma-pendência-por-vez via ponte (R3).
 class _ContractItemDialog extends StatefulWidget {
   const _ContractItemDialog({
     required this.datasource,
     required this.usedProductIds,
+    required this.fieldConfig,
     this.existing,
   });
 
@@ -431,6 +526,9 @@ class _ContractItemDialog extends StatefulWidget {
 
   /// Produtos já usados nos DEMAIS itens (produto não pode repetir).
   final Set<int> usedProductIds;
+
+  /// Catálogo da interface — captions do cliente também nos campos do item.
+  final List<FieldConfigEntity> fieldConfig;
   final ContractItem? existing;
 
   @override
@@ -439,6 +537,8 @@ class _ContractItemDialog extends StatefulWidget {
 
 class _ContractItemDialogState extends State<_ContractItemDialog> {
   late final TextEditingController _value;
+  final _valueFocus = FocusNode();
+  final _valueKey = GlobalKey<FormFieldState<String>>();
 
   int? _productId;
   String _productDescription = '';
@@ -459,8 +559,12 @@ class _ContractItemDialogState extends State<_ContractItemDialog> {
   @override
   void dispose() {
     _value.dispose();
+    _valueFocus.dispose();
     super.dispose();
   }
+
+  String _label(String field, String i18nKey) =>
+      fieldConfigOf(widget.fieldConfig, field)?.caption ?? i18nKey.tr();
 
   Future<void> _pickProduct() async {
     final picked = await showSetesLookup<ContractProductLookup>(
@@ -480,29 +584,44 @@ class _ContractItemDialogState extends State<_ContractItemDialog> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  String? _validateValue(String? value) {
+    final parsed =
+        double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+    if (parsed == null || parsed < 0) {
+      return 'forms.contract.itemValueInvalid'.tr();
+    }
+    return null;
+  }
 
-  void _confirm() {
-    if (_productId == null) {
-      _warn(
-          'register.requiredField'.tr(args: ['forms.contract.product'.tr()]));
-      return;
-    }
-    if (widget.usedProductIds.contains(_productId)) {
-      _warn('forms.contract.duplicateProduct'.tr());
-      return;
-    }
-    final value =
-        double.tryParse(_value.text.trim().replaceAll(',', '.'));
-    if (value == null || value < 0) {
-      _warn('forms.contract.itemValueInvalid'.tr());
-      return;
-    }
+  /// Uma pendência por vez também no dialog de sub-lista (R3): produto
+  /// obrigatório e sem repetição, valor >= 0 — mesma mecânica da ponte.
+  Future<void> _confirm() async {
+    final ok = await ensureNoPendency(context, [
+      PendencyField(
+        name: 'productId',
+        validate: () {
+          if (_productId == null) {
+            return 'register.requiredField'.tr(
+                args: [_label('tb_product_id', 'forms.contract.product')]);
+          }
+          if (widget.usedProductIds.contains(_productId)) {
+            return 'forms.contract.duplicateProduct'.tr();
+          }
+          return null;
+        },
+      ),
+      PendencyField(
+        name: 'value',
+        focusNode: _valueFocus,
+        fieldKey: _valueKey,
+        validate: () => _validateValue(_value.text),
+      ),
+    ]);
+    if (!ok || !mounted) return;
     Navigator.of(context).pop(ContractItem(
       productId:          _productId!,
       productDescription: _productDescription,
-      value:              value,
+      value:              double.parse(_value.text.trim().replaceAll(',', '.')),
     ));
   }
 
@@ -519,23 +638,26 @@ class _ContractItemDialogState extends State<_ContractItemDialog> {
               if (_editing)
                 SetesTextField(
                   key: ValueKey('product-locked-$_productId'),
-                  label: 'forms.contract.product'.tr(),
+                  label: _label('tb_product_id', 'forms.contract.product'),
                   controller:
                       TextEditingController(text: _productDescription),
                   readOnly: true,
                 )
               else
                 SetesLookupField(
-                  label: 'forms.contract.product'.tr(),
+                  label: _label('tb_product_id', 'forms.contract.product'),
                   display: _productDescription,
                   onSearch: _pickProduct,
                 ),
               const SizedBox(height: 16),
               SetesTextField(
-                label: 'forms.contract.itemValue'.tr(),
+                label: _label('value', 'forms.contract.itemValue'),
                 controller: _value,
+                focusNode: _valueFocus,
+                fieldKey: _valueKey,
                 autofocus: _editing,
                 keyboardType: TextInputType.number,
+                validator: _validateValue,
                 onSubmitted: (_) => _confirm(),
               ),
             ],

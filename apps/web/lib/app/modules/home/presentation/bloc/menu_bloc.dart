@@ -68,11 +68,18 @@ class MenuLoaded extends MenuState {
   List<Object?> get props => [modules, selectedModuleIndex, selectedInterface];
 }
 
+/// Falha na carga dos menus. Carrega o [failure] INTEIRO (Framework de
+/// Mensagens, R7): a natureza (técnico × corrigível) deriva do desfecho na
+/// ponte de feedback — a tela mostra o dialog e mantém o corpo neutro.
 class MenuError extends MenuState {
-  const MenuError({required this.message});
-  final String message;
+  const MenuError({required this.failure});
+  final Failure failure;
+
+  /// Mensagem (pode ser chave i18n `core.errors.*` — a UI traduz).
+  String get message => failure.message;
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }
 
 /// Menus 100% via GET /api/core/menus (decisões 1, 21) — nada hard-coded.
@@ -89,7 +96,7 @@ class MenuBloc extends Bloc<MenuEvent, MenuState> {
     emit(MenuLoading());
     final result = await usecase();
     result.fold(
-      (failure) => emit(MenuError(message: failure.message)),
+      (failure) => emit(MenuError(failure: failure)),
       (modules) => emit(MenuLoaded(modules: modules)),
     );
   }

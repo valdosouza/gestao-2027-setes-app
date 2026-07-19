@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,8 +16,10 @@ part 'settlement_state.dart';
 /// Software House, Onda 5): 3 abas (Em aberto × Baixados × Movimento).
 /// Toda ação (baixa em lote, estorno) chama a API e RECARREGA a aba — o
 /// saldo do título e os totais do extrato são DERIVADOS no servidor;
-/// financeiro NÃO se apaga (estorno = lançamento inverso). Os 409 de
-/// negócio viram SnackBar com a mensagem da API.
+/// financeiro NÃO se apaga (estorno = lançamento inverso). Falhas carregam
+/// o [Failure] INTEIRO no one-shot (Framework de Mensagens): a página
+/// entrega à PONTE, que deriva o canal — os 409 de negócio viram dialog de
+/// validação com a mensagem da API.
 class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
   SettlementBloc({
     required this.billsGetlist,
@@ -50,7 +53,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
     final result = await billsGetlist('open', '', _billsFilter);
     result.fold(
       (failure) {
-        emit(SettlementActionFailure(failure.message));
+        emit(SettlementActionFailure(failure));
         emit(const SettlementBillsState());
       },
       (items) => emit(SettlementBillsState(items: items)),
@@ -62,7 +65,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
     final result = await settledGetlist(_settledFilter);
     result.fold(
       (failure) {
-        emit(SettlementActionFailure(failure.message));
+        emit(SettlementActionFailure(failure));
         emit(const SettlementSettledState());
       },
       (items) => emit(SettlementSettledState(items: items)),
@@ -74,7 +77,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
     final result = await statementsGet(_stAccount, _stFrom, _stTo);
     result.fold(
       (failure) {
-        emit(SettlementActionFailure(failure.message));
+        emit(SettlementActionFailure(failure));
         emit(const SettlementStatementsState());
       },
       (report) => emit(SettlementStatementsState(report: report)),
@@ -93,7 +96,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
     final result = await settle(event.input);
     await result.fold(
       (failure) async {
-        emit(SettlementActionFailure(failure.message));
+        emit(SettlementActionFailure(failure));
         await _reloadBills(emit);
       },
       (batch) async {
@@ -118,8 +121,9 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
         event.orderId, event.parcel, event.event, event.reason);
     await result.fold(
       (failure) async {
-        // 409 "baixa não vigente" chega aqui — mensagem da API na SnackBar.
-        emit(SettlementActionFailure(failure.message));
+        // 409 "baixa não vigente" chega aqui — a ponte o apresenta como
+        // dialog de validação com a mensagem da API.
+        emit(SettlementActionFailure(failure));
         await _reloadSettled(emit);
       },
       (rev) async {

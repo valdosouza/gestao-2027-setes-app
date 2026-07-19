@@ -2,6 +2,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../feedback/feedback.dart';
+import '../../feedback/form_pendency.dart';
 import '../../lookup/datasource/city_lookup_datasource.dart';
 import '../../lookup/datasource/country_lookup_datasource.dart';
 import '../../lookup/datasource/state_lookup_datasource.dart';
@@ -112,7 +114,10 @@ class _AddressDialog extends StatefulWidget {
 }
 
 class _AddressDialogState extends State<_AddressDialog> {
-  final _formKey = GlobalKey<FormState>();
+  final _kindFocus = FocusNode();
+  final _streetFocus = FocusNode();
+  final _kindKey = GlobalKey<FormFieldState<String>>();
+  final _streetKey = GlobalKey<FormFieldState<String>>();
 
   late final TextEditingController _kind;
   late final TextEditingController _street;
@@ -155,6 +160,8 @@ class _AddressDialogState extends State<_AddressDialog> {
     for (final c in [_kind, _street, _nmbr, _complement, _neighborhood, _zipCode]) {
       c.dispose();
     }
+    _kindFocus.dispose();
+    _streetFocus.dispose();
     super.dispose();
   }
 
@@ -198,13 +205,14 @@ class _AddressDialogState extends State<_AddressDialog> {
   }
 
   Future<void> _pickCity() async {
-    // Lookup dependente (campo-lookup-fk.md, item 5): exige a UF primeiro.
+    // Lookup dependente (campo-lookup-fk.md, item 5): exige a UF primeiro —
+    // pendência corrigível → dialog de validação da ponte (R1).
     final stateId = _stateId;
     if (stateId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: SetesText('forms.address.stateFirst'.tr())));
+      await showValidationFeedback(context, 'forms.address.stateFirst'.tr());
       return;
     }
+    if (!mounted) return;
     final picked = await showSetesLookup<CityLookup>(
       context: context,
       title: 'lookup.cities'.tr(),
@@ -225,8 +233,45 @@ class _AddressDialogState extends State<_AddressDialog> {
   String? _validateRequired(String? value) =>
       (value == null || value.trim().isEmpty) ? 'register.required'.tr() : null;
 
-  void _confirm() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  /// Campos NA ORDEM da tela (R3) — uma pendência por vez: dialog da ponte
+  /// → foco/marca SÓ no campo apontado; nunca o dialog inteiro vermelho.
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'kind',
+          focusNode: _kindFocus,
+          fieldKey: _kindKey,
+          validate: () => kindValidator(widget.takenKinds)(_kind.text),
+        ),
+        PendencyField(
+          name: 'street',
+          focusNode: _streetFocus,
+          fieldKey: _streetKey,
+          validate: () => _validateRequired(_street.text),
+        ),
+        PendencyField(
+          name: 'tbCountryId',
+          validate: () => _countryId == null
+              ? 'register.requiredField'
+                  .tr(args: ['forms.address.country'.tr()])
+              : null,
+        ),
+        PendencyField(
+          name: 'tbStateId',
+          validate: () => _stateId == null
+              ? 'register.requiredField'.tr(args: ['forms.address.state'.tr()])
+              : null,
+        ),
+        PendencyField(
+          name: 'tbCityId',
+          validate: () => _cityId == null
+              ? 'register.requiredField'.tr(args: ['forms.address.city'.tr()])
+              : null,
+        ),
+      ];
+
+  Future<void> _confirm() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    if (!mounted) return;
     Navigator.of(context).pop(EntityAddress(
       kind:         _kind.text.trim(),
       street:       _street.text.trim(),
@@ -249,7 +294,6 @@ class _AddressDialogState extends State<_AddressDialog> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520, maxHeight: 680),
           child: Form(
-            key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -279,6 +323,8 @@ class _AddressDialogState extends State<_AddressDialog> {
                       SetesTextField(
                         label: 'forms.address.kind'.tr(),
                         controller: _kind,
+                        focusNode: _kindFocus,
+                        fieldKey: _kindKey,
                         autofocus: true,
                         textInputAction: TextInputAction.next,
                         validator: kindValidator(widget.takenKinds),
@@ -287,6 +333,8 @@ class _AddressDialogState extends State<_AddressDialog> {
                       SetesTextField(
                         label: 'forms.address.street'.tr(),
                         controller: _street,
+                        focusNode: _streetFocus,
+                        fieldKey: _streetKey,
                         textInputAction: TextInputAction.next,
                         validator: _validateRequired,
                       ),

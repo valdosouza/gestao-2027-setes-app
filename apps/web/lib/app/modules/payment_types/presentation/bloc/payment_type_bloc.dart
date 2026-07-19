@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -65,7 +66,7 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
     final result = await getlist();
     result.fold(
       (failure) {
-        emit(PaymentTypeActionFailure(failure.message));
+        emit(PaymentTypeActionFailure(failure));
         emit(const PaymentTypeListState());
       },
       (items) {
@@ -90,7 +91,7 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
           attrs: event.attrs, idNfce: event.idNfce);
       await result.fold(
         (failure) async {
-          emit(PaymentTypeActionFailure(failure.message));
+          emit(PaymentTypeActionFailure(failure));
           emit(PaymentTypeFormState(
               editing: _all.firstWhere((p) => p.id == event.editingId,
                   orElse: () => LinkedPaymentType(id: event.editingId!))));
@@ -111,7 +112,7 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
     );
     await result.fold(
       (failure) async {
-        emit(PaymentTypeActionFailure(failure.message));
+        emit(PaymentTypeActionFailure(failure));
         emit(const PaymentTypeFormState());
       },
       (postResult) async {
@@ -128,7 +129,7 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
       PaymentTypeDeleteRequested event, Emitter<PaymentTypeState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(PaymentTypeActionFailure(failure.message)),
+      (failure) async => emit(PaymentTypeActionFailure(failure)),
       (_) async {
         emit(const PaymentTypeActionSuccess('forms.paymentType.unlinked'));
         await _reload(emit);

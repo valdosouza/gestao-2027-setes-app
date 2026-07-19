@@ -5,6 +5,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../../preference/presentation/widget/language_selector.dart';
 import '../bloc/auth_bloc.dart';
+import '../content/auth_feedback.dart';
 import '../content/auth_field.dart';
 import '../content/auth_styles.dart';
 
@@ -27,7 +28,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _code = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  String? _localError;
+  final _passwordFocus = FocusNode();
+  final _confirmFocus = FocusNode();
 
   @override
   void initState() {
@@ -36,16 +38,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     _email.text = bloc.recoveryEmail ?? '';
   }
 
-  void _submit() {
-    if (_password.text != _confirm.text) {
-      setState(() => _localError = 'auth.passwordsDontMatch'.tr());
-      return;
-    }
+  /// Pendência LOCAL = dialog de validação + foco de volta no campo — UMA
+  /// por vez (Framework de Mensagens, R1/R3).
+  Future<void> _submit() async {
     if (_password.text.length < 5) {
-      setState(() => _localError = 'auth.passwordTooShort'.tr());
+      await showAuthValidationDialog(context, 'auth.passwordTooShort');
+      if (mounted) _passwordFocus.requestFocus();
       return;
     }
-    setState(() => _localError = null);
+    if (_password.text != _confirm.text) {
+      await showAuthValidationDialog(context, 'auth.passwordsDontMatch');
+      if (mounted) _confirmFocus.requestFocus();
+      return;
+    }
     bloc.add(AuthChangePasswordRequested(
       email: _email.text.trim(),
       code: _code.text.trim(),
@@ -59,6 +64,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     _code.dispose();
     _password.dispose();
     _confirm.dispose();
+    _passwordFocus.dispose();
+    _confirmFocus.dispose();
     super.dispose();
   }
 
@@ -96,6 +103,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             label: 'auth.newPassword'.tr(),
             hint: 'auth.passwordHint'.tr(),
             controller: _password,
+            focusNode: _passwordFocus,
             icon: Icons.lock,
             obscure: true,
           ),
@@ -104,6 +112,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             label: 'auth.confirmPassword'.tr(),
             hint: 'auth.passwordHint'.tr(),
             controller: _confirm,
+            focusNode: _confirmFocus,
             icon: Icons.lock_outline,
             obscure: true,
             onSubmitted: (_) => _submit(),
@@ -121,8 +130,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     decoration: TextDecoration.underline,
                     decorationColor: Colors.white)),
           ),
-          if (_localError != null || state is AuthError)
-            Text(_localError ?? (state as AuthError).message,
+          if (state is AuthError && !isTechnicalFailure(state.failure))
+            // .tr(): defaults do Failure são chaves core.errors.* (chave
+            // inexistente devolve a própria string — PT do backend intacto).
+            Text(state.message.tr(),
                 textAlign: TextAlign.center,
                 style: AuthStyles.label.copyWith(color: Colors.amberAccent)),
         ],
@@ -134,10 +145,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       bloc: bloc,
       listener: (context, state) {
         if (state is AuthPasswordChanged) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('auth.passwordChanged'.tr())),
-          );
+          // Sucesso = SnackBar via apresentador (R1) — nunca
+          // ScaffoldMessenger direto na tela.
+          showAuthSuccessFeedback(context, 'auth.passwordChanged');
           Modular.to.navigate('/login');
+        }
+        // 500/rede = dialog de erro técnico (R7); código inválido/erro
+        // corrigível permanece inline no formulário.
+        if (state is AuthError && isTechnicalFailure(state.failure)) {
+          showAuthFailureDialog(context, state.failure);
         }
       },
       builder: (context, state) => Scaffold(

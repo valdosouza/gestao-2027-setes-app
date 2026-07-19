@@ -14,6 +14,7 @@ class AuthField extends StatefulWidget {
     this.obscure = false,
     this.keyboardType,
     this.onSubmitted,
+    this.focusNode,
     super.key,
   });
 
@@ -24,6 +25,9 @@ class AuthField extends StatefulWidget {
   final bool obscure;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onSubmitted;
+
+  /// Devolver o foco ao campo pendente após o dialog de validação (R3).
+  final FocusNode? focusNode;
 
   @override
   State<AuthField> createState() => _AuthFieldState();
@@ -43,6 +47,7 @@ class _AuthFieldState extends State<AuthField> {
             decoration: AuthStyles.field(context),
             child: TextFormField(
               controller: widget.controller,
+              focusNode: widget.focusNode,
               obscureText: widget.obscure && !_visible,
               keyboardType: widget.keyboardType,
               onFieldSubmitted: widget.onSubmitted,

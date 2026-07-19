@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../data/datasource/institution_datasource.dart';
 import '../../domain/entity/institution_interface_grant.dart';
 
@@ -56,8 +57,12 @@ class _InstitutionInterfacesTabState extends State<InstitutionInterfacesTab> {
     super.dispose();
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Falhas SEMPRE via ponte (Framework de Mensagens, R1/R7) — a aba nunca
+  /// chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -65,16 +70,17 @@ class _InstitutionInterfacesTabState extends State<InstitutionInterfacesTab> {
       final grants = await widget.datasource.getInterfaces(widget.institutionId!);
       if (mounted) setState(() => _grants = grants);
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   /// Toggle = sincroniza o contrato na hora (PUT com a lista completa).
-  /// Falhou → reverte o estado local e mostra o erro.
+  /// Sucesso = SnackBar via ponte (R1); falhou → reverte o estado local e
+  /// entrega o Failure à ponte.
   Future<void> _toggle(InstitutionInterfaceGrant grant, bool granted) async {
     final previous = _grants;
     final updated = [
@@ -89,17 +95,15 @@ class _InstitutionInterfacesTabState extends State<InstitutionInterfacesTab> {
         widget.institutionId!,
         [for (final g in updated) if (g.granted) g.id],
       );
-      if (mounted) _snack('forms.institution.interfacesSaved'.tr());
+      if (mounted) {
+        await showSuccessFeedback(context, 'forms.institution.interfacesSaved');
+      }
     } on Failure catch (failure) {
-      if (mounted) {
-        setState(() => _grants = previous);
-        _snack(failure.message);
-      }
+      if (mounted) setState(() => _grants = previous);
+      _fail(failure);
     } catch (_) {
-      if (mounted) {
-        setState(() => _grants = previous);
-        _snack('register.error'.tr());
-      }
+      if (mounted) setState(() => _grants = previous);
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

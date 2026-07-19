@@ -24,12 +24,22 @@ class SetesTextField extends StatelessWidget {
     this.onSuffixPressed,
     this.hint,
     this.maxLines = 1,
+    this.focusNode,
+    this.fieldKey,
     super.key,
   });
 
   final String label;
   final TextEditingController? controller;
   final bool obscureText;
+
+  /// Foco programático (Framework de Mensagens, R3: após o dialog de
+  /// pendência o foco volta para o campo pendente).
+  final FocusNode? focusNode;
+
+  /// Key do TextFormField interno (ex.: `GlobalKey<FormFieldState>` para
+  /// validar/marcar SÓ este campo — R3: uma pendência por vez).
+  final Key? fieldKey;
 
   /// Campo somente leitura (ex.: código imutável na edição, campos de lookup).
   /// Fica FORA da sequência de tabulação (foco só por clique).
@@ -65,6 +75,8 @@ class SetesTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final field = TextFormField(
+      key: fieldKey,
+      focusNode: focusNode,
       controller: controller,
       obscureText: obscureText,
       readOnly: readOnly,

@@ -13,6 +13,12 @@ import '../widget/institution_logo.dart';
 /// Personalização da identidade visual pelo cliente (decisões 16 e 27):
 /// escolhe primária/secundária numa paleta; aplica na hora e persiste
 /// em tb_institution_theme via PUT /api/core/theme.
+///
+/// Feedback (Framework de Mensagens, Onda B): página de PACKAGE não pode
+/// importar a ponte do app (`app/shared/feedback/`) — usa direto o
+/// apresentador do design system (peça E: showSetesMessage/
+/// showSetesDecision), que é exatamente o que a ponte envelopa; os textos
+/// chegam prontos (i18n aqui). Nada de ScaffoldMessenger/AlertDialog.
 class ThemeSettingsPage extends StatefulWidget {
   const ThemeSettingsPage({super.key, this.cubit});
 
@@ -38,8 +44,6 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
   String? _primaryHex;
   String? _secondaryHex;
 
-  String? _logoError;
-
   @override
   void initState() {
     super.initState();
@@ -57,13 +61,37 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
 
     final bytes = await file.readAsBytes();
     if (bytes.length > 1_400_000) {
-      setState(() => _logoError = 'theme.logoTooBig'.tr());
+      // Pendência corrigível pelo usuário = dialog de validação (R1/R3).
+      if (mounted) {
+        await showSetesMessage(
+          context,
+          kind: SetesMessageKind.validation,
+          title: 'feedback.validationTitle'.tr(),
+          message: 'theme.logoTooBig'.tr(),
+          okLabel: 'register.ok'.tr(),
+        );
+      }
       return;
     }
     final ext = file.name.split('.').last.toLowerCase();
     final mime = ext == 'jpg' ? 'jpeg' : ext;
     await cubit.saveLogo('data:image/$mime;base64,${base64Encode(bytes)}');
-    if (mounted) setState(() => _logoError = null);
+  }
+
+  /// Voltar ao padrão Setes é uma DECISÃO (R4): Sim = repõe as cores padrão
+  /// na paleta (persistem no "Aplicar e salvar"); Cancelar = nada.
+  Future<void> _confirmResetToDefault() async {
+    final decision = await showSetesDecision(
+      context,
+      message: 'theme.resetConfirm'.tr(),
+      yesLabel: 'register.yes'.tr(),
+      cancelLabel: 'register.cancel'.tr(),
+    );
+    if (decision != SetesDecision.yes || !mounted) return;
+    setState(() {
+      _primaryHex = SetesTheme.colorToHex(SetesColors.blue);
+      _secondaryHex = SetesTheme.colorToHex(SetesColors.navy);
+    });
   }
 
   Widget _swatchGrid(String? selectedHex, ValueChanged<String> onPick) => Wrap(
@@ -123,11 +151,6 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     ),
                   ],
                 ),
-                if (_logoError != null) ...[
-                  const SizedBox(height: 8),
-                  SetesText(_logoError!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                ],
                 const SizedBox(height: 32),
                 SetesButton(
                   label: 'theme.apply'.tr(),
@@ -140,10 +163,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                 SetesButton(
                   label: 'theme.resetToDefault'.tr(),
                   kind: SetesButtonKind.secondary,
-                  onPressed: () => setState(() {
-                    _primaryHex = SetesTheme.colorToHex(SetesColors.blue);
-                    _secondaryHex = SetesTheme.colorToHex(SetesColors.navy);
-                  }),
+                  onPressed: _confirmResetToDefault,
                 ),
               ],
             ),

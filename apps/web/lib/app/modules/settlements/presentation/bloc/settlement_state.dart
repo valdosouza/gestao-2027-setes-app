@@ -56,12 +56,15 @@ class SettlementActionSuccess extends SettlementState {
   List<Object?> get props => [messageKey, args];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only) — mensagem da API
-/// como veio (inclui o 409 "baixa não vigente" do estorno).
+/// Efeito one-shot de falha (listener-only, não buildável). Carrega o
+/// [Failure] INTEIRO: a ponte deriva a natureza (validation × erro técnico
+/// com supportRef — R7); os 409 de negócio (ex.: "baixa não vigente" do
+/// estorno) viram dialog de validação com a mensagem da API e o fields[]
+/// do 400 mostra a message do campo apontado.
 class SettlementActionFailure extends SettlementState {
-  const SettlementActionFailure(this.message);
-  final String message;
+  const SettlementActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }

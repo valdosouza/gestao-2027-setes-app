@@ -4,9 +4,33 @@ import 'package:flutter/material.dart';
 import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../feedback/feedback.dart';
 import '../data/entity_by_document_datasource.dart';
 import '../domain/object_entity_fiscal.dart';
 import 'entity_date.dart';
+
+/// Ganchos da mecânica UMA-PENDÊNCIA (R3) para os campos desta aba dentro
+/// de um form COMPOSTO por abas: o dono do form (page do módulo) cria os
+/// ganchos, monta seus PendencyFields com eles (foco + marca no campo certo
+/// após trocar para esta aba) e repassa à aba via [EntityMainTab.hooks].
+/// O dono é responsável por [dispose].
+class EntityMainTabHooks {
+  final nameCompanyFocus = FocusNode();
+  final nickTradeFocus = FocusNode();
+  final cpfFocus = FocusNode();
+  final cnpjFocus = FocusNode();
+
+  final nameCompanyKey = GlobalKey<FormFieldState<String>>();
+  final nickTradeKey = GlobalKey<FormFieldState<String>>();
+  final cpfKey = GlobalKey<FormFieldState<String>>();
+  final cnpjKey = GlobalKey<FormFieldState<String>>();
+
+  void dispose() {
+    for (final node in [nameCompanyFocus, nickTradeFocus, cpfFocus, cnpjFocus]) {
+      node.dispose();
+    }
+  }
+}
 
 /// Aba "Principal" da cadeia de entidade fiscal — COMPARTILHADA entre
 /// Institution/Customer/Provider/Collaborator/Bank (skill
@@ -30,11 +54,16 @@ class EntityMainTab extends StatefulWidget {
     required this.onChanged,
     this.byDocumentLookup,
     this.prefillEnabled = false,
+    this.hooks,
     super.key,
   });
 
   final ObjectEntityFiscal value;
   final ValueChanged<ObjectEntityFiscal> onChanged;
+
+  /// Ganchos de foco/marcação da mecânica uma-pendência do form composto
+  /// (R3) — opcionais: sem eles a aba funciona igual, só sem foco dirigido.
+  final EntityMainTabHooks? hooks;
 
   /// Busca por documento para o prefill — bind do módulo consumidor.
   final EntityByDocumentDatasource? byDocumentLookup;
@@ -100,6 +129,22 @@ class _EntityMainTabState extends State<EntityMainTab> {
   String? _validateRequired(String? value) =>
       (value == null || value.trim().isEmpty) ? 'register.required'.tr() : null;
 
+  /// Validators dos documentos com o MESMO julgamento do salvar (11/14
+  /// dígitos) — a marca inline do campo nunca mente para a pendência (R3).
+  String? _validateCpf(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return 'register.required'.tr();
+    if (digits.length != 11) return 'forms.entity.cpfInvalid'.tr();
+    return null;
+  }
+
+  String? _validateCnpj(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return 'register.required'.tr();
+    if (digits.length != 14) return 'forms.entity.cnpjInvalid'.tr();
+    return null;
+  }
+
   // -------------------------------------------------------------------
   // Prefill by-document (Fase 3, decisões 3, 9 e 10)
   // -------------------------------------------------------------------
@@ -123,7 +168,7 @@ class _EntityMainTabState extends State<EntityMainTab> {
       _lastPrefillDoc = doc;
       if (!mounted || !result.found || result.entity == null) return;
       final load = await _confirmPrefill(result.roles);
-      if (load == true && mounted) _applyPrefill(result.entity!);
+      if (load && mounted) _applyPrefill(result.entity!);
     } on Failure {
       // Prefill é só UX — falha silenciosa; a resolução definitiva do
       // documento acontece no salvar (decisão 9).
@@ -132,38 +177,24 @@ class _EntityMainTabState extends State<EntityMainTab> {
     }
   }
 
-  Future<bool?> _confirmPrefill(List<String> roles) {
+  /// Decisão TIPADA via ponte (R4): Sim = carregar a cadeia existente;
+  /// Cancelar (ou fechar) = seguir digitando do zero. Sem ação alternativa
+  /// → sem botão Não.
+  Future<bool> _confirmPrefill(List<String> roles) async {
     final roleNames = roles
         .map((r) => trCatalog(r, r, prefix: 'forms.entity.role'))
         .join(', ');
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: SetesText('forms.entity.prefillTitle'.tr()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (roleNames.isNotEmpty)
-              SetesText('forms.entity.prefillRoles'.tr(args: [roleNames])),
-            const SizedBox(height: 8),
-            SetesText('forms.entity.prefillQuestion'.tr()),
-          ],
-        ),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'forms.entity.prefillLoad'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      title: 'forms.entity.prefillTitle'.tr(),
+      message: [
+        if (roleNames.isNotEmpty)
+          'forms.entity.prefillRoles'.tr(args: [roleNames]),
+        'forms.entity.prefillQuestion'.tr(),
+      ].join('\n\n'),
+      yesLabel: 'forms.entity.prefillLoad'.tr(),
     );
+    return decision == SetesDecision.yes;
   }
 
   /// Aplica a cadeia encontrada no draft e sincroniza os controllers.
@@ -268,6 +299,8 @@ class _EntityMainTabState extends State<EntityMainTab> {
                       : 'forms.entity.nameCompanyPerson')
                   .tr(),
               controller: _nameCompany,
+              focusNode: widget.hooks?.nameCompanyFocus,
+              fieldKey: widget.hooks?.nameCompanyKey,
               autofocus: true,
               textInputAction: TextInputAction.next,
               validator: _validateRequired,
@@ -279,6 +312,8 @@ class _EntityMainTabState extends State<EntityMainTab> {
                       : 'forms.entity.nickTradePerson')
                   .tr(),
               controller: _nickTrade,
+              focusNode: widget.hooks?.nickTradeFocus,
+              fieldKey: widget.hooks?.nickTradeKey,
               textInputAction: TextInputAction.next,
               validator: _validateRequired,
               onChanged: (t) => _emit(widget.value.copyWith(nickTrade: t)),
@@ -302,9 +337,11 @@ class _EntityMainTabState extends State<EntityMainTab> {
                 child: SetesTextField(
                   label: 'forms.entity.cpf'.tr(),
                   controller: _cpf,
+                  focusNode: widget.hooks?.cpfFocus,
+                  fieldKey: widget.hooks?.cpfKey,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
-                  validator: _validateRequired,
+                  validator: _validateCpf,
                   onChanged: (t) => _emit(widget.value
                       .copyWith(person: _person.copyWith(cpf: t.trim()))),
                 ),
@@ -333,9 +370,11 @@ class _EntityMainTabState extends State<EntityMainTab> {
                 child: SetesTextField(
                   label: 'forms.entity.cnpj'.tr(),
                   controller: _cnpj,
+                  focusNode: widget.hooks?.cnpjFocus,
+                  fieldKey: widget.hooks?.cnpjKey,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
-                  validator: _validateRequired,
+                  validator: _validateCnpj,
                   onChanged: (t) => _emit(widget.value
                       .copyWith(company: _company.copyWith(cnpj: t.trim()))),
                 ),

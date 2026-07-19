@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/data/entity_by_document_datasource.dart';
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
@@ -55,6 +58,11 @@ class _CustomerPageState extends State<CustomerPage>
   late final CarrierLookupDatasource _carrierLookup;
   late final EntityByDocumentDatasource _byDocumentLookup;
   late final CustomerPartnershipDatasource _partnershipDatasource;
+
+  /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
+  /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
+  /// lista o currentState é null.
+  final _formViewKey = GlobalKey<_CustomerFormViewState>();
 
   @override
   void initState() {
@@ -122,9 +130,7 @@ class _CustomerPageState extends State<CustomerPage>
       );
 
   Widget _buildForm(CustomerFormState state) => _CustomerFormView(
-        // Troca de registro reinicia abas e controllers.
-        key: ValueKey(
-            state.creating ? 'customer-new' : 'customer-${state.draft.id}'),
+        key: _formViewKey,
         title: widget.title,
         draft: state.draft,
         creating: state.creating,
@@ -145,28 +151,18 @@ class _CustomerPageState extends State<CustomerPage>
             : () => _bloc.add(CustomerDeleteRequested(state.draft.id!)),
       );
 
-  /// 409 de papel duplicado (Fase 3, decisão 2): oferece abrir o registro
-  /// existente em edição.
-  Future<void> _showDuplicateRoleDialog(int existingId) async {
-    final open = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('forms.customer.duplicateRole'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'forms.customer.openEdit'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+  /// 409 de papel duplicado (Fase 3, decisão 2; code DUP_ROLE do catálogo)
+  /// é uma DECISÃO tipada via ponte (R4): Sim = abrir o registro existente
+  /// em edição; Cancelar (ou fechar) = permanecer no form.
+  Future<void> _askDuplicateRole(int existingId) async {
+    final decision = await askDecision(
+      context,
+      message: 'forms.customer.duplicateRole'.tr(),
+      yesLabel: 'forms.customer.openEdit'.tr(),
     );
-    if (open == true) _bloc.add(CustomerEditPressed(existingId));
+    if (decision == SetesDecision.yes && mounted) {
+      _bloc.add(CustomerEditPressed(existingId));
+    }
   }
 
   @override
@@ -177,16 +173,26 @@ class _CustomerPageState extends State<CustomerPage>
             current is CustomerActionSuccess ||
             current is CustomerActionFailure ||
             current is CustomerDuplicateRole,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo (aba
+        // certa + foco) quando o form está montado; DUP_ROLE = decisão (R4).
         listener: (context, state) {
           if (state is CustomerDuplicateRole) {
-            _showDuplicateRoleDialog(state.existingId);
+            _askDuplicateRole(state.existingId);
             return;
           }
-          final message = state is CustomerActionSuccess
-              ? state.messageKey.tr()
-              : (state as CustomerActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is CustomerActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as CustomerActionFailure).failure;
+          final form = _formViewKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is CustomerListState || current is CustomerFormState,
@@ -201,7 +207,11 @@ class _CustomerPageState extends State<CustomerPage>
 /// Form artesanal com SetesFormShell + TabBar/TabBarView (caso de grupos
 /// naturais da criar-formulario-cadastro.md, item 2). O estado do form é o
 /// DRAFT no bloc — este widget é apresentação: repassa fatias editadas.
-class _CustomerFormView extends StatelessWidget {
+///
+/// Stateful pelo Framework de Mensagens (Onda B): o TabController próprio
+/// permite à mecânica uma-pendência (R3) e ao fields[] do servidor TROCAR
+/// para a aba do campo antes do foco (beforeFocus dos PendencyFields).
+class _CustomerFormView extends StatefulWidget {
   const _CustomerFormView({
     required this.title,
     required this.draft,
@@ -237,144 +247,206 @@ class _CustomerFormView extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onDelete;
 
-  void _snack(BuildContext context, String message) => ScaffoldMessenger.of(
-      context).showSnackBar(SnackBar(content: SetesText(message)));
+  @override
+  State<_CustomerFormView> createState() => _CustomerFormViewState();
+}
 
-  /// Validação do draft inteiro (as abas podem estar desmontadas — a fonte
-  /// de verdade é o draft do bloc, não os Form das abas). personType 'N'
-  /// não exige documento (Fase 3, decisão 4).
-  void _save(BuildContext context) {
-    String? requiredKey;
-    if (draft.nameCompany.trim().isEmpty) {
-      requiredKey = draft.personType == 'J'
-          ? 'forms.entity.nameCompany'
-          : 'forms.entity.nameCompanyPerson';
-    } else if (draft.nickTrade.trim().isEmpty) {
-      requiredKey = draft.personType == 'J'
-          ? 'forms.entity.nickTrade'
-          : 'forms.entity.nickTradePerson';
-    } else if (draft.personType == 'F' &&
-        (draft.person?.cpfDigits ?? '').isEmpty) {
-      requiredKey = 'forms.entity.cpf';
-    } else if (draft.personType == 'J' &&
-        (draft.company?.cnpjDigits ?? '').isEmpty) {
-      requiredKey = 'forms.entity.cnpj';
-    }
-    if (requiredKey != null) {
-      _snack(context, 'register.requiredField'.tr(args: [requiredKey.tr()]));
-      return;
-    }
-    if (draft.personType == 'F' && draft.person!.cpfDigits.length != 11) {
-      _snack(context, 'forms.entity.cpfInvalid'.tr());
-      return;
-    }
-    if (draft.personType == 'J' && draft.company!.cnpjDigits.length != 14) {
-      _snack(context, 'forms.entity.cnpjInvalid'.tr());
-      return;
-    }
-    onSave();
+class _CustomerFormViewState extends State<_CustomerFormView>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 7, vsync: this);
+
+  /// Ganchos de foco/marcação dos campos da aba Principal (R3).
+  final _mainHooks = EntityMainTabHooks();
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _mainHooks.dispose();
+    super.dispose();
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
+  ObjectCustomer get _draft => widget.draft;
+
+  /// Validação do draft inteiro (as abas podem estar desmontadas — a fonte
+  /// de verdade é o draft do bloc, não os Form das abas), NA ORDEM das abas
+  /// e dos campos na tela (R3). personType 'N' não exige documento (Fase 3,
+  /// decisão 4). Os names casam com o payload da API — por eles o fields[]
+  /// do servidor ancora no campo, trocando para a aba certa antes do foco.
+  List<PendencyField> get _pendencyFields {
+    void toMainTab() => _tabs.animateTo(0);
+    final isCompany = _draft.personType == 'J';
+    return [
+      PendencyField(
+        name: 'nameCompany',
+        beforeFocus: toMainTab,
+        focusNode: _mainHooks.nameCompanyFocus,
+        fieldKey: _mainHooks.nameCompanyKey,
+        validate: () => _draft.nameCompany.trim().isEmpty
+            ? 'register.requiredField'.tr(args: [
+                (isCompany
+                        ? 'forms.entity.nameCompany'
+                        : 'forms.entity.nameCompanyPerson')
+                    .tr()
+              ])
+            : null,
       ),
+      PendencyField(
+        name: 'nickTrade',
+        beforeFocus: toMainTab,
+        focusNode: _mainHooks.nickTradeFocus,
+        fieldKey: _mainHooks.nickTradeKey,
+        validate: () => _draft.nickTrade.trim().isEmpty
+            ? 'register.requiredField'.tr(args: [
+                (isCompany
+                        ? 'forms.entity.nickTrade'
+                        : 'forms.entity.nickTradePerson')
+                    .tr()
+              ])
+            : null,
+      ),
+      if (_draft.personType == 'F')
+        PendencyField(
+          name: 'cpf',
+          beforeFocus: toMainTab,
+          focusNode: _mainHooks.cpfFocus,
+          fieldKey: _mainHooks.cpfKey,
+          validate: () {
+            final digits = _draft.person?.cpfDigits ?? '';
+            if (digits.isEmpty) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.entity.cpf'.tr()]);
+            }
+            if (digits.length != 11) return 'forms.entity.cpfInvalid'.tr();
+            return null;
+          },
+        ),
+      if (_draft.personType == 'J')
+        PendencyField(
+          name: 'cnpj',
+          beforeFocus: toMainTab,
+          focusNode: _mainHooks.cnpjFocus,
+          fieldKey: _mainHooks.cnpjKey,
+          validate: () {
+            final digits = _draft.company?.cnpjDigits ?? '';
+            if (digits.isEmpty) {
+              return 'register.requiredField'
+                  .tr(args: ['forms.entity.cnpj'.tr()]);
+            }
+            if (digits.length != 14) return 'forms.entity.cnpjInvalid'.tr();
+            return null;
+          },
+        ),
+    ];
+  }
+
+  /// Ancora o fields[] do envelope 400/409 no campo — aba certa + foco
+  /// (chamado pelo listener do bloc via GlobalKey).
+  Future<void> showServerFieldError(Failure failure) =>
+      showServerFieldFeedback(context, failure, _pendencyFields);
+
+  Future<void> _save() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
+    widget.onSave();
+  }
+
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
+  Future<void> _confirmDelete() async {
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   @override
-  Widget build(BuildContext context) => SetesFormShell(
-        title: title,
-        saving: saving,
-        onBack: onBack,
-        onSave: () => _save(context),
-        onDelete: onDelete != null ? () => _confirmDelete(context) : null,
-        child: DefaultTabController(
-          length: 7,
-          child: Column(
-            children: [
-              TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: [
-                  Tab(text: 'register.tabMain'.tr()),
-                  Tab(text: 'register.tabAddresses'.tr()),
-                  Tab(text: 'register.tabPhones'.tr()),
-                  Tab(text: 'register.tabSocialMedia'.tr()),
-                  Tab(text: 'forms.customer.tab'.tr()),
-                  Tab(text: 'forms.customer.tax.tab'.tr()),
-                  Tab(text: 'forms.customer.tabPartnership'.tr()),
+  Widget build(BuildContext context) {
+    final draft = _draft;
+    final creating = widget.creating;
+    return SetesFormShell(
+      title: widget.title,
+      saving: widget.saving,
+      onBack: widget.onBack,
+      onSave: _save,
+      onDelete: widget.onDelete != null ? _confirmDelete : null,
+      // Troca de registro reinicia abas e controllers (o form fica montado
+      // no fluxo DUP_ROLE → abrir em edição).
+      child: KeyedSubtree(
+        key: ValueKey(creating ? 'customer-new' : 'customer-${draft.id}'),
+        child: Column(
+          children: [
+            TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                Tab(text: 'register.tabMain'.tr()),
+                Tab(text: 'register.tabAddresses'.tr()),
+                Tab(text: 'register.tabPhones'.tr()),
+                Tab(text: 'register.tabSocialMedia'.tr()),
+                Tab(text: 'forms.customer.tab'.tr()),
+                Tab(text: 'forms.customer.tax.tab'.tr()),
+                Tab(text: 'forms.customer.tabPartnership'.tr()),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  EntityMainTab(
+                    value: draft,
+                    onChanged: (fiscal) =>
+                        widget.onDraftChanged(draft.mergeFiscal(fiscal)),
+                    // Prefill by-document só na CRIAÇÃO (Fase 3, dec. 3/9/10)
+                    byDocumentLookup: widget.byDocumentLookup,
+                    prefillEnabled: creating,
+                    hooks: _mainHooks,
+                  ),
+                  AddressListTab(
+                    items: draft.addresses,
+                    countryLookup: widget.countryLookup,
+                    stateLookup: widget.stateLookup,
+                    cityLookup: widget.cityLookup,
+                    onChanged: (list) => widget
+                        .onDraftChanged(draft.copyWith(addresses: list)),
+                  ),
+                  PhoneListTab(
+                    items: draft.phones,
+                    onChanged: (list) =>
+                        widget.onDraftChanged(draft.copyWith(phones: list)),
+                  ),
+                  SocialMediaListTab(
+                    items: draft.socialMedia,
+                    onChanged: (list) => widget
+                        .onDraftChanged(draft.copyWith(socialMedia: list)),
+                  ),
+                  CustomerTab(
+                    value: draft,
+                    onChanged: widget.onDraftChanged,
+                    salesmanLookup: widget.salesmanLookup,
+                    carrierLookup: widget.carrierLookup,
+                  ),
+                  // Rodada 4: aba Tributação edita a fatia `tax` do draft
+                  // (o form SEMPRE envia — toJson usa default se null)
+                  CustomerTaxTab(
+                    value: draft.tax ?? const EntityTaxData(),
+                    onChanged: (tax) =>
+                        widget.onDraftChanged(draft.copyWith(tax: tax)),
+                  ),
+                  // Parceria v2 (angariação): aba AUTÔNOMA — CRUD próprio
+                  // via GET/PUT /api/customers/:id/partnership, fora do
+                  // draft do bloc (só na edição).
+                  CustomerPartnershipTab(
+                    customerId: creating ? null : draft.id,
+                    datasource: widget.partnershipDatasource,
+                  ),
                 ],
               ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    EntityMainTab(
-                      value: draft,
-                      onChanged: (fiscal) =>
-                          onDraftChanged(draft.mergeFiscal(fiscal)),
-                      // Prefill by-document só na CRIAÇÃO (Fase 3, dec. 3/9/10)
-                      byDocumentLookup: byDocumentLookup,
-                      prefillEnabled: creating,
-                    ),
-                    AddressListTab(
-                      items: draft.addresses,
-                      countryLookup: countryLookup,
-                      stateLookup: stateLookup,
-                      cityLookup: cityLookup,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(addresses: list)),
-                    ),
-                    PhoneListTab(
-                      items: draft.phones,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(phones: list)),
-                    ),
-                    SocialMediaListTab(
-                      items: draft.socialMedia,
-                      onChanged: (list) =>
-                          onDraftChanged(draft.copyWith(socialMedia: list)),
-                    ),
-                    CustomerTab(
-                      value: draft,
-                      onChanged: onDraftChanged,
-                      salesmanLookup: salesmanLookup,
-                      carrierLookup: carrierLookup,
-                    ),
-                    // Rodada 4: aba Tributação edita a fatia `tax` do draft
-                    // (o form SEMPRE envia — toJson usa default se null)
-                    CustomerTaxTab(
-                      value: draft.tax ?? const EntityTaxData(),
-                      onChanged: (tax) =>
-                          onDraftChanged(draft.copyWith(tax: tax)),
-                    ),
-                    // Parceria v2 (angariação): aba AUTÔNOMA — CRUD próprio
-                    // via GET/PUT /api/customers/:id/partnership, fora do
-                    // draft do bloc (só na edição).
-                    CustomerPartnershipTab(
-                      customerId: creating ? null : draft.id,
-                      datasource: partnershipDatasource,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }

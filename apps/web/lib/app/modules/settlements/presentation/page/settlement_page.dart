@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../data/datasource/settlement_datasource.dart';
 import '../../domain/entity/settlement_entity.dart';
@@ -91,6 +92,38 @@ String _decimalText(double value) =>
 
 double _round2(double value) => (value * 100).roundToDouble() / 100;
 
+/// Checagem de UM campo de dialog de ação: [validate] devolve a chave i18n
+/// (ou texto pronto) da pendência; [focusNode]/[fieldKey] ancoram o retorno
+/// do foco e a marca inline SÓ nele.
+class _DialogCheck {
+  const _DialogCheck({required this.validate, this.focusNode, this.fieldKey});
+
+  final String? Function() validate;
+  final FocusNode? focusNode;
+  final GlobalKey<FormFieldState<String>>? fieldKey;
+}
+
+/// R3 — UMA pendência por vez nos dialogs de ação (mesma mecânica da
+/// fábrica register_form_page): percorre as checagens NA ORDEM declarada
+/// e, na PRIMEIRA mensagem, mostra o dialog da ponte → OK → marca SÓ o
+/// campo pendente e devolve o foco a ele. true = tudo passou.
+Future<bool> _firstPendingCheck(
+    BuildContext context, List<_DialogCheck> checks) async {
+  for (final check in checks) {
+    final message = check.validate();
+    if (message != null) {
+      // .tr() em texto já traduzido devolve o próprio texto.
+      await showValidationFeedback(context, message.tr());
+      if (context.mounted) {
+        check.fieldKey?.currentState?.validate();
+        check.focusNode?.requestFocus();
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
 class _SettlementPageState extends State<SettlementPage>
     with SingleTickerProviderStateMixin {
   late final SettlementBloc _bloc;
@@ -106,6 +139,10 @@ class _SettlementPageState extends State<SettlementPage>
   SettlementBankAccountLookup? _stAccount;
   final _stFrom = TextEditingController();
   final _stTo = TextEditingController();
+  final _stFromFocus = FocusNode();
+  final _stToFocus = FocusNode();
+  final _stFromKey = GlobalKey<FormFieldState<String>>();
+  final _stToKey = GlobalKey<FormFieldState<String>>();
 
   @override
   void initState() {
@@ -126,6 +163,8 @@ class _SettlementPageState extends State<SettlementPage>
     _filter.dispose();
     _stFrom.dispose();
     _stTo.dispose();
+    _stFromFocus.dispose();
+    _stToFocus.dispose();
     super.dispose();
   }
 
@@ -158,9 +197,6 @@ class _SettlementPageState extends State<SettlementPage>
       _bloc.add(SettlementSettledRequested(filter: _filter.text.trim()));
     }
   }
-
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
 
   // -------------------------------------------------------------------
   // Aba 1 — Em aberto (seleção múltipla + dialog de baixa)
@@ -360,21 +396,26 @@ class _SettlementPageState extends State<SettlementPage>
   // Aba 3 — Movimento (filtro conta/período + totais da API)
   // -------------------------------------------------------------------
 
-  void _searchStatements() {
-    final fromIso = displayDateToIso(_stFrom.text);
-    if (_stFrom.text.trim().isNotEmpty && fromIso == null) {
-      _warn('register.invalidDate'.tr());
-      return;
-    }
-    final toIso = displayDateToIso(_stTo.text);
-    if (_stTo.text.trim().isNotEmpty && toIso == null) {
-      _warn('register.invalidDate'.tr());
-      return;
-    }
+  /// Datas do filtro validadas via ponte — R3: UMA pendência por vez com
+  /// foco no campo (validateOptionalDate já devolve texto traduzido).
+  Future<void> _searchStatements() async {
+    final ok = await _firstPendingCheck(context, [
+      _DialogCheck(
+        validate: () => validateOptionalDate(_stFrom.text),
+        focusNode: _stFromFocus,
+        fieldKey: _stFromKey,
+      ),
+      _DialogCheck(
+        validate: () => validateOptionalDate(_stTo.text),
+        focusNode: _stToFocus,
+        fieldKey: _stToKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
     _bloc.add(SettlementStatementsRequested(
       bankAccountId: _stAccount?.id ?? 0,
-      dtFrom: fromIso ?? '',
-      dtTo:   toIso ?? '',
+      dtFrom: displayDateToIso(_stFrom.text) ?? '',
+      dtTo:   displayDateToIso(_stTo.text) ?? '',
     ));
   }
 
@@ -429,6 +470,8 @@ class _SettlementPageState extends State<SettlementPage>
                 label: 'forms.settlement.dtFrom'.tr(),
                 hint: 'register.dateHint'.tr(),
                 controller: _stFrom,
+                focusNode: _stFromFocus,
+                fieldKey: _stFromKey,
                 validator: validateOptionalDate,
                 onSubmitted: (_) => _searchStatements(),
               ),
@@ -439,6 +482,8 @@ class _SettlementPageState extends State<SettlementPage>
                 label: 'forms.settlement.dtTo'.tr(),
                 hint: 'register.dateHint'.tr(),
                 controller: _stTo,
+                focusNode: _stToFocus,
+                fieldKey: _stToKey,
                 validator: validateOptionalDate,
                 suffixIcon: Icons.search,
                 onSuffixPressed: _searchStatements,
@@ -505,14 +550,24 @@ class _SettlementPageState extends State<SettlementPage>
         listenWhen: (_, current) =>
             current is SettlementActionSuccess ||
             current is SettlementActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
+        // via ponte (R1); falha = dialog (o 409 "baixa não vigente" vira
+        // validação com a mensagem da API); 400 com fields[] mostra a
+        // message do campo apontado (o dialog de ação já fechou — sem
+        // campo montado para focar).
         listener: (context, state) {
-          final message = state is SettlementActionSuccess
-              ? (state.args.isEmpty
-                  ? state.messageKey.tr()
-                  : state.messageKey.tr(args: state.args))
-              : (state as SettlementActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is SettlementActionSuccess) {
+            showSuccessFeedback(context, state.messageKey,
+                args: state.args.isEmpty ? null : state.args);
+            return;
+          }
+          final failure = (state as SettlementActionFailure).failure;
+          if (failure.fields.isNotEmpty) {
+            showValidationFeedback(context, failure.fields.first.message.tr());
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is SettlementBillsState ||
@@ -588,6 +643,16 @@ class _TitleFields {
   final TextEditingController discount;
   final TextEditingController paid;
 
+  /// Âncoras do R3 (foco + marca inline SÓ no campo pendente).
+  final interestFocus = FocusNode();
+  final lateFocus = FocusNode();
+  final discountFocus = FocusNode();
+  final paidFocus = FocusNode();
+  final interestKey = GlobalKey<FormFieldState<String>>();
+  final lateKey = GlobalKey<FormFieldState<String>>();
+  final discountKey = GlobalKey<FormFieldState<String>>();
+  final paidKey = GlobalKey<FormFieldState<String>>();
+
   double get interestValue => _parseDecimal(interest.text) ?? 0;
   double get lateValue => _parseDecimal(late.text) ?? 0;
   double get discountAliquot => _parseDecimal(discount.text) ?? 0;
@@ -599,11 +664,45 @@ class _TitleFields {
       lateValue -
       _round2(bill.tagValue * discountAliquot / 100));
 
+  /// Juros/multa opcionais — válidos SE preenchidos (>= 0).
+  String? validateInterest() => _validateOptionalMin(interest.text,
+      'forms.settlement.interestInvalid');
+
+  String? validateLate() =>
+      _validateOptionalMin(late.text, 'forms.settlement.lateInvalid');
+
+  /// Desconto opcional — SE preenchido, percentual entre 0 e 100.
+  String? validateDiscount() {
+    if (discount.text.trim().isEmpty) return null;
+    final value = _parseDecimal(discount.text);
+    return (value == null || value < 0 || value > 100)
+        ? 'forms.settlement.discountInvalid'
+        : null;
+  }
+
+  /// Valor pago é OBRIGATÓRIO e maior que zero (baixa parcial permitida).
+  String? validatePaid() {
+    final value = _parseDecimal(paid.text);
+    return (value == null || value <= 0)
+        ? 'forms.settlement.paidInvalid'
+        : null;
+  }
+
+  static String? _validateOptionalMin(String text, String messageKey) {
+    if (text.trim().isEmpty) return null;
+    final value = _parseDecimal(text);
+    return (value == null || value < 0) ? messageKey : null;
+  }
+
   void dispose() {
     interest.dispose();
     late.dispose();
     discount.dispose();
     paid.dispose();
+    interestFocus.dispose();
+    lateFocus.dispose();
+    discountFocus.dispose();
+    paidFocus.dispose();
   }
 }
 
@@ -625,6 +724,10 @@ class _SettleDialogState extends State<_SettleDialog> {
   late final List<_TitleFields> _titles;
   late final TextEditingController _dtPayment;
   final _dtRealPayment = TextEditingController();
+  final _dtPaymentFocus = FocusNode();
+  final _dtRealPaymentFocus = FocusNode();
+  final _dtPaymentKey = GlobalKey<FormFieldState<String>>();
+  final _dtRealPaymentKey = GlobalKey<FormFieldState<String>>();
 
   /// null = Caixa (id 0) — a opção fixa é o default do lote.
   SettlementBankAccountLookup? _account;
@@ -643,6 +746,8 @@ class _SettleDialogState extends State<_SettleDialog> {
     }
     _dtPayment.dispose();
     _dtRealPayment.dispose();
+    _dtPaymentFocus.dispose();
+    _dtRealPaymentFocus.dispose();
     super.dispose();
   }
 
@@ -662,61 +767,67 @@ class _SettleDialogState extends State<_SettleDialog> {
     }
   }
 
-  void _warn(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Data da baixa é OBRIGATÓRIA (vazio = inválida).
+  String? _validateDtPayment(String? value) =>
+      displayDateToIso(value ?? '') == null ? 'register.invalidDate' : null;
 
-  void _confirm() {
-    final inputs = <SettlementTitleInput>[];
-    for (final title in _titles) {
-      final interest = _parseDecimal(title.interest.text);
-      if (title.interest.text.trim().isNotEmpty &&
-          (interest == null || interest < 0)) {
-        _warn('forms.settlement.interestInvalid'.tr());
-        return;
-      }
-      final late = _parseDecimal(title.late.text);
-      if (title.late.text.trim().isNotEmpty && (late == null || late < 0)) {
-        _warn('forms.settlement.lateInvalid'.tr());
-        return;
-      }
-      final discount = _parseDecimal(title.discount.text);
-      if (title.discount.text.trim().isNotEmpty &&
-          (discount == null || discount < 0 || discount > 100)) {
-        _warn('forms.settlement.discountInvalid'.tr());
-        return;
-      }
-      final paid = title.paidValue;
-      if (paid == null || paid <= 0) {
-        _warn('forms.settlement.paidInvalid'.tr());
-        return;
-      }
-      inputs.add(SettlementTitleInput(
-        orderId:         title.bill.orderId,
-        parcel:          title.bill.parcel,
-        interestValue:   interest ?? 0,
-        lateValue:       late ?? 0,
-        discountAliquot: discount ?? 0,
-        paidValue:       paid,
-      ));
-    }
-    final dtPaymentIso = displayDateToIso(_dtPayment.text);
-    if (dtPaymentIso == null) {
-      _warn('register.invalidDate'.tr());
-      return;
-    }
-    String? dtRealPaymentIso;
-    if (_dtRealPayment.text.trim().isNotEmpty) {
-      dtRealPaymentIso = displayDateToIso(_dtRealPayment.text);
-      if (dtRealPaymentIso == null) {
-        _warn('register.invalidDate'.tr());
-        return;
-      }
-    }
+  /// Valida via ponte — R3: UMA pendência por vez, na ORDEM dos campos
+  /// (título a título na ordem da lista, depois os campos do lote), com
+  /// foco no pendente. Tudo válido → devolve o [SettlementBatchInput].
+  Future<void> _confirm() async {
+    final ok = await _firstPendingCheck(context, [
+      for (final title in _titles) ...[
+        _DialogCheck(
+          validate: title.validateInterest,
+          focusNode: title.interestFocus,
+          fieldKey: title.interestKey,
+        ),
+        _DialogCheck(
+          validate: title.validateLate,
+          focusNode: title.lateFocus,
+          fieldKey: title.lateKey,
+        ),
+        _DialogCheck(
+          validate: title.validateDiscount,
+          focusNode: title.discountFocus,
+          fieldKey: title.discountKey,
+        ),
+        _DialogCheck(
+          validate: title.validatePaid,
+          focusNode: title.paidFocus,
+          fieldKey: title.paidKey,
+        ),
+      ],
+      _DialogCheck(
+        validate: () => _validateDtPayment(_dtPayment.text),
+        focusNode: _dtPaymentFocus,
+        fieldKey: _dtPaymentKey,
+      ),
+      _DialogCheck(
+        // Compensação é opcional — válida SE preenchida (texto traduzido).
+        validate: () => validateOptionalDate(_dtRealPayment.text),
+        focusNode: _dtRealPaymentFocus,
+        fieldKey: _dtRealPaymentKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
     Navigator.of(context).pop(SettlementBatchInput(
-      titles:        inputs,
+      titles: [
+        for (final title in _titles)
+          SettlementTitleInput(
+            orderId:         title.bill.orderId,
+            parcel:          title.bill.parcel,
+            interestValue:   title.interestValue,
+            lateValue:       title.lateValue,
+            discountAliquot: title.discountAliquot,
+            paidValue:       title.paidValue!,
+          ),
+      ],
       bankAccountId: _account?.id ?? 0,
-      dtPayment:     dtPaymentIso,
-      dtRealPayment: dtRealPaymentIso,
+      dtPayment:     displayDateToIso(_dtPayment.text)!,
+      dtRealPayment: _dtRealPayment.text.trim().isEmpty
+          ? null
+          : displayDateToIso(_dtRealPayment.text),
     ));
   }
 
@@ -742,7 +853,10 @@ class _SettleDialogState extends State<_SettleDialog> {
                 child: SetesTextField(
                   label: 'forms.settlement.interest'.tr(),
                   controller: title.interest,
+                  focusNode: title.interestFocus,
+                  fieldKey: title.interestKey,
                   keyboardType: TextInputType.number,
+                  validator: (_) => title.validateInterest()?.tr(),
                   onChanged: (_) => _recalc(title),
                 ),
               ),
@@ -751,7 +865,10 @@ class _SettleDialogState extends State<_SettleDialog> {
                 child: SetesTextField(
                   label: 'forms.settlement.late'.tr(),
                   controller: title.late,
+                  focusNode: title.lateFocus,
+                  fieldKey: title.lateKey,
                   keyboardType: TextInputType.number,
+                  validator: (_) => title.validateLate()?.tr(),
                   onChanged: (_) => _recalc(title),
                 ),
               ),
@@ -760,7 +877,10 @@ class _SettleDialogState extends State<_SettleDialog> {
                 child: SetesTextField(
                   label: 'forms.settlement.discountAliquot'.tr(),
                   controller: title.discount,
+                  focusNode: title.discountFocus,
+                  fieldKey: title.discountKey,
                   keyboardType: TextInputType.number,
+                  validator: (_) => title.validateDiscount()?.tr(),
                   onChanged: (_) => _recalc(title),
                 ),
               ),
@@ -769,7 +889,10 @@ class _SettleDialogState extends State<_SettleDialog> {
                 child: SetesTextField(
                   label: 'forms.settlement.paidValue'.tr(),
                   controller: title.paid,
+                  focusNode: title.paidFocus,
+                  fieldKey: title.paidKey,
                   keyboardType: TextInputType.number,
+                  validator: (_) => title.validatePaid()?.tr(),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
@@ -810,7 +933,9 @@ class _SettleDialogState extends State<_SettleDialog> {
                       label: 'forms.settlement.dtPayment'.tr(),
                       hint: 'register.dateHint'.tr(),
                       controller: _dtPayment,
-                      validator: validateOptionalDate,
+                      focusNode: _dtPaymentFocus,
+                      fieldKey: _dtPaymentKey,
+                      validator: (value) => _validateDtPayment(value)?.tr(),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -819,6 +944,8 @@ class _SettleDialogState extends State<_SettleDialog> {
                       label: 'forms.settlement.dtRealPayment'.tr(),
                       hint: 'register.dateHint'.tr(),
                       controller: _dtRealPayment,
+                      focusNode: _dtRealPaymentFocus,
+                      fieldKey: _dtRealPaymentKey,
                       validator: validateOptionalDate,
                       onSubmitted: (_) => _confirm(),
                     ),
@@ -864,21 +991,36 @@ class _ReversalDialog extends StatefulWidget {
 
 class _ReversalDialogState extends State<_ReversalDialog> {
   final _reason = TextEditingController();
+  final _reasonFocus = FocusNode();
+  final _reasonKey = GlobalKey<FormFieldState<String>>();
 
   @override
   void dispose() {
     _reason.dispose();
+    _reasonFocus.dispose();
     super.dispose();
   }
 
-  void _confirm() {
-    final reason = _reason.text.trim();
-    if (reason.isEmpty || reason.length > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: SetesText('forms.settlement.reasonRequired'.tr())));
-      return;
-    }
-    Navigator.of(context).pop(reason);
+  String? _validateReason(String? value) {
+    final reason = value?.trim() ?? '';
+    return (reason.isEmpty || reason.length > 100)
+        ? 'forms.settlement.reasonRequired'
+        : null;
+  }
+
+  /// Motivo validado via ponte — R3: dialog de pendência → OK → foco no
+  /// campo (o dialog de ENTRADA continua aberto; quem confirma o estorno
+  /// é o botão Estornar).
+  Future<void> _confirm() async {
+    final ok = await _firstPendingCheck(context, [
+      _DialogCheck(
+        validate: () => _validateReason(_reason.text),
+        focusNode: _reasonFocus,
+        fieldKey: _reasonKey,
+      ),
+    ]);
+    if (!ok || !mounted) return;
+    Navigator.of(context).pop(_reason.text.trim());
   }
 
   @override
@@ -894,7 +1036,10 @@ class _ReversalDialogState extends State<_ReversalDialog> {
               SetesTextField(
                 label: 'forms.settlement.reverseReason'.tr(),
                 controller: _reason,
+                focusNode: _reasonFocus,
+                fieldKey: _reasonKey,
                 autofocus: true,
+                validator: (value) => _validateReason(value)?.tr(),
                 onSubmitted: (_) => _confirm(),
               ),
             ],

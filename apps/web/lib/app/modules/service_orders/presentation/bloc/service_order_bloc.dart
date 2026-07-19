@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,8 +19,10 @@ part 'service_order_state.dart';
 /// (Módulo Software House, Onda 4): lista em abas Abertas × Faturadas ↔
 /// detalhe da OS. Toda operação (abrir, item, cancelar, rotina mensal,
 /// faturar) chama a API e RECARREGA — o totalizer e o status vivem no
-/// servidor (DP7); 409 da trava D5 / ordem faturada vira SnackBar com a
-/// mensagem da API.
+/// servidor (DP7). Falhas carregam o [Failure] INTEIRO no one-shot
+/// (Framework de Mensagens): a página entrega à PONTE, que deriva o canal
+/// — os 409 de negócio (trava D5, ordem faturada) viram dialog de
+/// validação com a mensagem da API.
 class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   ServiceOrderBloc({
     required this.getlist,
@@ -65,7 +68,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await getlist(_status, _filter);
     result.fold(
       (failure) {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         emit(ServiceOrderListState(status: _status));
       },
       (items) => emit(ServiceOrderListState(items: items, status: _status)),
@@ -78,7 +81,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await get(id);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         await _reloadList(emit);
       },
       (full) async {
@@ -101,7 +104,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await post(event.customerId);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         await _reloadList(emit);
       },
       (id) async {
@@ -127,7 +130,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await delete(event.id);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         if (detail != null) emit(ServiceOrderDetailState(order: detail));
       },
       (_) async {
@@ -147,7 +150,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await itemSave(event.orderId, event.itemId, event.input);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         if (detail != null) emit(ServiceOrderDetailState(order: detail));
       },
       (_) async {
@@ -167,7 +170,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await itemDelete(event.orderId, event.itemId);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         if (detail != null) emit(ServiceOrderDetailState(order: detail));
       },
       (_) async {
@@ -184,7 +187,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await monthlyRun(event.year, event.month);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         await _reloadList(emit);
       },
       (report) async {
@@ -204,7 +207,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await invoice(event.orderId, event.input);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure.message));
+        emit(ServiceOrderActionFailure(failure));
         if (detail != null) emit(ServiceOrderDetailState(order: detail));
       },
       (invoiceResult) async {

@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 
@@ -63,8 +64,12 @@ class _UserPrivilegesSectionState extends State<UserPrivilegesSection> {
     super.dispose();
   }
 
-  void _snack(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: SetesText(message)));
+  /// Falha = dialog via PONTE de feedback (Framework de Mensagens) —
+  /// a seção nunca chama ScaffoldMessenger/AlertDialog direto.
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
 
   /// Super: alvos possíveis = estabelecimentos VINCULADOS do usuário.
   Future<void> _loadInstitutions() async {
@@ -80,9 +85,9 @@ class _UserPrivilegesSectionState extends State<UserPrivilegesSection> {
         if (_institutionId != null) await _loadPrivileges();
       }
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -95,12 +100,10 @@ class _UserPrivilegesSectionState extends State<UserPrivilegesSection> {
           .getPrivileges(widget.userId, institutionId: _institutionId);
       if (mounted) setState(() => _items = items);
     } on Failure catch (failure) {
-      if (mounted) {
-        setState(() => _items = []);
-        _snack(failure.message);
-      }
+      if (mounted) setState(() => _items = []);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -118,13 +121,13 @@ class _UserPrivilegesSectionState extends State<UserPrivilegesSection> {
           widget.userId, item.interfaceId, selected,
           institutionId: _institutionId);
       if (mounted) {
-        _snack('forms.user.privilegesSaved'.tr());
+        await showSuccessFeedback(context, 'forms.user.privilegesSaved');
         await _loadPrivileges();
       }
     } on Failure catch (failure) {
-      if (mounted) _snack(failure.message);
+      _fail(failure);
     } catch (_) {
-      if (mounted) _snack('register.error'.tr());
+      _fail(const Failure(message: 'register.error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

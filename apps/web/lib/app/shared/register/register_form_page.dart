@@ -1,7 +1,10 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
+
+import '../feedback/feedback.dart';
 
 /// Descritor de campo (decisão 20): parametriza o formulário genérico.
 ///
@@ -82,8 +85,10 @@ class RegisterTab {
 ///
 /// ARQUITETURA_MODULOS.md: a fábrica é APRESENTAÇÃO PURA — não executa
 /// operações. [onSave]/[onDelete] apenas DISPARAM eventos no bloc do módulo;
-/// sucesso/erro viram SnackBar no BlocListener da página. O flag [saving]
-/// vem do estado do bloc e desabilita as ações.
+/// sucesso/erro passam pela PONTE de feedback no BlocListener da página
+/// (showSuccessFeedback/showFailureFeedback — Framework de Mensagens; erro
+/// com fields[] ancora no campo via [RegisterFormPageState.showServerFieldError]).
+/// O flag [saving] vem do estado do bloc e desabilita as ações.
 ///
 /// Com [extraTabs], o form vira TabBar/TabBarView: os campos ficam na aba
 /// principal (mantida VIVA via keep-alive — o salvar valida o Form mesmo
@@ -138,12 +143,23 @@ class RegisterFormPage extends StatefulWidget {
   final String? mainTabLabel;
 
   @override
-  State<RegisterFormPage> createState() => _RegisterFormPageState();
+  State<RegisterFormPage> createState() => RegisterFormPageState();
 }
 
-class _RegisterFormPageState extends State<RegisterFormPage> {
+/// Estado PÚBLICO da fábrica: a página do módulo segura um
+/// `GlobalKey<RegisterFormPageState>` para ancorar o fields[] do servidor
+/// no campo ([showServerFieldError]) — Framework de Mensagens, Onda A.
+class RegisterFormPageState extends State<RegisterFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _controllers;
+
+  /// Foco programático por campo editável (R3: após o OK do dialog de
+  /// pendência, o foco volta para o campo pendente).
+  late final Map<String, FocusNode> _focusNodes;
+
+  /// Key do FormField por campo: valida/marca SÓ o campo pendente (R3 —
+  /// nada de Form.validate() pintando o formulário inteiro de vermelho).
+  late final Map<String, GlobalKey<FormFieldState<String>>> _fieldKeys;
 
   @override
   void initState() {
@@ -154,10 +170,43 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
           field.name: TextEditingController(
               text: widget.initialValues[field.name] ?? ''),
     };
+    _focusNodes = {
+      for (final field in widget.fields)
+        if (!field.isLookup) field.name: FocusNode(),
+    };
+    _fieldKeys = {
+      for (final field in widget.fields)
+        if (!field.isLookup) field.name: GlobalKey<FormFieldState<String>>(),
+    };
   }
 
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  /// R3 — UMA pendência por vez: percorre os campos NA ORDEM declarada,
+  /// roda o validator no valor atual e, na PRIMEIRA mensagem, mostra o
+  /// dialog (ponte) → OK → foco no campo, marcando SÓ ele inline. O save
+  /// aborta; corrigiu, o próximo salvar mostra a próxima pendência.
+  Future<void> _save() async {
+    for (final field in widget.fields) {
+      if (field.isLookup) {
+        // FK sem escolha: o dialog carrega a validatorMessage (específica,
+        // já traduzida). Campo readOnly/fora do Tab — sem foco/marca inline.
+        if (field.validatorMessage != null && field.display.isEmpty) {
+          await showValidationFeedback(context, field.validatorMessage!);
+          return;
+        }
+        continue;
+      }
+      final message = field.validator?.call(_controllers[field.name]!.text);
+      if (message != null) {
+        // setes_validators devolve chave i18n (.tr() em texto já traduzido
+        // devolve o próprio texto).
+        await showValidationFeedback(context, message.tr());
+        if (!mounted) return;
+        _fieldKeys[field.name]?.currentState?.validate(); // marca SÓ ele
+        _focusNodes[field.name]?.requestFocus();
+        return;
+      }
+    }
+
     // Decisão 19: campo mascarado grava só os dígitos/caracteres.
     final maskByName = {
       for (final field in widget.fields)
@@ -171,32 +220,42 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     });
   }
 
+  /// Ancora o erro de campo do SERVIDOR (`fields[]` do envelope 400/409) no
+  /// formulário: dialog com a message do 1º campo apontado → OK → foco nele.
+  /// Sem correspondência (ou sem fields[]) → feedback genérico da ponte.
+  /// A página chama no listener do bloc via GlobalKey da fábrica.
+  Future<void> showServerFieldError(Failure failure) async {
+    if (failure.fields.isEmpty) return showFailureFeedback(context, failure);
+
+    final serverField = failure.fields.first;
+    final known = widget.fields.any((f) => f.name == serverField.field);
+    if (!known) return showFailureFeedback(context, failure);
+
+    // Regra do servidor (o validator local não a conhece): dialog + foco,
+    // sem validate() inline — a marca vermelha ficaria mentirosa.
+    await showValidationFeedback(context, serverField.message.tr());
+    if (!mounted) return;
+    _focusNodes[serverField.field]?.requestFocus();
+  }
+
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) widget.onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   @override
   void dispose() {
     for (final controller in _controllers.values) {
       controller.dispose();
+    }
+    for (final node in _focusNodes.values) {
+      node.dispose();
     }
     super.dispose();
   }
@@ -235,6 +294,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
                   child: SetesTextField(
                     label: field.label,
                     controller: _controllers[field.name],
+                    focusNode: _focusNodes[field.name],
+                    fieldKey: _fieldKeys[field.name],
                     obscureText: field.obscure,
                     readOnly: field.readOnly,
                     autofocus: index == firstEditable,

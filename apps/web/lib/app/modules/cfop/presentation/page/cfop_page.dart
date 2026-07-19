@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
@@ -31,6 +32,10 @@ class CfopPage extends StatefulWidget {
 
 class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
   late final CfopBloc _bloc;
+
+  /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
+  /// (showServerFieldError — Framework de Mensagens, Onda B).
+  final _formPageKey = GlobalKey<RegisterFormPageState>();
 
   /// Radios/checkbox e Aplicação — estado da página (extraChildren fica
   /// fora dos values da fábrica).
@@ -153,6 +158,7 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
     final editing = state.editing;
     final creating = editing == null;
     return RegisterFormPage(
+      key: _formPageKey,
       title: widget.title,
       saving: state.saving,
       initialValues: creating
@@ -233,12 +239,22 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is CfopActionSuccess || current is CfopActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is CfopActionSuccess
-              ? state.messageKey.tr()
-              : (state as CfopActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is CfopActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as CfopActionFailure).failure;
+          final form = _formPageKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is CfopListState || current is CfopFormState,

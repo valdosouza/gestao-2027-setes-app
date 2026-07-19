@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
@@ -43,6 +44,10 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> with FieldConfigLoader {
   late final UserBloc _bloc;
   late final UserDatasource _datasource;
+
+  /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
+  /// (showServerFieldError — Framework de Mensagens, Onda B).
+  final _formPageKey = GlobalKey<RegisterFormPageState>();
 
   /// Ativo (tb_user.active) — estado da página, fora dos values da fábrica.
   bool _active = true;
@@ -82,7 +87,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
       _active = editing?.active ?? true;
     }
     return RegisterFormPage(
-      key: ValueKey(creating ? 'user-new' : 'user-${editing.id}'),
+      key: _formPageKey,
       title: widget.title,
       saving: state.saving,
       initialValues: creating
@@ -219,12 +224,22 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is UserActionSuccess || current is UserActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is UserActionSuccess
-              ? state.messageKey.tr()
-              : (state as UserActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is UserActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as UserActionFailure).failure;
+          final form = _formPageKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is UserListState || current is UserFormState,

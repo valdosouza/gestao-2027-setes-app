@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart';
 import '../../domain/entity/financial_plan_entity.dart';
 import '../bloc/financial_plan_bloc.dart';
 
@@ -13,7 +15,8 @@ import '../bloc/financial_plan_bloc.dart';
 /// molde categories). Árvore ÚNICA: FAB = novo NÍVEL raiz, ação "+" no nó
 /// = novo SUBNÍVEL, clique no nó = edição. Mover de pai é feito na edição
 /// (lookup do nível superior — a API recalcula o posit_level da subárvore);
-/// excluir com subníveis é bloqueado pela API (409 vira SnackBar).
+/// excluir com subníveis é bloqueado pela API (409 HAS_CHILDREN vira
+/// dialog de validação via ponte de feedback — Framework de Mensagens).
 /// Natureza/Tipo/Nível são radios do form (semântica do Delphi).
 class FinancialPlanPage extends StatefulWidget {
   const FinancialPlanPage({required this.title, super.key});
@@ -27,6 +30,10 @@ class FinancialPlanPage extends StatefulWidget {
 
 class _FinancialPlanPageState extends State<FinancialPlanPage> {
   late final FinancialPlanBloc _bloc;
+
+  /// Acesso ao estado do form montado: ancora o fields[] do servidor no
+  /// campo (Framework de Mensagens — padrão form_pendency, Onda B).
+  final _formKey = GlobalKey<_FinancialPlanFormViewState>();
 
   /// Última árvore carregada — alimenta o lookup de "nível superior" do
   /// form (mover de pai) sem nova consulta.
@@ -116,7 +123,7 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
   }
 
   Widget _buildForm(FinancialPlanFormState state) => _FinancialPlanFormView(
-        key: ValueKey(state.editing?.id ?? 'financial-plan-new'),
+        key: _formKey,
         title: widget.title,
         state: state,
         items: _lastItems,
@@ -135,12 +142,22 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
         listenWhen: (_, current) =>
             current is FinancialPlanActionSuccess ||
             current is FinancialPlanActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha (inclusive 409 HAS_CHILDREN / TREE_CYCLE, mensagem da API) =
+        // dialog, com fields[] ancorado no campo quando o form está montado.
         listener: (context, state) {
-          final message = state is FinancialPlanActionSuccess
-              ? state.messageKey.tr()
-              : (state as FinancialPlanActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is FinancialPlanActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as FinancialPlanActionFailure).failure;
+          final form = _formKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is FinancialPlanTreeState ||
@@ -180,6 +197,8 @@ class _FinancialPlanFormView extends StatefulWidget {
 
 class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
   late final TextEditingController _description;
+  final _descriptionFocus = FocusNode();
+  final _descriptionKey = GlobalKey<FormFieldState<String>>();
   int? _parentId;
   String? _parentName;
   late String _source;
@@ -213,6 +232,7 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
   @override
   void dispose() {
     _description.dispose();
+    _descriptionFocus.dispose();
     super.dispose();
   }
 
@@ -223,6 +243,28 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
     }
     return null;
   }
+
+  /// Regra local do campo (mesma do validator inline do SetesTextField).
+  String? _validateDescription() => _description.text.trim().isEmpty
+      ? 'register.requiredField'
+          .tr(args: ['forms.financialPlan.description'.tr()])
+      : null;
+
+  /// Campos participantes da validação, NA ORDEM da tela (R3) — também
+  /// ancoram o fields[] do servidor ([showServerFieldError]).
+  List<PendencyField> get _pendencyFields => [
+        PendencyField(
+          name: 'description',
+          validate: _validateDescription,
+          focusNode: _descriptionFocus,
+          fieldKey: _descriptionKey,
+        ),
+      ];
+
+  /// fields[] do envelope 400/409 ancorado no campo — chamado pela página
+  /// no listener do bloc via GlobalKey deste State.
+  Future<void> showServerFieldError(Failure failure) =>
+      showServerFieldFeedback(context, failure, _pendencyFields);
 
   /// Candidatos a nível superior: exclui o próprio nó e seus descendentes
   /// (a API revalida — aqui é UX).
@@ -258,13 +300,9 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
     }
   }
 
-  void _save() {
-    if (_description.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: SetesText('register.requiredField'
-              .tr(args: ['forms.financialPlan.description'.tr()]))));
-      return;
-    }
+  /// UMA pendência por vez (R3): dialog da ponte → OK → foco no campo.
+  Future<void> _save() async {
+    if (!await ensureNoPendency(context, _pendencyFields)) return;
     widget.onSave(
       FinancialPlanEntity(
         id:          _editing?.id ?? 0, // ignorado no POST
@@ -279,26 +317,15 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
     );
   }
 
+  /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;
+  /// Cancelar (ou fechar) = nada. Sem ação alternativa → sem botão Não.
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: SetesText('register.confirmDelete'.tr()),
-        actions: [
-          SetesButton(
-            label: 'register.cancel'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-          ),
-          SetesButton(
-            label: 'register.delete'.tr(),
-            kind: SetesButtonKind.text,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-          ),
-        ],
-      ),
+    final decision = await askDecision(
+      context,
+      message: 'register.confirmDelete'.tr(),
+      yesLabel: 'register.delete'.tr(),
     );
-    if (confirmed == true) widget.onDelete?.call();
+    if (decision == SetesDecision.yes) widget.onDelete?.call();
   }
 
   @override
@@ -323,6 +350,10 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
               label: 'forms.financialPlan.description'.tr(),
               controller: _description,
               autofocus: true,
+              focusNode: _descriptionFocus,
+              fieldKey: _descriptionKey,
+              // marca SÓ este campo após o OK do dialog de pendência (R3)
+              validator: (_) => _validateDescription(),
             ),
             const SizedBox(height: 16),
             // Nível superior (lookup da árvore) — trocar = MOVER;

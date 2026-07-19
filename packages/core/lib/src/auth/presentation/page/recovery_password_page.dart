@@ -5,6 +5,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../../preference/presentation/widget/language_selector.dart';
 import '../bloc/auth_bloc.dart';
+import '../content/auth_feedback.dart';
 import '../content/auth_field.dart';
 import '../content/auth_styles.dart';
 
@@ -69,8 +70,10 @@ class _RecoveryPasswordPageState extends State<RecoveryPasswordPage> {
                     decoration: TextDecoration.underline,
                     decorationColor: Colors.white)),
           ),
-          if (state is AuthError)
-            Text(state.message,
+          if (state is AuthError && !isTechnicalFailure(state.failure))
+            // .tr(): defaults do Failure são chaves core.errors.* (chave
+            // inexistente devolve a própria string — PT do backend intacto).
+            Text(state.message.tr(),
                 textAlign: TextAlign.center,
                 style: AuthStyles.label.copyWith(color: Colors.amberAccent)),
         ],
@@ -83,6 +86,11 @@ class _RecoveryPasswordPageState extends State<RecoveryPasswordPage> {
       listener: (context, state) {
         if (state is AuthRecoveryEmailSent) {
           Modular.to.pushNamed('/change-password');
+        }
+        // 500/rede = dialog de erro técnico com código de suporte (R7);
+        // erro corrigível (e-mail não encontrado) permanece inline.
+        if (state is AuthError && isTechnicalFailure(state.failure)) {
+          showAuthFailureDialog(context, state.failure);
         }
       },
       builder: (context, state) => Scaffold(

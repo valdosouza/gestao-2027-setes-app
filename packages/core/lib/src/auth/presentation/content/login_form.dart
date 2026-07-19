@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../bloc/auth_bloc.dart';
+import 'auth_feedback.dart';
 import 'auth_field.dart';
 import 'auth_styles.dart';
 
@@ -63,8 +64,16 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+    return BlocConsumer<AuthBloc, AuthState>(
       bloc: widget.bloc,
+      // Framework de Mensagens (R7): 500/rede = dialog de erro TÉCNICO com
+      // código de suporte; erro de credencial (401/400) permanece inline
+      // no formulário — corrigível ali mesmo.
+      listener: (context, state) {
+        if (state is AuthError && isTechnicalFailure(state.failure)) {
+          showAuthFailureDialog(context, state.failure);
+        }
+      },
       builder: (context, state) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -120,9 +129,11 @@ class _LoginFormState extends State<LoginForm> {
             loading: state is AuthLoading,
             onPressed: _submit,
           ),
-          if (state is AuthError) ...[
+          if (state is AuthError && !isTechnicalFailure(state.failure)) ...[
             const SizedBox(height: 16),
-            Text(state.message,
+            // .tr(): defaults do Failure são chaves core.errors.* (chave
+            // inexistente devolve a própria string — PT do backend intacto).
+            Text(state.message.tr(),
                 textAlign: TextAlign.center,
                 style: AuthStyles.label.copyWith(color: Colors.amberAccent)),
           ],

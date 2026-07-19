@@ -11,6 +11,7 @@ export 'src/setes_icon_button.dart';
 export 'src/setes_list_tile.dart';
 export 'src/setes_lookup.dart';
 export 'src/setes_lookup_field.dart';
+export 'src/setes_message.dart';
 export 'src/setes_radio_group.dart';
 export 'src/setes_scaffold.dart';
 export 'src/setes_switch.dart';

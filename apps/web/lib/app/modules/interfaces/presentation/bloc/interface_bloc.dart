@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'interface_state.dart';
 
 /// Orquestra o CRUD de Interface: alterna pesquisa ↔ formulário e executa
 /// as operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register*
-/// é apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// é apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, Onda B).
 class InterfaceBloc extends Bloc<InterfaceEvent, InterfaceState> {
   InterfaceBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class InterfaceBloc extends Bloc<InterfaceEvent, InterfaceState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(InterfaceActionFailure(failure.message));
+        emit(InterfaceActionFailure(failure));
         emit(const InterfaceListState());
       },
       (items) => emit(InterfaceListState(items: items)),
@@ -64,7 +66,7 @@ class InterfaceBloc extends Bloc<InterfaceEvent, InterfaceState> {
         : await put(event.entity);
     await result.fold(
       (failure) async {
-        emit(InterfaceActionFailure(failure.message));
+        emit(InterfaceActionFailure(failure));
         emit(InterfaceFormState(
             editing: event.creating ? null : event.entity));
       },
@@ -79,7 +81,7 @@ class InterfaceBloc extends Bloc<InterfaceEvent, InterfaceState> {
       InterfaceDeleteRequested event, Emitter<InterfaceState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(InterfaceActionFailure(failure.message)),
+      (failure) async => emit(InterfaceActionFailure(failure)),
       (_) async {
         emit(const InterfaceActionSuccess('register.deleted'));
         await _reload(emit);

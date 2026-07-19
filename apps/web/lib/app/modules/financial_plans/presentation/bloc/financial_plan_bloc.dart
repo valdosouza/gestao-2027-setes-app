@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,7 +15,9 @@ part 'financial_plan_state.dart';
 /// reg_plano_contas.pas; padrão do tipo árvore do molde categories):
 /// árvore ÚNICA ↔ formulário; criar nasce como nível raiz (FAB) ou
 /// subnível (ação no nó); mover de pai é da API (PUT com parentId);
-/// excluir com subníveis devolve 409 (SnackBar).
+/// excluir com subníveis devolve 409 HAS_CHILDREN — os desfechos viram
+/// estados one-shot que a página entrega à PONTE de feedback (Framework
+/// de Mensagens, Onda B).
 class FinancialPlanBloc extends Bloc<FinancialPlanEvent, FinancialPlanState> {
   FinancialPlanBloc({
     required this.getlist,
@@ -41,7 +44,7 @@ class FinancialPlanBloc extends Bloc<FinancialPlanEvent, FinancialPlanState> {
     final result = await getlist();
     result.fold(
       (failure) {
-        emit(FinancialPlanActionFailure(failure.message));
+        emit(FinancialPlanActionFailure(failure));
         emit(const FinancialPlanTreeState());
       },
       (items) => emit(FinancialPlanTreeState(items: items)),
@@ -65,7 +68,7 @@ class FinancialPlanBloc extends Bloc<FinancialPlanEvent, FinancialPlanState> {
         event.creating ? await post(event.plan) : await put(event.plan);
     await result.fold(
       (failure) async {
-        emit(FinancialPlanActionFailure(failure.message));
+        emit(FinancialPlanActionFailure(failure));
         emit(FinancialPlanFormState(
             editing: event.creating ? null : event.plan));
       },
@@ -80,8 +83,9 @@ class FinancialPlanBloc extends Bloc<FinancialPlanEvent, FinancialPlanState> {
       FinancialPlanDeleteRequested event, Emitter<FinancialPlanState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      // 409 = possui subníveis (padrão do tipo árvore — mensagem da API)
-      (failure) async => emit(FinancialPlanActionFailure(failure.message)),
+      // 409 HAS_CHILDREN = possui subníveis (padrão do tipo árvore — a
+      // ponte mostra a mensagem da API como dialog de validação)
+      (failure) async => emit(FinancialPlanActionFailure(failure)),
       (_) async {
         emit(const FinancialPlanActionSuccess('register.deleted'));
         await _reload(emit);

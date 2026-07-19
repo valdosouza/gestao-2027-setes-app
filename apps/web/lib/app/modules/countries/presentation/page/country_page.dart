@@ -2,8 +2,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
@@ -31,6 +31,10 @@ class CountryPage extends StatefulWidget {
 class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
   late final CountryBloc _bloc;
 
+  /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
+  /// (showServerFieldError — Framework de Mensagens, piloto Onda A).
+  final _formPageKey = GlobalKey<RegisterFormPageState>();
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +57,7 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
     final editing = state.editing;
     final creating = editing == null;
     return RegisterFormPage(
+      key: _formPageKey,
       title: widget.title,
       saving: state.saving,
       initialValues: creating
@@ -106,12 +111,22 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is CountryActionSuccess || current is CountryActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is CountryActionSuccess
-              ? state.messageKey.tr()
-              : (state as CountryActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is CountryActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as CountryActionFailure).failure;
+          final form = _formPageKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is CountryListState || current is CountryFormState,

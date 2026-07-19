@@ -35,7 +35,8 @@ class InterfaceConfigsConfigsState extends InterfaceConfigsState {
   List<Object?> get props => [iface, configs, loading, saving];
 }
 
-/// Efeito one-shot para SnackBar de sucesso (listener-only).
+/// Efeito one-shot de sucesso (listener-only) — a página entrega à ponte
+/// (showSuccessFeedback → SnackBar, R1).
 class InterfaceConfigsActionSuccess extends InterfaceConfigsState {
   const InterfaceConfigsActionSuccess(this.messageKey);
   final String messageKey;
@@ -44,11 +45,12 @@ class InterfaceConfigsActionSuccess extends InterfaceConfigsState {
   List<Object?> get props => [messageKey];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only).
+/// Efeito one-shot de falha (listener-only). Carrega o [Failure] INTEIRO:
+/// a ponte deriva a natureza (validation × erro técnico com supportRef — R7).
 class InterfaceConfigsActionFailure extends InterfaceConfigsState {
-  const InterfaceConfigsActionFailure(this.message);
-  final String message;
+  const InterfaceConfigsActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }

@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'state_state.dart';
 
 /// Orquestra o CRUD de Estado: alterna pesquisa ↔ formulário e executa as
 /// operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register* é
-/// apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, Onda B).
 class StateBloc extends Bloc<StateEvent, StateBlocState> {
   StateBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class StateBloc extends Bloc<StateEvent, StateBlocState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(StateActionFailure(failure.message));
+        emit(StateActionFailure(failure));
         emit(const StateListState());
       },
       (items) => emit(StateListState(items: items)),
@@ -64,7 +66,7 @@ class StateBloc extends Bloc<StateEvent, StateBlocState> {
         : await put(event.state);
     await result.fold(
       (failure) async {
-        emit(StateActionFailure(failure.message));
+        emit(StateActionFailure(failure));
         emit(StateFormState(editing: event.creating ? null : event.state));
       },
       (_) async {
@@ -78,7 +80,7 @@ class StateBloc extends Bloc<StateEvent, StateBlocState> {
       StateDeleteRequested event, Emitter<StateBlocState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(StateActionFailure(failure.message)),
+      (failure) async => emit(StateActionFailure(failure)),
       (_) async {
         emit(const StateActionSuccess('register.deleted'));
         await _reload(emit);

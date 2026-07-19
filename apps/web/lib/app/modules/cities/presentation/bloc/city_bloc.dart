@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'city_state.dart';
 
 /// Orquestra o CRUD de Cidade: alterna pesquisa ↔ formulário e executa as
 /// operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register* é
-/// apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, Onda B).
 class CityBloc extends Bloc<CityEvent, CityState> {
   CityBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class CityBloc extends Bloc<CityEvent, CityState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(CityActionFailure(failure.message));
+        emit(CityActionFailure(failure));
         emit(const CityListState());
       },
       (items) => emit(CityListState(items: items)),
@@ -63,7 +65,7 @@ class CityBloc extends Bloc<CityEvent, CityState> {
         event.creating ? await post(event.city) : await put(event.city);
     await result.fold(
       (failure) async {
-        emit(CityActionFailure(failure.message));
+        emit(CityActionFailure(failure));
         emit(CityFormState(editing: event.creating ? null : event.city));
       },
       (_) async {
@@ -77,7 +79,7 @@ class CityBloc extends Bloc<CityEvent, CityState> {
       CityDeleteRequested event, Emitter<CityState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(CityActionFailure(failure.message)),
+      (failure) async => emit(CityActionFailure(failure)),
       (_) async {
         emit(const CityActionSuccess('register.deleted'));
         await _reload(emit);

@@ -24,8 +24,8 @@ class ServiceOrderListRequested extends ServiceOrderEvent {
 }
 
 /// FAB "Abrir OS": POST com o cliente escolhido no lookup — 409 (cliente
-/// já tem ordem aberta) vira SnackBar com a mensagem da API; sucesso abre
-/// o detalhe da OS nova.
+/// já tem ordem aberta) vira dialog de validação com a mensagem da API,
+/// via ponte; sucesso abre o detalhe da OS nova.
 class ServiceOrderOpenRequested extends ServiceOrderEvent {
   const ServiceOrderOpenRequested(this.customerId);
   final int customerId;

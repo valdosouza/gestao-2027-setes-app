@@ -34,24 +34,27 @@ class CollaboratorFormState extends CollaboratorBlocState {
   List<Object?> get props => [draft, creating, saving];
 }
 
-/// Efeito one-shot para SnackBar de sucesso (listener-only, não buildável).
+/// Efeito one-shot de sucesso (listener-only, não buildável) — a página
+/// entrega à ponte (showSuccessFeedback → SnackBar, R1).
 class CollaboratorActionSuccess extends CollaboratorBlocState {
   const CollaboratorActionSuccess(this.messageKey);
 
-  /// Chave i18n — a página traduz.
+  /// Chave i18n — a ponte traduz.
   final String messageKey;
 
   @override
   List<Object?> get props => [messageKey];
 }
 
-/// Efeito one-shot para SnackBar de erro (listener-only, não buildável).
+/// Efeito one-shot de falha (listener-only, não buildável). Carrega o
+/// [Failure] INTEIRO: a ponte deriva a natureza (validation × erro técnico
+/// com supportRef — R7) e o fields[] ancora no campo da aba certa.
 class CollaboratorActionFailure extends CollaboratorBlocState {
-  const CollaboratorActionFailure(this.message);
-  final String message;
+  const CollaboratorActionFailure(this.failure);
+  final Failure failure;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [failure];
 }
 
 /// Efeito one-shot do 409 de papel duplicado: a entity já é colaborador

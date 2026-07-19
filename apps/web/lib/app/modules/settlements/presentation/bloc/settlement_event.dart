@@ -41,7 +41,8 @@ class SettlementSettledRequested extends SettlementEvent {
 }
 
 /// Estorna a baixa VIGENTE (motivo já coletado no dialog) — o 409 da API
-/// ("baixa não vigente") vira SnackBar com a mensagem como veio.
+/// ("baixa não vigente") vira dialog de validação com a mensagem como
+/// veio, via ponte de feedback.
 class SettlementReversalRequested extends SettlementEvent {
   const SettlementReversalRequested({
     required this.orderId,

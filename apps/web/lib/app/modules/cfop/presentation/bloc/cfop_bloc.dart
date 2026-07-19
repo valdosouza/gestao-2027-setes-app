@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,7 +13,8 @@ part 'cfop_state.dart';
 
 /// Orquestra o CRUD de CFOP: alterna pesquisa ↔ formulário e executa as
 /// operações via usecases (ARQUITETURA_MODULOS.md — a fábrica Register* é
-/// apresentação pura; sucesso/erro viram estados one-shot p/ SnackBar).
+/// apresentação pura; sucesso/erro viram estados one-shot que a página
+/// entrega à PONTE de feedback — Framework de Mensagens, Onda B).
 class CfopBloc extends Bloc<CfopEvent, CfopState> {
   CfopBloc({
     required this.getlist,
@@ -48,7 +50,7 @@ class CfopBloc extends Bloc<CfopEvent, CfopState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(CfopActionFailure(failure.message));
+        emit(CfopActionFailure(failure));
         emit(const CfopListState());
       },
       (items) => emit(CfopListState(items: items)),
@@ -63,7 +65,7 @@ class CfopBloc extends Bloc<CfopEvent, CfopState> {
         event.creating ? await post(event.cfop) : await put(event.cfop);
     await result.fold(
       (failure) async {
-        emit(CfopActionFailure(failure.message));
+        emit(CfopActionFailure(failure));
         emit(CfopFormState(editing: event.creating ? null : event.cfop));
       },
       (_) async {
@@ -77,7 +79,7 @@ class CfopBloc extends Bloc<CfopEvent, CfopState> {
       CfopDeleteRequested event, Emitter<CfopState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(CfopActionFailure(failure.message)),
+      (failure) async => emit(CfopActionFailure(failure)),
       (_) async {
         emit(const CfopActionSuccess('register.deleted'));
         await _reload(emit);

@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -52,7 +53,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     final result = await getlist(_filter);
     result.fold(
       (failure) {
-        emit(UserActionFailure(failure.message));
+        emit(UserActionFailure(failure));
         emit(const UserListState());
       },
       (items) => emit(UserListState(items: items)),
@@ -65,7 +66,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     final result = await get(event.id);
     result.fold(
       (failure) {
-        emit(UserActionFailure(failure.message));
+        emit(UserActionFailure(failure));
         emit(const UserListState());
       },
       (user) => emit(UserFormState(editing: user)),
@@ -81,7 +82,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         : await put(event.user);
     await result.fold(
       (failure) async {
-        emit(UserActionFailure(failure.message));
+        emit(UserActionFailure(failure));
         emit(UserFormState(editing: event.creating ? null : event.user));
       },
       (_) async {
@@ -95,7 +96,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       UserDeleteRequested event, Emitter<UserState> emit) async {
     final result = await delete(event.id);
     await result.fold(
-      (failure) async => emit(UserActionFailure(failure.message)),
+      (failure) async => emit(UserActionFailure(failure)),
       (_) async {
         emit(const UserActionSuccess('register.deleted'));
         await _reload(emit);

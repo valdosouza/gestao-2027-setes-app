@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/state_lookup_entity.dart';
@@ -35,6 +36,10 @@ class CityPage extends StatefulWidget {
 class _CityPageState extends State<CityPage> with FieldConfigLoader {
   late final CityBloc _bloc;
   late final StateLookupDatasource _stateLookup;
+
+  /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
+  /// (showServerFieldError — Framework de Mensagens, Onda B).
+  final _formPageKey = GlobalKey<RegisterFormPageState>();
 
   /// FK do estado: id salvo + nome exibido (skill campo-lookup-fk.md).
   int? _stateId;
@@ -115,6 +120,7 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
     final editing = state.editing;
     final creating = editing == null;
     return RegisterFormPage(
+      key: _formPageKey,
       title: widget.title,
       saving: state.saving,
       initialValues: creating
@@ -216,12 +222,22 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is CityActionSuccess || current is CityActionFailure,
+        // PONTE de feedback (Framework de Mensagens): a tela nunca chama
+        // ScaffoldMessenger/AlertDialog — sucesso = SnackBar via ponte (R1);
+        // falha = dialog, com fields[] do servidor ancorado no campo do
+        // formulário quando ele está montado.
         listener: (context, state) {
-          final message = state is CityActionSuccess
-              ? state.messageKey.tr()
-              : (state as CityActionFailure).message;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: SetesText(message)));
+          if (state is CityActionSuccess) {
+            showSuccessFeedback(context, state.messageKey);
+            return;
+          }
+          final failure = (state as CityActionFailure).failure;
+          final form = _formPageKey.currentState;
+          if (failure.fields.isNotEmpty && form != null) {
+            form.showServerFieldError(failure);
+          } else {
+            showFailureFeedback(context, failure);
+          }
         },
         buildWhen: (_, current) =>
             current is CityListState || current is CityFormState,

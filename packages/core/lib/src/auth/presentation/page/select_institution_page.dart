@@ -5,6 +5,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../bloc/auth_bloc.dart';
+import '../content/auth_feedback.dart';
 
 /// Tela "Escolha o estabelecimento" (workflow do prompt, decisão 3):
 /// o padrão NÃO pula a tela — apenas vem pré-selecionado (decisão 15:
@@ -37,6 +38,10 @@ class _SelectInstitutionPageState extends State<SelectInstitutionPage> {
       bloc: bloc,
       listener: (context, state) {
         if (state is AuthAuthenticated) Modular.to.navigate('/home/');
+        // Falha ao emitir o JWT final (seleção expirada, 500, rede...):
+        // dialog via apresentador (Framework de Mensagens, R1/R7) — esta
+        // tela não tem superfície inline de erro.
+        if (state is AuthError) showAuthFailureDialog(context, state.failure);
       },
       builder: (context, state) {
         if (state is AuthLoading) {
