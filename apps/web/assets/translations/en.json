@@ -199,7 +199,14 @@
       "interfacesFilterHint": "Filter by interface name",
       "tabUsers": "Users",
       "usersSaveFirst": "Save the institution first — users are linked to it.",
-      "userDialogTitle": "User Registration"
+      "userDialogTitle": "User Registration",
+      "syncApiKeySection": "Synchronization Key (Sincronizador)",
+      "syncApiKey": "Key (X-Api-Key)",
+      "syncApiKeyEmpty": "No key generated for this institution — the Sincronizador needs it to authenticate.",
+      "syncApiKeyGenerate": "Generate key",
+      "syncApiKeyGenerated": "Synchronization key generated",
+      "syncApiKeyCopy": "Copy key",
+      "syncApiKeyCopied": "Key copied"
     },
     "user": {
       "code": "User Code",

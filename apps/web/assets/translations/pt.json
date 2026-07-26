@@ -199,7 +199,14 @@
       "interfacesFilterHint": "Filtre pelo nome da interface",
       "tabUsers": "Usuários",
       "usersSaveFirst": "Salve o estabelecimento primeiro — os usuários são vinculados a ele.",
-      "userDialogTitle": "Cadastro de Usuário"
+      "userDialogTitle": "Cadastro de Usuário",
+      "syncApiKeySection": "Chave de Sincronização (Sincronizador)",
+      "syncApiKey": "Chave (X-Api-Key)",
+      "syncApiKeyEmpty": "Nenhuma chave gerada para este estabelecimento — o Sincronizador precisa dela para se autenticar.",
+      "syncApiKeyGenerate": "Gerar chave",
+      "syncApiKeyGenerated": "Chave de sincronização gerada",
+      "syncApiKeyCopy": "Copiar chave",
+      "syncApiKeyCopied": "Chave copiada"
     },
     "user": {
       "code": "Código do Usuário",

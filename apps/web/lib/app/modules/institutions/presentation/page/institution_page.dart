@@ -388,6 +388,10 @@ class _InstitutionFormViewState extends State<_InstitutionFormView>
                     value: draft,
                     creating: creating,
                     onChanged: widget.onDraftChanged,
+                    // Chave de sincronização (X-Api-Key): seção autônoma —
+                    // só na edição (a chave pertence à institution salva).
+                    institutionId: creating ? null : draft.id,
+                    datasource: widget.datasource,
                     schemaNameFocus: _schemaNameFocus,
                     schemaNameKey: _schemaNameKey,
                   ),

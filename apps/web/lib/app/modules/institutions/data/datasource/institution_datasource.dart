@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/institution_interface_grant.dart';
 import '../../domain/entity/object_institution.dart';
+import '../../domain/entity/sync_api_key.dart';
 
 /// Datasource remoto de Estabelecimento: /api/institutions na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
@@ -24,6 +25,14 @@ abstract class InstitutionDatasource {
 
   /// Sincroniza o contrato: concede a lista, revoga (soft) as demais.
   Future<void> setInterfaces(int institutionId, List<int> interfaceIds);
+
+  /// Chave de sincronização do Sincronizador (aba Estabelecimento) —
+  /// null quando ainda não foi gerada.
+  Future<SyncApiKey?> getSyncApiKey(int institutionId);
+
+  /// Gera a chave quando não existe (409 se já houver — troca é
+  /// intervenção manual no banco, nunca pela tela).
+  Future<SyncApiKey> generateSyncApiKey(int institutionId);
 }
 
 class InstitutionDatasourceImpl implements InstitutionDatasource {
@@ -82,5 +91,20 @@ class InstitutionDatasourceImpl implements InstitutionDatasource {
   Future<void> setInterfaces(int institutionId, List<int> interfaceIds) async {
     await client.put('/api/admin/institutions/$institutionId/interfaces',
         {'interfaceIds': interfaceIds});
+  }
+
+  @override
+  Future<SyncApiKey?> getSyncApiKey(int institutionId) async {
+    final json = await client.get('/api/institutions/$institutionId/sync-api-key');
+    final data = json['data'];
+    if (data == null) return null;
+    return SyncApiKey.fromJson(data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<SyncApiKey> generateSyncApiKey(int institutionId) async {
+    final json =
+        await client.post('/api/institutions/$institutionId/sync-api-key', {});
+    return SyncApiKey.fromJson(json['data'] as Map<String, dynamic>);
   }
 }

@@ -1,8 +1,13 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/feedback/feedback.dart';
+import '../../data/datasource/institution_datasource.dart';
 import '../../domain/entity/object_institution.dart';
+import '../../domain/entity/sync_api_key.dart';
 
 /// Aba "Estabelecimento" — a ÚNICA aba não compartilhada do form
 /// (skill cadastro-entidade-fiscal.md): campos específicos de tb_institution.
@@ -10,12 +15,16 @@ import '../../domain/entity/object_institution.dart';
 /// - schemaName: editável SÓ na inclusão (imutável na edição), padrão
 ///   `setes_<nome>`;
 /// - active: readOnly na inclusão — quem ativa é a migração do schema no
-///   backend (POST → commit → runMigrationsForSchema → active='S').
+///   backend (POST → commit → runMigrationsForSchema → active='S');
+/// - Chave de Sincronização (tb_sync_api_key): seção AUTÔNOMA via datasource
+///   (precedente da aba Interfaces) — só na edição; exibir/copiar/gerar.
 class InstitutionTab extends StatefulWidget {
   const InstitutionTab({
     required this.value,
     required this.creating,
     required this.onChanged,
+    this.institutionId,
+    this.datasource,
     this.schemaNameFocus,
     this.schemaNameKey,
     super.key,
@@ -24,6 +33,10 @@ class InstitutionTab extends StatefulWidget {
   final ObjectInstitution value;
   final bool creating;
   final ValueChanged<ObjectInstitution> onChanged;
+
+  /// null = inclusão (a chave só existe depois do salvar).
+  final int? institutionId;
+  final InstitutionDatasource? datasource;
 
   /// Ganchos da mecânica uma-pendência do form composto (R3) — opcionais:
   /// foco/marca dirigidos ao campo após o dialog da ponte.
@@ -98,7 +111,153 @@ class _InstitutionTabState extends State<InstitutionTab> {
                 ),
               ),
             ),
+            if (widget.institutionId != null && widget.datasource != null) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              _SyncApiKeySection(
+                institutionId: widget.institutionId!,
+                datasource: widget.datasource!,
+              ),
+            ],
           ],
         ),
       );
+}
+
+/// Seção da Chave de Sincronização (X-Api-Key do Sincronizador) — AUTÔNOMA
+/// via datasource, fora do draft do bloc (precedente da aba Interfaces):
+/// carrega no init; sem chave → botão Gerar (a API só cria quando não
+/// existe; trocar chave de instalação em produção é intervenção manual).
+/// Falhas/sucessos SEMPRE pela ponte de feedback (R1/R7).
+class _SyncApiKeySection extends StatefulWidget {
+  const _SyncApiKeySection({
+    required this.institutionId,
+    required this.datasource,
+  });
+
+  final int institutionId;
+  final InstitutionDatasource datasource;
+
+  @override
+  State<_SyncApiKeySection> createState() => _SyncApiKeySectionState();
+}
+
+class _SyncApiKeySectionState extends State<_SyncApiKeySection> {
+  final _apiKey = TextEditingController();
+  SyncApiKey? _key;
+  bool _loading = false;
+  bool _generating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _apiKey.dispose();
+    super.dispose();
+  }
+
+  void _fail(Failure failure) {
+    if (!mounted) return;
+    showFailureFeedback(context, failure);
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final key = await widget.datasource.getSyncApiKey(widget.institutionId);
+      if (mounted) {
+        setState(() {
+          _key = key;
+          _apiKey.text = key?.apiKey ?? '';
+        });
+      }
+    } on Failure catch (failure) {
+      _fail(failure);
+    } catch (_) {
+      _fail(const Failure(message: 'register.error'));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _generate() async {
+    setState(() => _generating = true);
+    try {
+      final key =
+          await widget.datasource.generateSyncApiKey(widget.institutionId);
+      if (mounted) {
+        setState(() {
+          _key = key;
+          _apiKey.text = key.apiKey;
+        });
+        await showSuccessFeedback(
+            context, 'forms.institution.syncApiKeyGenerated');
+      }
+    } on Failure catch (failure) {
+      _fail(failure);
+    } catch (_) {
+      _fail(const Failure(message: 'register.error'));
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _key!.apiKey));
+    if (mounted) {
+      await showSuccessFeedback(context, 'forms.institution.syncApiKeyCopied');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: SetesCircularProgressIndicator(),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SetesText('forms.institution.syncApiKeySection'.tr()),
+        const SizedBox(height: 8),
+        if (_key == null) ...[
+          SetesText('forms.institution.syncApiKeyEmpty'.tr()),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SetesButton(
+              label: 'forms.institution.syncApiKeyGenerate'.tr(),
+              icon: Icons.key,
+              loading: _generating,
+              onPressed: _generate,
+            ),
+          ),
+        ] else
+          Row(
+            children: [
+              Expanded(
+                child: SetesTextField(
+                  label: 'forms.institution.syncApiKey'.tr(),
+                  controller: _apiKey,
+                  readOnly: true,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SetesIconButton(
+                icon: Icons.copy,
+                tooltip: 'forms.institution.syncApiKeyCopy'.tr(),
+                onPressed: _copy,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }
