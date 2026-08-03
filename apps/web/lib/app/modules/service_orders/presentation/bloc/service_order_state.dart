@@ -8,19 +8,34 @@ sealed class ServiceOrderState extends Equatable {
 }
 
 /// Modo lista (buildável) — a aba ativa vem em [status] ('A'|'F').
+/// Paginação D3: além dos itens da página, o estado carrega filtro
+/// aplicado + metadados — a página monta a [RegisterPagingBar] no rodapé.
 class ServiceOrderListState extends ServiceOrderState {
   const ServiceOrderListState({
     this.items = const [],
     this.loading = false,
     this.status = 'A',
+    this.filter = '',
+    this.page = 1,
+    this.pageSize,
+    this.total,
   });
 
   final List<ServiceOrderListItem> items;
   final bool loading;
   final String status;
 
+  /// Filtro APLICADO (o mesmo usado nas recargas do bloc).
+  final String filter;
+  final int page;
+
+  /// null até a primeira resposta da API (barra só aparece com metadados).
+  final int? pageSize;
+  final int? total;
+
   @override
-  List<Object?> get props => [items, loading, status];
+  List<Object?> get props =>
+      [items, loading, status, filter, page, pageSize, total];
 }
 
 /// Modo detalhe da OS (buildável). [saving] desabilita as ações enquanto

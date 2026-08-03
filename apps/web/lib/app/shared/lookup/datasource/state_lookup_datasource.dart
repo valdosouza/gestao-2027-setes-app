@@ -16,8 +16,13 @@ class StateLookupDatasourceImpl implements StateLookupDatasource {
 
   @override
   Future<List<StateLookup>> list(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/states$query');
+    // Lookup NÃO pagina (D6), mas o envelope agora traz pageSize default 25
+    // — pageSize=100 mantém o alcance da lista de apoio.
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'pageSize=100',
+    ];
+    final json = await client.get('/api/states?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => StateLookup.fromJson(e as Map<String, dynamic>))

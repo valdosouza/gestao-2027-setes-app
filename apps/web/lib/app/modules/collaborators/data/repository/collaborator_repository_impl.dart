@@ -21,8 +21,10 @@ class CollaboratorRepositoryImpl implements CollaboratorRepository {
   }
 
   @override
-  Future<Either<Failure, List<CollaboratorListItem>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<CollaboratorListItem>>> getList(
+          String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, ObjectCollaborator>> get(int id) =>

@@ -5,7 +5,9 @@ import '../entity/payment_type_entity.dart';
 
 /// Contrato do repositório de Formas de Pagamento (Either/dartz).
 abstract class PaymentTypeRepository {
-  Future<Either<Failure, List<LinkedPaymentType>>> getList();
+  Future<Either<Failure, PagedResult<LinkedPaymentType>>> getList(
+      String filter,
+      {int page, int? pageSize});
   Future<Either<Failure, List<PaymentTypeCatalogItem>>> catalog(String filter);
   Future<Either<Failure, PaymentTypePostResult>> post({
     int? catalogId,

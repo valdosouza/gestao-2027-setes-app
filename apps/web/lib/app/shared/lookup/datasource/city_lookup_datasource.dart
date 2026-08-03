@@ -17,9 +17,12 @@ class CityLookupDatasourceImpl implements CityLookupDatasource {
 
   @override
   Future<List<CityLookup>> list(String filter, {required int stateId}) async {
+    // Lookup NÃO pagina (D6), mas o envelope agora traz pageSize default 25
+    // — pageSize=100 mantém o alcance da lista de apoio.
     final params = <String>[
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'stateId=$stateId',
+      'pageSize=100',
     ];
     final json = await client.get('/api/cities?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];

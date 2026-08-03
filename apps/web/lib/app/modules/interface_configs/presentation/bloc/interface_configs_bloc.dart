@@ -34,24 +34,47 @@ class InterfaceConfigsBloc
   final InterfaceConfigsGetconfigs getConfigs;
   final InterfaceConfigsSavevalue saveValue;
 
-  /// Último filtro aplicado — recarga ao voltar da lista de configs.
+  /// Últimos filtro/página/tamanho aplicados — recarga ao voltar da lista
+  /// de configs devolve o usuário exatamente onde estava (paginação,
+  /// critério 6).
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
 
   Future<void> _onVitrineRequested(InterfaceConfigsVitrineRequested event,
       Emitter<InterfaceConfigsState> emit) async {
     _filter = event.filter;
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
     await _reloadVitrine(emit);
   }
 
   Future<void> _reloadVitrine(Emitter<InterfaceConfigsState> emit) async {
     emit(const InterfaceConfigsVitrineState(loading: true));
-    final result = await getVitrine(_filter);
-    result.fold(
-      (failure) {
+    final result = await getVitrine(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(InterfaceConfigsActionFailure(failure));
         emit(const InterfaceConfigsVitrineState());
       },
-      (items) => emit(InterfaceConfigsVitrineState(items: items)),
+      (paged) async {
+        // Página esvaziou (filtro/clamp) → recua para a última página
+        // existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reloadVitrine(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(InterfaceConfigsVitrineState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
+      },
     );
   }
 
@@ -62,18 +85,20 @@ class InterfaceConfigsBloc
 
   /// Atalho contextual (decisão 11): a engrenagem da tela de LISTA conhece a
   /// CHAVE do módulo — a vitrine resolve a interface e abre já filtrado.
+  /// A resolução NÃO pagina (precisa enxergar o catálogo inteiro) —
+  /// pageSize=100 explícito mantém o alcance, como nos lookups da Onda 2.
   Future<void> _onOpenByKey(InterfaceConfigsOpenByKey event,
       Emitter<InterfaceConfigsState> emit) async {
     emit(const InterfaceConfigsVitrineState(loading: true));
-    final result = await getVitrine('');
+    final result = await getVitrine('', pageSize: 100);
     await result.fold(
       (failure) async {
         emit(InterfaceConfigsActionFailure(failure));
         emit(const InterfaceConfigsVitrineState());
       },
-      (items) async {
+      (paged) async {
         InterfaceVitrineEntity? match;
-        for (final item in items) {
+        for (final item in paged.items) {
           if (item.i18nKey == event.moduleKey) {
             match = item;
             break;
@@ -82,7 +107,8 @@ class InterfaceConfigsBloc
         if (match != null && match.acquired) {
           await _reloadConfigs(match, emit);
         } else {
-          emit(InterfaceConfigsVitrineState(items: items));
+          // Sem correspondência: mostra a vitrine na paginação padrão.
+          await _reloadVitrine(emit);
         }
       },
     );

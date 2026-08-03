@@ -71,6 +71,15 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
               ? 'forms.interfaceFields.acquired'.tr()
               : 'forms.interfaceFields.available'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1.
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) => _bloc
+            .add(InterfaceFieldsVitrineRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) => _bloc.add(
+            InterfaceFieldsVitrineRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) =>
             _bloc.add(InterfaceFieldsVitrineRequested(filter)),
         onView: _openInterface,

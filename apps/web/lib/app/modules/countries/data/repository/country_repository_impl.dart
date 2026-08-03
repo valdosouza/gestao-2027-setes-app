@@ -21,8 +21,9 @@ class CountryRepositoryImpl implements CountryRepository {
   }
 
   @override
-  Future<Either<Failure, List<CountryEntity>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<CountryEntity>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, int>> post(CountryEntity country) =>

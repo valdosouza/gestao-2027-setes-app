@@ -7,8 +7,9 @@ import '../entity/service_order_entity.dart';
 /// do PROCESSO: lista por status, detalhe, abrir/cancelar OS, itens,
 /// rotina mensal e Gerar Faturamento.
 abstract class ServiceOrderRepository {
-  Future<Either<Failure, List<ServiceOrderListItem>>> getList(
-      String status, String filter);
+  Future<Either<Failure, PagedResult<ServiceOrderListItem>>> getList(
+      String status, String filter,
+      {int page = 1, int? pageSize});
   Future<Either<Failure, ServiceOrderFull>> getById(int id);
   Future<Either<Failure, int>> open(int customerId);
   Future<Either<Failure, Unit>> cancel(int id);

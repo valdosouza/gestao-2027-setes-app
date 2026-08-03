@@ -78,6 +78,16 @@ class _CollaboratorPageState extends State<CollaboratorPage> {
               ? 'forms.collaborator.active'.tr()
               : 'forms.collaborator.inactive'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(CollaboratorListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(CollaboratorListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) =>
             _bloc.add(CollaboratorListRequested(filter)),
         onNew: () => _bloc.add(const CollaboratorNewPressed()),

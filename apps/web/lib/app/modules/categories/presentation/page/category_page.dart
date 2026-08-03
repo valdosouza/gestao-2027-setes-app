@@ -7,6 +7,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
+import '../../../../shared/register/register_config_button.dart';
 import '../../domain/entity/category_entity.dart';
 import '../bloc/category_bloc.dart';
 
@@ -61,17 +62,6 @@ class _CategoryPageState extends State<CategoryPage>
     super.dispose();
   }
 
-  /// Engrenagem padrão da lista (Framework de Configurações, decisão 11) —
-  /// replicada manualmente porque a tela de árvore não usa a fábrica.
-  void _openConfigs() {
-    Modular.to.navigate('/home/interface-configs/', arguments: {
-      'title': trCatalog('interface-configs', 'Interface Configs',
-          prefix: 'menu.interfaces'),
-      'moduleKey': 'categories',
-      'returnTo': Modular.to.path,
-    });
-  }
-
   // -------------------------------------------------------------------
   // Árvore
   // -------------------------------------------------------------------
@@ -101,12 +91,8 @@ class _CategoryPageState extends State<CategoryPage>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'register.configTooltip'.tr(),
-            onPressed: _openConfigs,
-          ),
+        actions: const [
+          RegisterConfigButton(moduleKey: 'categories'),
         ],
       ),
       // FAB = novo NÍVEL raiz da árvore ativa (Delphi: opção "Nível")

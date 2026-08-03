@@ -5,7 +5,10 @@ import '../../domain/entity/city_entity.dart';
 /// Datasource remoto de Cidade: /api/cities na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class CityDatasource {
-  Future<List<CityEntity>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<CityEntity>> getList(String filter,
+      {int page = 1, int? pageSize});
   Future<int> post(CityEntity city);
   Future<void> put(CityEntity city);
   Future<void> delete(int id);
@@ -17,13 +20,15 @@ class CityDatasourceImpl implements CityDatasource {
   final ApiClient client;
 
   @override
-  Future<List<CityEntity>> getList(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/cities$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => CityEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<CityEntity>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/cities?${params.join('&')}');
+    return PagedResult.fromJson(json, CityEntity.fromJson);
   }
 
   /// O id é o código IBGE do município informado pelo usuário — a API

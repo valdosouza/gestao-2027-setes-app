@@ -21,8 +21,9 @@ class PrivilegeRepositoryImpl implements PrivilegeRepository {
   }
 
   @override
-  Future<Either<Failure, List<PrivilegeEntity>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<PrivilegeEntity>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, int>> post(PrivilegeEntity privilege) =>

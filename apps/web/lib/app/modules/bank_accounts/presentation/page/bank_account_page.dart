@@ -54,7 +54,7 @@ class _BankAccountPageState extends State<BankAccountPage>
   void initState() {
     super.initState();
     _bloc = Modular.get<BankAccountBloc>()
-      ..add(const BankAccountListRequested('', refresh: true));
+      ..add(const BankAccountListRequested(''));
     _datasource = Modular.get<BankAccountDatasource>();
     loadFieldConfig('bank-accounts'); // engine de campos configuráveis (dec. 7)
   }
@@ -77,6 +77,16 @@ class _BankAccountPageState extends State<BankAccountPage>
           if (a.manager != null && a.manager!.isNotEmpty)
             'forms.bankAccount.managerRow'.tr(args: [a.manager!]),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(BankAccountListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(BankAccountListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(BankAccountListRequested(filter)),
         onNew: () => _bloc.add(const BankAccountNewPressed()),
         onView: (a) => _bloc.add(BankAccountEditPressed(a.id)),

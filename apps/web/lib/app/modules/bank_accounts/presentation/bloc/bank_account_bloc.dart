@@ -15,8 +15,8 @@ part 'bank_account_state.dart';
 
 /// Orquestra as Contas Bancárias (Módulo Software House): lista ↔
 /// formulário. A edição carrega a conta COMPLETA (GET /:id) porque a
-/// lista não traz datas nem telefone; o filtro da tela é LOCAL (a API
-/// limita a 200 — molde contracts).
+/// lista não traz datas nem telefone; o filtro da tela é REMOTO
+/// (?filter= — paginação D7, molde customers).
 class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
   BankAccountBloc({
     required this.getlist,
@@ -42,59 +42,68 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
   final BankAccountPut put;
   final BankAccountDelete delete;
 
-  /// Lista completa (a API limita a 200 — o filtro da tela é LOCAL).
-  List<BankAccountListItem> _all = const [];
+  /// Últimos filtro/página/tamanho aplicados — recarga após salvar/excluir/
+  /// voltar devolve o usuário exatamente onde estava (paginação, critério 6).
+  /// D7: o filtro é REMOTO (?filter=) — o cache local `_all/_filtered`
+  /// foi aposentado.
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
 
   /// Conta aberta no form (null = nova) — preserva o editing nos
   /// re-emits de saving/falha.
   BankAccountFull? _editing;
 
-  List<BankAccountListItem> get _filtered {
-    if (_filter.isEmpty) return _all;
-    final lower = _filter.toLowerCase();
-    return _all
-        .where((a) =>
-            a.bankDisplay.toLowerCase().contains(lower) ||
-            a.agencyDisplay.toLowerCase().contains(lower) ||
-            a.numberDisplay.toLowerCase().contains(lower) ||
-            (a.manager ?? '').toLowerCase().contains(lower))
-        .toList();
-  }
-
   Future<void> _onListRequested(
       BankAccountListRequested event, Emitter<BankAccountState> emit) async {
     _filter = event.filter;
-    if (event.refresh || _all.isEmpty) {
-      await _reload(emit);
-    } else {
-      emit(BankAccountListState(items: _filtered));
-    }
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
+    await _reload(emit);
   }
 
   Future<void> _reload(Emitter<BankAccountState> emit) async {
     emit(const BankAccountListState(loading: true));
-    final result = await getlist();
-    result.fold(
-      (failure) {
+    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(BankAccountActionFailure(failure));
         emit(const BankAccountListState());
       },
-      (items) {
-        _all = items;
-        emit(BankAccountListState(items: _filtered));
+      (paged) async {
+        // Página esvaziou (ex.: exclusão do último item) → recua para a
+        // última página existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reload(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(BankAccountListState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
       },
     );
   }
 
+  List<BankAccountListItem> get _currentItems {
+    final current = state;
+    return current is BankAccountListState ? current.items : const [];
+  }
+
   Future<void> _onEditPressed(
       BankAccountEditPressed event, Emitter<BankAccountState> emit) async {
-    emit(const BankAccountListState(loading: true));
+    emit(BankAccountListState(items: _currentItems, loading: true));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(BankAccountActionFailure(failure));
-        emit(BankAccountListState(items: _filtered));
+        emit(BankAccountListState(items: _currentItems));
       },
       (full) async {
         _editing = full;

@@ -21,9 +21,11 @@ class SettlementRepositoryImpl implements SettlementRepository {
   }
 
   @override
-  Future<Either<Failure, List<SettlementBill>>> bills(
-          String status, String kind, String filter) =>
-      _guard(() => datasource.bills(status, kind, filter));
+  Future<Either<Failure, PagedResult<SettlementBill>>> bills(
+          String status, String kind, String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.bills(status, kind, filter,
+          page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, SettlementBatchResult>> settle(
@@ -31,8 +33,11 @@ class SettlementRepositoryImpl implements SettlementRepository {
       _guard(() => datasource.settle(input));
 
   @override
-  Future<Either<Failure, List<SettlementSettled>>> settled(String filter) =>
-      _guard(() => datasource.settled(filter));
+  Future<Either<Failure, PagedResult<SettlementSettled>>> settled(
+          String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(
+          () => datasource.settled(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, SettlementReversalResult>> reversal(

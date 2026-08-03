@@ -6,7 +6,9 @@ import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 
 /// Contrato do repositório do painel de campos (decisão 12: Either/dartz).
 abstract class InterfaceFieldsRepository {
-  Future<Either<Failure, List<InterfaceVitrineEntity>>> vitrine(String filter);
+  Future<Either<Failure, PagedResult<InterfaceVitrineEntity>>> vitrine(
+      String filter,
+      {int page, int? pageSize});
   Future<Either<Failure, List<FieldConfigEntity>>> fields(int interfaceId);
   Future<Either<Failure, Unit>> saveField({
     required int interfaceId,

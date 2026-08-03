@@ -47,7 +47,7 @@ class _PaymentTypePageState extends State<PaymentTypePage>
   void initState() {
     super.initState();
     _bloc = Modular.get<PaymentTypeBloc>()
-      ..add(const PaymentTypeListRequested('', refresh: true));
+      ..add(const PaymentTypeListRequested(''));
     _datasource = Modular.get<PaymentTypeDatasource>();
     // Engine de campos configuráveis (decisão 7) — catálogo do seed 14.
     loadFieldConfig('payment-types');
@@ -70,6 +70,16 @@ class _PaymentTypePageState extends State<PaymentTypePage>
               : 'forms.paymentType.disabledRow'.tr(),
           if (p.attrs.appMobile) 'forms.paymentType.appMobile'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(PaymentTypeListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(PaymentTypeListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) =>
             _bloc.add(PaymentTypeListRequested(filter)),
         onNew: () => _bloc.add(const PaymentTypeNewPressed()),

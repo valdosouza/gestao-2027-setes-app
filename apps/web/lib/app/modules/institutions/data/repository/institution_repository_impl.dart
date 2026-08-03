@@ -21,8 +21,11 @@ class InstitutionRepositoryImpl implements InstitutionRepository {
   }
 
   @override
-  Future<Either<Failure, List<InstitutionListItem>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<InstitutionListItem>>> getList(
+          String filter,
+          {int page = 1,
+          int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, ObjectInstitution>> get(int id) =>

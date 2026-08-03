@@ -214,6 +214,16 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
               ? 'forms.institution.active'.tr()
               : 'forms.institution.inactive'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(UserListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(UserListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(UserListRequested(filter)),
         onNew: () => _bloc.add(const UserNewPressed()),
         onView: (u) => _bloc.add(UserEditPressed(u.id)),

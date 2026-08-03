@@ -238,6 +238,16 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
           if ((e.groupDefault ?? '').isNotEmpty) e.groupDefault!,
           if ((e.i18nKey ?? '').isNotEmpty) e.i18nKey!,
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(InterfaceListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(InterfaceListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(InterfaceListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

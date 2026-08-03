@@ -21,8 +21,10 @@ class PaymentTypeRepositoryImpl implements PaymentTypeRepository {
   }
 
   @override
-  Future<Either<Failure, List<LinkedPaymentType>>> getList() =>
-      _guard(() => datasource.getList());
+  Future<Either<Failure, PagedResult<LinkedPaymentType>>> getList(
+          String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, List<PaymentTypeCatalogItem>>> catalog(String filter) =>

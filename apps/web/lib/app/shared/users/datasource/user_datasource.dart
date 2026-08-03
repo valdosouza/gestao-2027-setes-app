@@ -9,7 +9,10 @@ import '../entity/user_entity.dart';
 abstract class UserDatasource {
   /// [institutionId] restringe aos vinculados (aba do Estabelecimento);
   /// para o admin do cliente a API força a institution do JWT.
-  Future<List<UserListItem>> getList(String filter, {int? institutionId});
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<UserListItem>> getList(String filter,
+      {int? institutionId, int page = 1, int? pageSize});
   Future<UserEntity> get(int id);
 
   /// A API gera o id (MAX+1 da tb_entity) e aplica o MD5 da senha.
@@ -44,16 +47,16 @@ class UserDatasourceImpl implements UserDatasource {
   final ApiClient client;
 
   @override
-  Future<List<UserListItem>> getList(String filter, {int? institutionId}) async {
+  Future<PagedResult<UserListItem>> getList(String filter,
+      {int? institutionId, int page = 1, int? pageSize}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       if (institutionId != null) 'institutionId=$institutionId',
-    ].join('&');
-    final json = await client.get('/api/users${params.isEmpty ? '' : '?$params'}');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => UserListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/users?${params.join('&')}');
+    return PagedResult.fromJson(json, UserListItem.fromJson);
   }
 
   @override

@@ -8,12 +8,18 @@ sealed class InterfaceConfigsEvent extends Equatable {
 }
 
 /// Carrega/filtra a vitrine (também usado na abertura da página).
+/// Paginação D3: [page] navega (filtro novo SEMPRE volta à página 1 na
+/// tela); [pageSize] null mantém o tamanho corrente (1º load = config
+/// page_size resolvida pela API — D4).
 class InterfaceConfigsVitrineRequested extends InterfaceConfigsEvent {
-  const InterfaceConfigsVitrineRequested(this.filter);
+  const InterfaceConfigsVitrineRequested(this.filter,
+      {this.page = 1, this.pageSize});
   final String filter;
+  final int page;
+  final int? pageSize;
 
   @override
-  List<Object?> get props => [filter];
+  List<Object?> get props => [filter, page, pageSize];
 }
 
 /// Abre a lista de configurações de uma interface ADQUIRIDA.

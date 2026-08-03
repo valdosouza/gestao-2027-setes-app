@@ -21,8 +21,9 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, List<UserListItem>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<UserListItem>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, UserEntity>> get(int id) =>

@@ -7,9 +7,11 @@ import '../../domain/entity/bank_account_entity.dart';
 /// JWT). O lookup de banco é endpoint próprio do módulo
 /// (/api/bank-accounts/banks — catálogo central FEBRABAN).
 abstract class BankAccountDatasource {
-  /// Contas da institution (a API limita a 200 — o filtro da tela é
-  /// LOCAL, molde contracts/payment_types).
-  Future<List<BankAccountListItem>> getList();
+  /// Página da lista (paginação D3/D7 — filtro REMOTO por banco/agência/
+  /// conta/gerente): [pageSize] null deixa a API resolver a config
+  /// page_size do usuário (D4).
+  Future<PagedResult<BankAccountListItem>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Conta completa (datas + telefone) para edição.
   Future<BankAccountFull> getById(int id);
@@ -36,12 +38,15 @@ class BankAccountDatasourceImpl implements BankAccountDatasource {
       filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
 
   @override
-  Future<List<BankAccountListItem>> getList() async {
-    final json = await client.get('/api/bank-accounts');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => BankAccountListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<BankAccountListItem>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/bank-accounts?${params.join('&')}');
+    return PagedResult.fromJson(json, BankAccountListItem.fromJson);
   }
 
   @override

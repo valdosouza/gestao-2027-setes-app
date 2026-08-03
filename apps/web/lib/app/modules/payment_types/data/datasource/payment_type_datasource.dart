@@ -7,8 +7,11 @@ import '../../domain/entity/payment_type_entity.dart';
 /// institution vem do JWT). Os lookups de Plano de Contas consomem
 /// /api/financial-plans direto (projeção local — módulo não importa módulo).
 abstract class PaymentTypeDatasource {
-  /// Formas VINCULADAS à institution.
-  Future<List<LinkedPaymentType>> getList();
+  /// Página das formas VINCULADAS à institution (paginação D3/D7 — filtro
+  /// REMOTO por descrição; a API ganhou o ?filter= nesta onda): [pageSize]
+  /// null deixa a API resolver a config page_size do usuário (D4).
+  Future<PagedResult<LinkedPaymentType>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Catálogo central (lookup do form), marcando as já vinculadas.
   Future<List<PaymentTypeCatalogItem>> catalog(String filter);
@@ -41,12 +44,15 @@ class PaymentTypeDatasourceImpl implements PaymentTypeDatasource {
   final ApiClient client;
 
   @override
-  Future<List<LinkedPaymentType>> getList() async {
-    final json = await client.get('/api/payment-types');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => LinkedPaymentType.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<LinkedPaymentType>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/payment-types?${params.join('&')}');
+    return PagedResult.fromJson(json, LinkedPaymentType.fromJson);
   }
 
   @override

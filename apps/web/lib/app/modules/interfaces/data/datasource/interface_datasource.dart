@@ -7,7 +7,10 @@ import '../../domain/entity/privilege_entity.dart';
 /// Datasource remoto de Interface: /api/interfaces na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class InterfaceDatasource {
-  Future<List<InterfaceEntity>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<InterfaceEntity>> getList(String filter,
+      {int page = 1, int? pageSize});
   Future<int> post(InterfaceEntity entity);
   Future<void> put(InterfaceEntity entity);
   Future<void> delete(int id);
@@ -37,13 +40,15 @@ class InterfaceDatasourceImpl implements InterfaceDatasource {
       };
 
   @override
-  Future<List<InterfaceEntity>> getList(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/interfaces$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => InterfaceEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<InterfaceEntity>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/interfaces?${params.join('&')}');
+    return PagedResult.fromJson(json, InterfaceEntity.fromJson);
   }
 
   /// O id é gerado pelo backend (MAX+1) — o body não envia id.
@@ -65,7 +70,9 @@ class InterfaceDatasourceImpl implements InterfaceDatasource {
 
   @override
   Future<List<PrivilegeEntity>> getPrivileges() async {
-    final json = await client.get('/api/privileges');
+    // Lista de apoio NÃO pagina (D6), mas o envelope agora traz pageSize
+    // default 25 — pageSize=100 mantém o alcance dos checkboxes.
+    final json = await client.get('/api/privileges?pageSize=100');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => PrivilegeEntity.fromJson(e as Map<String, dynamic>))

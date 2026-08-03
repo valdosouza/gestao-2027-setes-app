@@ -76,12 +76,32 @@ void _markAndFocus(PendencyField field) {
   });
 }
 
+/// Casa o name declarado no campo com o path do `fields[]` do servidor.
+/// DTOs compostos (cadeia fiscal) devolvem paths ANINHADOS do Zod —
+/// `entity.nameCompany`, `person.cpf`, `addresses.0.zipCode` — enquanto a
+/// tela declara o name plano do campo; o casamento vale pelo path exato OU
+/// pelo ÚLTIMO segmento.
+bool matchesServerFieldPath(String fieldName, String serverPath) =>
+    fieldName == serverPath || fieldName == serverPath.split('.').last;
+
+/// Fallback quando o campo apontado pelo servidor NÃO existe na tela
+/// (ex.: item de sub-lista): dialog de validação com campo + mensagem —
+/// NUNCA só o "Validação falhou" genérico (skill mensagem-e-validacao).
+Future<void> showUnanchoredServerField(
+        BuildContext context, FailureField serverField) =>
+    showValidationFeedback(
+      context,
+      'feedback.serverField'
+          .tr(args: [serverField.field, serverField.message.tr()]),
+    );
+
 /// Equivalente local do `showServerFieldError` da fábrica para forms
 /// híbridos: ancora o `fields[]` do envelope 400/409 no campo — dialog com
 /// a message do servidor → OK → [PendencyField.beforeFocus] (aba certa) +
-/// foco no campo apontado. Sem correspondência (ou sem fields[]) → feedback
-/// genérico da ponte. Sem validate() inline: a regra é do servidor e a
-/// marca vermelha local ficaria mentirosa.
+/// foco no campo apontado. Sem fields[] → feedback genérico da ponte; com
+/// fields[] sem correspondência → [showUnanchoredServerField] (campo +
+/// mensagem). Sem validate() inline: a regra é do servidor e a marca
+/// vermelha local ficaria mentirosa.
 Future<void> showServerFieldFeedback(
   BuildContext context,
   Failure failure,
@@ -92,12 +112,12 @@ Future<void> showServerFieldFeedback(
   final serverField = failure.fields.first;
   PendencyField? match;
   for (final field in fields) {
-    if (field.name == serverField.field) {
+    if (matchesServerFieldPath(field.name, serverField.field)) {
       match = field;
       break;
     }
   }
-  if (match == null) return showFailureFeedback(context, failure);
+  if (match == null) return showUnanchoredServerField(context, serverField);
   final anchored = match;
 
   await showValidationFeedback(context, serverField.message.tr());

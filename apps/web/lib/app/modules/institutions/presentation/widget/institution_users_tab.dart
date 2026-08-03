@@ -57,9 +57,11 @@ class _InstitutionUsersTabState extends State<InstitutionUsersTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final users = await widget.datasource
-          .getList('', institutionId: widget.institutionId);
-      if (mounted) setState(() => _users = users);
+      // Lista de apoio NÃO pagina (D6), mas o envelope agora traz pageSize
+      // default 25 — pageSize=100 mantém o alcance da aba.
+      final paged = await widget.datasource
+          .getList('', institutionId: widget.institutionId, pageSize: 100);
+      if (mounted) setState(() => _users = paged.items);
     } on Failure catch (failure) {
       _fail(failure);
     } catch (_) {

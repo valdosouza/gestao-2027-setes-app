@@ -7,7 +7,8 @@ import '../../../../shared/users/entity/user_entity.dart';
 /// Vínculos com institutions ficam no datasource (seção autônoma — mesmo
 /// precedente da aba Interfaces do Estabelecimento).
 abstract class UserRepository {
-  Future<Either<Failure, List<UserListItem>>> getList(String filter);
+  Future<Either<Failure, PagedResult<UserListItem>>> getList(String filter,
+      {int page, int? pageSize});
   Future<Either<Failure, UserEntity>> get(int id);
   Future<Either<Failure, int>> post(UserEntity user);
   Future<Either<Failure, Unit>> put(UserEntity user);

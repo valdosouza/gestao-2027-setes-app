@@ -3,7 +3,8 @@
 class AppConfig {
   const AppConfig._();
 
-  /// setes-api (porta 3000). Sobrescreva com --dart-define=API_URL=...
+  /// setes-api. Em dev vem do apps/web/.env (API_URL) via run-dev.ps1
+  /// (--dart-define-from-file); sobrescritível com --dart-define=API_URL=...
   static const String baseApiUrl = String.fromEnvironment(
     'API_URL',
     defaultValue: 'http://localhost:3000',

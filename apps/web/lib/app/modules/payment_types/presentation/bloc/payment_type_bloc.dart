@@ -24,10 +24,14 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
     required this.delete,
   }) : super(const PaymentTypeListState(loading: true)) {
     on<PaymentTypeListRequested>(_onListRequested);
-    on<PaymentTypeNewPressed>(
-        (event, emit) => emit(const PaymentTypeFormState()));
-    on<PaymentTypeEditPressed>(
-        (event, emit) => emit(PaymentTypeFormState(editing: event.paymentType)));
+    on<PaymentTypeNewPressed>((event, emit) {
+      _editing = null;
+      emit(const PaymentTypeFormState());
+    });
+    on<PaymentTypeEditPressed>((event, emit) {
+      _editing = event.paymentType;
+      emit(PaymentTypeFormState(editing: event.paymentType));
+    });
     on<PaymentTypeBackToListPressed>((event, emit) => _reload(emit));
     on<PaymentTypeSaveRequested>(_onSaveRequested);
     on<PaymentTypeDeleteRequested>(_onDeleteRequested);
@@ -38,40 +42,51 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
   final PaymentTypePut put;
   final PaymentTypeDelete delete;
 
-  /// Lista completa (a API não filtra a lista de vinculadas — o filtro da
-  /// tela é LOCAL, a lista é pequena).
-  List<LinkedPaymentType> _all = const [];
+  /// Últimos filtro/página/tamanho aplicados — recarga após salvar/excluir/
+  /// voltar devolve o usuário exatamente onde estava (paginação, critério 6).
+  /// D7: o filtro por descrição é REMOTO (?filter=) — o cache local
+  /// `_all/_filtered` foi aposentado.
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
+
+  /// Vínculo aberto no form (null = novo) — preserva o editing nos
+  /// re-emits de saving/falha.
+  LinkedPaymentType? _editing;
 
   Future<void> _onListRequested(
       PaymentTypeListRequested event, Emitter<PaymentTypeState> emit) async {
     _filter = event.filter;
-    if (event.refresh || _all.isEmpty) {
-      await _reload(emit);
-    } else {
-      emit(PaymentTypeListState(items: _filtered));
-    }
-  }
-
-  List<LinkedPaymentType> get _filtered {
-    if (_filter.isEmpty) return _all;
-    final lower = _filter.toLowerCase();
-    return _all
-        .where((p) => (p.description ?? '').toLowerCase().contains(lower))
-        .toList();
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
+    await _reload(emit);
   }
 
   Future<void> _reload(Emitter<PaymentTypeState> emit) async {
     emit(const PaymentTypeListState(loading: true));
-    final result = await getlist();
-    result.fold(
-      (failure) {
+    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(PaymentTypeActionFailure(failure));
         emit(const PaymentTypeListState());
       },
-      (items) {
-        _all = items;
-        emit(PaymentTypeListState(items: _filtered));
+      (paged) async {
+        // Página esvaziou (ex.: exclusão do último item) → recua para a
+        // última página existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reload(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(PaymentTypeListState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
       },
     );
   }
@@ -79,12 +94,12 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
   Future<void> _onSaveRequested(
       PaymentTypeSaveRequested event, Emitter<PaymentTypeState> emit) async {
     final editing = event.editingId != null;
-    emit(PaymentTypeFormState(
-        editing: editing
-            ? _all.firstWhere((p) => p.id == event.editingId,
-                orElse: () => LinkedPaymentType(id: event.editingId!))
-            : null,
-        saving: true));
+    // O vínculo aberto fica em _editing (setado no EditPressed) — o cache
+    // _all não existe mais (filtro remoto, D7).
+    final current = editing
+        ? (_editing ?? LinkedPaymentType(id: event.editingId!))
+        : null;
+    emit(PaymentTypeFormState(editing: current, saving: true));
 
     if (editing) {
       final result = await put(event.editingId!,
@@ -92,9 +107,9 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
       await result.fold(
         (failure) async {
           emit(PaymentTypeActionFailure(failure));
-          emit(PaymentTypeFormState(
-              editing: _all.firstWhere((p) => p.id == event.editingId,
-                  orElse: () => LinkedPaymentType(id: event.editingId!))));
+          // Mesmo editing → o form continua montado: preserva o que o
+          // usuário digitou e permite ancorar o fields[] no campo.
+          emit(PaymentTypeFormState(editing: current));
         },
         (_) async {
           emit(const PaymentTypeActionSuccess('register.saved'));

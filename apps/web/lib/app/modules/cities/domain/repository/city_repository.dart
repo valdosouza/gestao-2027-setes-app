@@ -5,7 +5,8 @@ import '../entity/city_entity.dart';
 
 /// Contrato do repositório de Cidade (decisão 12: `Either<Failure, T>` via dartz).
 abstract class CityRepository {
-  Future<Either<Failure, List<CityEntity>>> getList(String filter);
+  Future<Either<Failure, PagedResult<CityEntity>>> getList(String filter,
+      {int page, int? pageSize});
   Future<Either<Failure, int>> post(CityEntity city);
   Future<Either<Failure, Unit>> put(CityEntity city);
   Future<Either<Failure, Unit>> delete(int id);

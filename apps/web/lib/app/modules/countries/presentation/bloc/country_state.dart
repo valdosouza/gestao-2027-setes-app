@@ -7,14 +7,32 @@ sealed class CountryState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Modo pesquisa (buildável).
+/// Modo pesquisa (buildável). Paginação D3: além dos itens da página, o
+/// estado carrega filtro aplicado + metadados — a página monta a barra da
+/// fábrica e reenvia [filter] ao navegar.
 class CountryListState extends CountryState {
-  const CountryListState({this.items = const [], this.loading = false});
+  const CountryListState({
+    this.items = const [],
+    this.loading = false,
+    this.filter = '',
+    this.page = 1,
+    this.pageSize,
+    this.total,
+  });
+
   final List<CountryEntity> items;
   final bool loading;
 
+  /// Filtro APLICADO (o mesmo usado na recarga pós-salvar/excluir).
+  final String filter;
+  final int page;
+
+  /// null até a primeira resposta da API (barra só aparece com metadados).
+  final int? pageSize;
+  final int? total;
+
   @override
-  List<Object?> get props => [items, loading];
+  List<Object?> get props => [items, loading, filter, page, pageSize, total];
 }
 
 /// Modo formulário (buildável). [editing] null = inclusão.

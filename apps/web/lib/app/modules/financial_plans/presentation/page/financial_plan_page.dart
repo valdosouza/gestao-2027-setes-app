@@ -7,6 +7,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
+import '../../../../shared/register/register_config_button.dart';
 import '../../domain/entity/financial_plan_entity.dart';
 import '../bloc/financial_plan_bloc.dart';
 
@@ -46,17 +47,6 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
       ..add(const FinancialPlanTreeRequested());
   }
 
-  /// Engrenagem padrão da lista (Framework de Configurações, decisão 11) —
-  /// replicada manualmente porque a tela de árvore não usa a fábrica.
-  void _openConfigs() {
-    Modular.to.navigate('/home/interface-configs/', arguments: {
-      'title': trCatalog('interface-configs', 'Interface Configs',
-          prefix: 'menu.interfaces'),
-      'moduleKey': 'financial-plans',
-      'returnTo': Modular.to.path,
-    });
-  }
-
   /// Monta os nós a partir da lista ordenada por posit_level. Subtítulo =
   /// domínios da conta (Natureza/Tipo/Nível — ajuda a ler a árvore).
   List<SetesTreeNode<FinancialPlanEntity>> _buildNodes(
@@ -94,12 +84,8 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'register.configTooltip'.tr(),
-            onPressed: _openConfigs,
-          ),
+        actions: const [
+          RegisterConfigButton(moduleKey: 'financial-plans'),
         ],
       ),
       // FAB = novo NÍVEL raiz (Delphi: opção "Nível")

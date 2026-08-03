@@ -13,7 +13,8 @@
   "feedback": {
     "errorTitle": "Error",
     "validationTitle": "Attention",
-    "supportRef": "Report code {} to support"
+    "supportRef": "Report code {} to support",
+    "serverField": "Field \"{}\": {}"
   },
   "auth": {
     "email": "E-mail",
@@ -73,6 +74,15 @@
     "tabSocialMedia": "Social Media",
     "listTitle": "List of {}",
     "emptyList": "No records found in our database.",
+    "totalRecords": {
+      "zero": "No records",
+      "one": "{} record",
+      "other": "{} records"
+    },
+    "itemsPerPage": "Items per page",
+    "pageOf": "{} of {}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
     "saved": "Record saved",
     "deleted": "Record deleted",
     "confirmDelete": "Confirm deletion?",

@@ -31,24 +31,47 @@ class InterfaceFieldsBloc
   final InterfaceFieldsGetfields getFields;
   final InterfaceFieldsSavefield saveField;
 
-  /// Último filtro aplicado — recarga ao voltar da lista de campos.
+  /// Últimos filtro/página/tamanho aplicados — recarga ao voltar da lista
+  /// de campos devolve o usuário exatamente onde estava (paginação,
+  /// critério 6).
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
 
   Future<void> _onVitrineRequested(InterfaceFieldsVitrineRequested event,
       Emitter<InterfaceFieldsState> emit) async {
     _filter = event.filter;
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
     await _reloadVitrine(emit);
   }
 
   Future<void> _reloadVitrine(Emitter<InterfaceFieldsState> emit) async {
     emit(const InterfaceFieldsVitrineState(loading: true));
-    final result = await getVitrine(_filter);
-    result.fold(
-      (failure) {
+    final result = await getVitrine(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(InterfaceFieldsActionFailure(failure));
         emit(const InterfaceFieldsVitrineState());
       },
-      (items) => emit(InterfaceFieldsVitrineState(items: items)),
+      (paged) async {
+        // Página esvaziou (filtro/clamp) → recua para a última página
+        // existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reloadVitrine(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(InterfaceFieldsVitrineState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
+      },
     );
   }
 

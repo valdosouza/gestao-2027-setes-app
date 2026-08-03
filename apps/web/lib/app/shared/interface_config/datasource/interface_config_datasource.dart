@@ -9,6 +9,11 @@ abstract class InterfaceConfigDatasource {
   /// Configs da interface pela CHAVE do módulo (ex.: 'customers').
   /// Lista vazia = módulo sem catálogo (tela usa os padrões do código).
   Future<List<InterfaceConfigEntity>> byModule(String moduleKey);
+
+  /// Grava o OVERRIDE do usuário (scope 'U') pela chave do módulo —
+  /// paginação D4: o seletor de itens/página persiste a escolha sem
+  /// abrir o painel. [content] null volta a herdar (institution → default).
+  Future<void> saveUserValue(String moduleKey, String name, String? content);
 }
 
 class InterfaceConfigDatasourceImpl implements InterfaceConfigDatasource {
@@ -23,5 +28,12 @@ class InterfaceConfigDatasourceImpl implements InterfaceConfigDatasource {
     return data
         .map((e) => InterfaceConfigEntity.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<void> saveUserValue(
+      String moduleKey, String name, String? content) async {
+    await client.put('/api/interface-configs/key/$moduleKey/$name',
+        {'content': content, 'target': 'U'});
   }
 }

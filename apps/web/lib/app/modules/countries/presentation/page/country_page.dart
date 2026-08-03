@@ -100,6 +100,16 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
         loading: state.loading,
         avatarBuilder: (c) => '${c.id}',
         rowBuilder: (c) => [c.name ?? ''],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(CountryListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(CountryListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(CountryListRequested(filter)),
         onNew: () => _bloc.add(const CountryNewPressed()),
         onView: (c) => _bloc.add(CountryEditPressed(c)),

@@ -8,9 +8,13 @@ import '../../domain/entity/service_order_entity.dart';
 /// pagamento em /api/payment-types (projeções locais — módulo não importa
 /// módulo); produtos é endpoint próprio (/api/service-orders/products).
 abstract class ServiceOrderDatasource {
-  /// Ordens da institution filtradas por [status] 'A'|'F' e nome do
-  /// cliente ([filter] — o filtro é da API).
-  Future<List<ServiceOrderListItem>> getList(String status, String filter);
+  /// Página das ordens da institution filtradas por [status] 'A'|'F' e
+  /// nome do cliente ([filter] — o filtro é da API). Paginação D3:
+  /// [pageSize] null deixa a API resolver a config page_size do usuário
+  /// (D4).
+  Future<PagedResult<ServiceOrderListItem>> getList(
+      String status, String filter,
+      {int page = 1, int? pageSize});
 
   /// OS completa (itens + totalizer + fatura quando houver).
   Future<ServiceOrderFull> getById(int id);
@@ -56,17 +60,17 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
   final ApiClient client;
 
   @override
-  Future<List<ServiceOrderListItem>> getList(
-      String status, String filter) async {
+  Future<PagedResult<ServiceOrderListItem>> getList(
+      String status, String filter,
+      {int page = 1, int? pageSize}) async {
     final params = <String>[
       'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
     ];
     final json = await client.get('/api/service-orders?${params.join('&')}');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => ServiceOrderListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return PagedResult.fromJson(json, ServiceOrderListItem.fromJson);
   }
 
   @override

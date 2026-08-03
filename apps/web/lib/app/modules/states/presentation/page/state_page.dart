@@ -187,6 +187,16 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
           s.abbreviation ?? '',
           s.countryName ?? '',
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(StateListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(StateListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(StateListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

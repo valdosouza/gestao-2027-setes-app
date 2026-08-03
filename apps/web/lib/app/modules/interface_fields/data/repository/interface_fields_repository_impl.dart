@@ -22,8 +22,10 @@ class InterfaceFieldsRepositoryImpl implements InterfaceFieldsRepository {
   }
 
   @override
-  Future<Either<Failure, List<InterfaceVitrineEntity>>> vitrine(String filter) =>
-      _guard(() => datasource.vitrine(filter));
+  Future<Either<Failure, PagedResult<InterfaceVitrineEntity>>> vitrine(
+          String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.vitrine(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, List<FieldConfigEntity>>> fields(int interfaceId) =>

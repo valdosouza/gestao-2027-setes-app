@@ -1,4 +1,3 @@
-import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +7,8 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
+import '../../../../shared/register/register_config_button.dart';
+import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/settlement_datasource.dart';
 import '../../domain/entity/settlement_entity.dart';
 import '../bloc/settlement_bloc.dart';
@@ -131,8 +132,9 @@ class _SettlementPageState extends State<SettlementPage>
   late final TabController _tabs;
   final _filter = TextEditingController();
 
-  /// Seleção múltipla da aba Em aberto (chaves orderId-parcel).
-  final Set<String> _selected = {};
+  // Seleção múltipla da aba Em aberto: vive no BLOC (chave orderId-parcel
+  // + título inteiro) — sobrevive à navegação de página e à troca de
+  // filtro; só as ações de baixa/estorno limpam.
 
   /// Filtros da aba Movimento (a página guarda a exibição; o bloc, o
   /// valor vigente). null = Caixa (id 0, default).
@@ -179,17 +181,6 @@ class _SettlementPageState extends State<SettlementPage>
     }
   }
 
-  /// Engrenagem padrão da lista (Framework de Configurações, decisão 11) —
-  /// replicada manualmente porque a tela de processo não usa a fábrica.
-  void _openConfigs() {
-    Modular.to.navigate('/home/interface-configs/', arguments: {
-      'title': trCatalog('interface-configs', 'Interface Configs',
-          prefix: 'menu.interfaces'),
-      'moduleKey': 'settlements',
-      'returnTo': Modular.to.path,
-    });
-  }
-
   void _searchList() {
     if (_tabs.index == 0) {
       _bloc.add(SettlementBillsRequested(filter: _filter.text.trim()));
@@ -209,12 +200,13 @@ class _SettlementPageState extends State<SettlementPage>
           _SettleDialog(bills: selectedBills, datasource: _datasource),
     );
     if (input != null) {
-      setState(() => _selected.clear());
+      // A seleção é limpa pelo BLOC na ação de baixa.
       _bloc.add(SettlementSettleRequested(input));
     }
   }
 
-  Widget _buildBillTile(SettlementBill bill, String todayIso) {
+  Widget _buildBillTile(
+      SettlementBill bill, String todayIso, Set<String> selectedKeys) {
     final theme = Theme.of(context);
     final overdue = bill.isOverdue(todayIso);
     final cells = [
@@ -229,8 +221,8 @@ class _SettlementPageState extends State<SettlementPage>
     ].where((cell) => cell.isNotEmpty);
     return SetesListTile(
       leading: Checkbox(
-        value: _selected.contains(bill.key),
-        onChanged: (_) => _toggle(bill.key),
+        value: selectedKeys.contains(bill.key),
+        onChanged: (_) => _toggle(bill),
       ),
       title: SetesText(bill.entityName ?? ''),
       subtitle: SetesText(
@@ -238,23 +230,20 @@ class _SettlementPageState extends State<SettlementPage>
         // Vencido: destaque discreto com a cor de erro do tema.
         style: overdue ? TextStyle(color: theme.colorScheme.error) : null,
       ),
-      onTap: () => _toggle(bill.key),
+      onTap: () => _toggle(bill),
     );
   }
 
-  void _toggle(String key) => setState(() {
-        if (!_selected.remove(key)) _selected.add(key);
-      });
+  /// Marca/desmarca no BLOC — a seleção sobrevive à troca de página/filtro.
+  void _toggle(SettlementBill bill) => _bloc.add(SettlementBillToggled(bill));
 
   Widget _buildBills(SettlementBillsState state) {
     if (state.loading) return const SetesCircularProgressIndicator();
-    // Poda chaves que saíram da carteira (baixa total some da aba).
-    final validKeys = {for (final bill in state.items) bill.key};
-    _selected.removeWhere((key) => !validKeys.contains(key));
-    final selectedBills =
-        [for (final bill in state.items) if (_selected.contains(bill.key)) bill];
-    final total =
-        selectedBills.fold<double>(0, (sum, bill) => sum + bill.balance);
+    // Seleção do BLOC: chaves para as checkboxes, títulos inteiros para a
+    // soma e o dialog — corretos mesmo com seleção fora da página visível.
+    final selectedKeys = state.selectedKeys;
+    final selectedBills = state.selected;
+    final total = state.selectedTotal;
     final todayIso = _todayIso();
     return Column(
       children: [
@@ -264,10 +253,26 @@ class _SettlementPageState extends State<SettlementPage>
               : ListView.separated(
                   itemCount: state.items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) =>
-                      _buildBillTile(state.items[index], todayIso),
+                  itemBuilder: (context, index) => _buildBillTile(
+                      state.items[index], todayIso, selectedKeys),
                 ),
         ),
+        // Barra de paginação compartilhada (Onda 4) — abaixo da lista,
+        // acima da barra de seleção/baixa; só com metadados da API.
+        if (state.pageSize != null && state.total != null) ...[
+          const Divider(height: 1),
+          const SizedBox(height: 4),
+          RegisterPagingBar(
+            page: state.page,
+            pageSize: state.pageSize!,
+            total: state.total!,
+            configModuleKey: 'settlements',
+            onPageChanged: (page) =>
+                _bloc.add(SettlementBillsRequested(page: page)),
+            onPageSizeChanged: (size) =>
+                _bloc.add(SettlementBillsRequested(pageSize: size)),
+          ),
+        ],
         const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.only(top: 12),
@@ -382,13 +387,34 @@ class _SettlementPageState extends State<SettlementPage>
 
   Widget _buildSettled(SettlementSettledState state) {
     if (state.loading) return const SetesCircularProgressIndicator();
-    if (state.items.isEmpty) {
-      return Center(child: SetesText('register.emptyList'.tr()));
-    }
-    return ListView.separated(
-      itemCount: state.items.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildSettledTile(state.items[index]),
+    return Column(
+      children: [
+        Expanded(
+          child: state.items.isEmpty
+              ? Center(child: SetesText('register.emptyList'.tr()))
+              : ListView.separated(
+                  itemCount: state.items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) =>
+                      _buildSettledTile(state.items[index]),
+                ),
+        ),
+        // Barra de paginação compartilhada (Onda 4) no rodapé da lista.
+        if (state.pageSize != null && state.total != null) ...[
+          const Divider(height: 1),
+          const SizedBox(height: 4),
+          RegisterPagingBar(
+            page: state.page,
+            pageSize: state.pageSize!,
+            total: state.total!,
+            configModuleKey: 'settlements',
+            onPageChanged: (page) =>
+                _bloc.add(SettlementSettledRequested(page: page)),
+            onPageSizeChanged: (size) =>
+                _bloc.add(SettlementSettledRequested(pageSize: size)),
+          ),
+        ],
+      ],
     );
   }
 
@@ -577,12 +603,8 @@ class _SettlementPageState extends State<SettlementPage>
           appBar: AppBar(
             automaticallyImplyLeading: false,
             title: Text('register.listTitle'.tr(args: [widget.title])),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'register.configTooltip'.tr(),
-                onPressed: _openConfigs,
-              ),
+            actions: const [
+              RegisterConfigButton(moduleKey: 'settlements'),
             ],
           ),
           body: Column(

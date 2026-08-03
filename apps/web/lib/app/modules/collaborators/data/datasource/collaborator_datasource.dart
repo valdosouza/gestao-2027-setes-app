@@ -7,7 +7,10 @@ import '../../domain/entity/object_collaborator.dart';
 /// institution vem do JWT). POST devolve { id, reused } — reused=true quando
 /// a API reaproveitou uma entity existente pelo CPF/CNPJ (decisões 1 e 9).
 abstract class CollaboratorDatasource {
-  Future<List<CollaboratorListItem>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<CollaboratorListItem>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Objeto COMPLETO (entity + fiscal + 3 listas + collaborator).
   Future<ObjectCollaborator> get(int id);
@@ -22,14 +25,15 @@ class CollaboratorDatasourceImpl implements CollaboratorDatasource {
   final ApiClient client;
 
   @override
-  Future<List<CollaboratorListItem>> getList(String filter) async {
-    final query =
-        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/collaborators$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => CollaboratorListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<CollaboratorListItem>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/collaborators?${params.join('&')}');
+    return PagedResult.fromJson(json, CollaboratorListItem.fromJson);
   }
 
   @override

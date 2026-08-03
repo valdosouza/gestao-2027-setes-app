@@ -8,9 +8,10 @@ import '../../domain/entity/contract_entity.dart';
 /// local — módulo não importa módulo); o de produtos é endpoint próprio
 /// do módulo (/api/contracts/products — só ativos).
 abstract class ContractDatasource {
-  /// Contratos da institution (a API limita a 200 — o filtro da tela é
-  /// LOCAL, molde payment_types).
-  Future<List<ContractListItem>> getList();
+  /// Página da lista (paginação D3/D7 — filtro REMOTO por nome do cliente):
+  /// [pageSize] null deixa a API resolver a config page_size do usuário (D4).
+  Future<PagedResult<ContractListItem>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Contrato completo (itens + paymentDay) para edição.
   Future<ContractFull> getById(int id);
@@ -40,12 +41,15 @@ class ContractDatasourceImpl implements ContractDatasource {
       filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
 
   @override
-  Future<List<ContractListItem>> getList() async {
-    final json = await client.get('/api/contracts');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => ContractListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<ContractListItem>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/contracts?${params.join('&')}');
+    return PagedResult.fromJson(json, ContractListItem.fromJson);
   }
 
   @override
@@ -56,7 +60,13 @@ class ContractDatasourceImpl implements ContractDatasource {
 
   @override
   Future<List<ContractCustomerLookup>> customers(String filter) async {
-    final json = await client.get('/api/customers${_query(filter)}');
+    // Lookup NÃO pagina (D6), mas /api/customers agora devolve o envelope
+    // paginado — pageSize=100 mantém o alcance da lista de apoio.
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'pageSize=100',
+    ];
+    final json = await client.get('/api/customers?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ContractCustomerLookup.fromJson(e as Map<String, dynamic>))

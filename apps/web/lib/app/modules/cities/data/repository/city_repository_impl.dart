@@ -21,8 +21,9 @@ class CityRepositoryImpl implements CityRepository {
   }
 
   @override
-  Future<Either<Failure, List<CityEntity>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<CityEntity>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, int>> post(CityEntity city) =>

@@ -21,8 +21,10 @@ class BankAccountRepositoryImpl implements BankAccountRepository {
   }
 
   @override
-  Future<Either<Failure, List<BankAccountListItem>>> getList() =>
-      _guard(() => datasource.getList());
+  Future<Either<Failure, PagedResult<BankAccountListItem>>> getList(
+          String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, BankAccountFull>> getById(int id) =>

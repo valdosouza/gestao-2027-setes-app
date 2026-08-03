@@ -5,7 +5,10 @@ import '../../domain/entity/country_entity.dart';
 /// Datasource remoto de País: /api/countries na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class CountryDatasource {
-  Future<List<CountryEntity>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<CountryEntity>> getList(String filter,
+      {int page = 1, int? pageSize});
   Future<int> post(CountryEntity country);
   Future<void> put(CountryEntity country);
   Future<void> delete(int id);
@@ -17,13 +20,15 @@ class CountryDatasourceImpl implements CountryDatasource {
   final ApiClient client;
 
   @override
-  Future<List<CountryEntity>> getList(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/countries$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => CountryEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<CountryEntity>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/countries?${params.join('&')}');
+    return PagedResult.fromJson(json, CountryEntity.fromJson);
   }
 
   /// O id é o código BACEN informado pelo usuário — a API devolve 409 se o

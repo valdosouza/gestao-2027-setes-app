@@ -16,6 +16,10 @@ Future<void> main() async {
     EasyLocalization(
       supportedLocales: const [Locale('pt'), Locale('en')],
       path: 'assets/translations',
+      // Produto nasce em pt: sem startLocale o easy_localization segue o
+      // idioma do BROWSER (en vira app em inglês). A troca por usuário é a
+      // sincronização com /api/core/preferences (decisão 14 — pendente).
+      startLocale: const Locale('pt'),
       fallbackLocale: const Locale('pt'),
       child: ModularApp(module: AppModule(), child: const AppWidget()),
     ),

@@ -5,7 +5,10 @@ import '../../domain/entity/privilege_entity.dart';
 /// Datasource remoto de Privilégio: /api/privileges na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class PrivilegeDatasource {
-  Future<List<PrivilegeEntity>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<PrivilegeEntity>> getList(String filter,
+      {int page = 1, int? pageSize});
   Future<int> post(PrivilegeEntity privilege);
   Future<void> put(PrivilegeEntity privilege);
   Future<void> delete(int id);
@@ -17,13 +20,15 @@ class PrivilegeDatasourceImpl implements PrivilegeDatasource {
   final ApiClient client;
 
   @override
-  Future<List<PrivilegeEntity>> getList(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/privileges$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => PrivilegeEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<PrivilegeEntity>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/privileges?${params.join('&')}');
+    return PagedResult.fromJson(json, PrivilegeEntity.fromJson);
   }
 
   /// O id é gerado pelo backend (MAX+1) — o body não envia id.

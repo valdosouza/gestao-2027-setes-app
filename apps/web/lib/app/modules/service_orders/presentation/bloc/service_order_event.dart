@@ -9,9 +9,17 @@ sealed class ServiceOrderEvent extends Equatable {
 
 /// Carrega a lista da aba [status] ('A' abertas | 'F' faturadas) com o
 /// [filter] de nome de cliente — a consulta é SEMPRE da API (tela de
-/// processo: o status muda no servidor).
+/// processo: o status muda no servidor). Paginação D3: [page] navega
+/// (troca de aba/filtro novo SEMPRE volta à página 1 — o default);
+/// [pageSize] null mantém o tamanho corrente (1º load = config page_size
+/// resolvida pela API — D4).
 class ServiceOrderListRequested extends ServiceOrderEvent {
-  const ServiceOrderListRequested({this.status, this.filter});
+  const ServiceOrderListRequested({
+    this.status,
+    this.filter,
+    this.page = 1,
+    this.pageSize,
+  });
 
   /// null = mantém a aba atual do bloc.
   final String? status;
@@ -19,8 +27,11 @@ class ServiceOrderListRequested extends ServiceOrderEvent {
   /// null = mantém o filtro atual do bloc.
   final String? filter;
 
+  final int page;
+  final int? pageSize;
+
   @override
-  List<Object?> get props => [status, filter];
+  List<Object?> get props => [status, filter, page, pageSize];
 }
 
 /// FAB "Abrir OS": POST com o cliente escolhido no lookup — 409 (cliente

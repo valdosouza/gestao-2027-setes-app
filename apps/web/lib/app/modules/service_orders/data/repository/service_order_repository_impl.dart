@@ -21,9 +21,11 @@ class ServiceOrderRepositoryImpl implements ServiceOrderRepository {
   }
 
   @override
-  Future<Either<Failure, List<ServiceOrderListItem>>> getList(
-          String status, String filter) =>
-      _guard(() => datasource.getList(status, filter));
+  Future<Either<Failure, PagedResult<ServiceOrderListItem>>> getList(
+          String status, String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() =>
+          datasource.getList(status, filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, ServiceOrderFull>> getById(int id) =>

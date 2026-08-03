@@ -21,8 +21,9 @@ class CfopRepositoryImpl implements CfopRepository {
   }
 
   @override
-  Future<Either<Failure, List<CfopEntity>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<CfopEntity>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, Unit>> post(CfopEntity cfop) => _guard(() async {

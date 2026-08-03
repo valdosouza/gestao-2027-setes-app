@@ -7,15 +7,20 @@ import '../../domain/entity/settlement_entity.dart';
 /// /api/bank-accounts (projeção local — módulo não importa módulo); a
 /// opção Caixa (id 0) é oferecida pela TELA, fixa na frente da lista.
 abstract class SettlementDatasource {
-  /// Carteira de títulos por [status] 'open'|'settled', [kind] opcional
-  /// ('RA'|'RM'|'PA'|'PM') e [filter] de entidade/nº do título.
-  Future<List<SettlementBill>> bills(String status, String kind, String filter);
+  /// Página da carteira de títulos por [status] 'open'|'settled', [kind]
+  /// opcional ('RA'|'RM'|'PA'|'PM') e [filter] de entidade/nº do título.
+  /// Paginação D3: [pageSize] null deixa a API resolver a config
+  /// page_size do usuário (D4).
+  Future<PagedResult<SettlementBill>> bills(
+      String status, String kind, String filter,
+      {int page = 1, int? pageSize});
 
   /// Baixa em LOTE: N títulos → 1 settled_code → 1 movimento (N:1).
   Future<SettlementBatchResult> settle(SettlementBatchInput input);
 
-  /// Baixas registradas (linha por EVENTO) para a aba Baixados.
-  Future<List<SettlementSettled>> settled(String filter);
+  /// Página das baixas registradas (linha por EVENTO) — aba Baixados.
+  Future<PagedResult<SettlementSettled>> settled(String filter,
+      {int page = 1, int? pageSize});
 
   /// Estorno IMUTÁVEL (lançamento inverso) — 409 = baixa não vigente.
   Future<SettlementReversalResult> reversal(
@@ -35,19 +40,19 @@ class SettlementDatasourceImpl implements SettlementDatasource {
   final ApiClient client;
 
   @override
-  Future<List<SettlementBill>> bills(
-      String status, String kind, String filter) async {
+  Future<PagedResult<SettlementBill>> bills(
+      String status, String kind, String filter,
+      {int page = 1, int? pageSize}) async {
     final params = <String>[
       'status=${Uri.encodeComponent(status)}',
       if (kind.isNotEmpty) 'kind=${Uri.encodeComponent(kind)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
     ];
     final json =
         await client.get('/api/settlements/bills?${params.join('&')}');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => SettlementBill.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return PagedResult.fromJson(json, SettlementBill.fromJson);
   }
 
   @override
@@ -58,14 +63,16 @@ class SettlementDatasourceImpl implements SettlementDatasource {
   }
 
   @override
-  Future<List<SettlementSettled>> settled(String filter) async {
-    final query =
-        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/settlements/settled$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => SettlementSettled.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<SettlementSettled>> settled(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = <String>[
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json =
+        await client.get('/api/settlements/settled?${params.join('&')}');
+    return PagedResult.fromJson(json, SettlementSettled.fromJson);
   }
 
   @override

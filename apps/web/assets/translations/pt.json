@@ -13,7 +13,8 @@
   "feedback": {
     "errorTitle": "Erro",
     "validationTitle": "Atenção",
-    "supportRef": "Informe o código {} ao suporte"
+    "supportRef": "Informe o código {} ao suporte",
+    "serverField": "Campo \"{}\": {}"
   },
   "auth": {
     "email": "E-mail",
@@ -73,6 +74,15 @@
     "tabSocialMedia": "Redes Sociais",
     "listTitle": "Lista de {}",
     "emptyList": "Não encontramos nenhum registro em nossa base.",
+    "totalRecords": {
+      "zero": "Nenhum registro",
+      "one": "{} registro",
+      "other": "{} registros"
+    },
+    "itemsPerPage": "Itens por página",
+    "pageOf": "{} de {}",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
     "saved": "Registro salvo",
     "deleted": "Registro excluído",
     "confirmDelete": "Confirma a exclusão?",

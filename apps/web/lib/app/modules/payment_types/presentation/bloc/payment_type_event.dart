@@ -7,14 +7,18 @@ sealed class PaymentTypeEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Carrega/filtra a lista ([refresh] força nova consulta; o filtro é local).
+/// Carrega/filtra a lista (também usado na abertura da página). O filtro
+/// por descrição é REMOTO (?filter= — D7). Paginação D3: [page] navega
+/// (filtro novo SEMPRE volta à página 1 na tela); [pageSize] null mantém
+/// o tamanho corrente (1º load = config page_size da API — D4).
 class PaymentTypeListRequested extends PaymentTypeEvent {
-  const PaymentTypeListRequested(this.filter, {this.refresh = false});
+  const PaymentTypeListRequested(this.filter, {this.page = 1, this.pageSize});
   final String filter;
-  final bool refresh;
+  final int page;
+  final int? pageSize;
 
   @override
-  List<Object?> get props => [filter, refresh];
+  List<Object?> get props => [filter, page, pageSize];
 }
 
 class PaymentTypeNewPressed extends PaymentTypeEvent {

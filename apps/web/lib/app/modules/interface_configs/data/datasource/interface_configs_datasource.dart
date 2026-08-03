@@ -8,7 +8,10 @@ import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 /// edita o valor da institution; usuário comum os próprios overrides
 /// scope 'U' (enforcement na API).
 abstract class InterfaceConfigsDatasource {
-  Future<List<InterfaceVitrineEntity>> vitrine(String filter);
+  /// Página da vitrine (paginação D3 — a API paginou a vitrine nesta onda):
+  /// [pageSize] null deixa a API resolver a config page_size do usuário (D4).
+  Future<PagedResult<InterfaceVitrineEntity>> vitrine(String filter,
+      {int page = 1, int? pageSize});
   Future<List<InterfaceConfigEntity>> configs(int interfaceId);
 
   /// Salva o valor de UMA configuração. [content] null = volta a herdar
@@ -28,13 +31,15 @@ class InterfaceConfigsDatasourceImpl implements InterfaceConfigsDatasource {
   final ApiClient client;
 
   @override
-  Future<List<InterfaceVitrineEntity>> vitrine(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/interface-configs$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => InterfaceVitrineEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<InterfaceVitrineEntity>> vitrine(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/interface-configs?${params.join('&')}');
+    return PagedResult.fromJson(json, InterfaceVitrineEntity.fromJson);
   }
 
   @override

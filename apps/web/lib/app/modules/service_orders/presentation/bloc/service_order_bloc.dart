@@ -58,6 +58,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   String _status = 'A';
   String _filter = '';
 
+  /// Última página/tamanho aplicados — recarga após operação devolve o
+  /// usuário exatamente onde estava (paginação, critério 6).
+  int _page = 1;
+  int? _pageSize;
+
   /// OS aberta no detalhe — preserva o conteúdo nos re-emits de
   /// saving/falha sem nova consulta.
   ServiceOrderFull? _detail;
@@ -65,13 +70,32 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _reloadList(Emitter<ServiceOrderState> emit) async {
     _detail = null;
     emit(ServiceOrderListState(loading: true, status: _status));
-    final result = await getlist(_status, _filter);
-    result.fold(
-      (failure) {
+    final result = await getlist(_status, _filter,
+        page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(ServiceOrderActionFailure(failure));
         emit(ServiceOrderListState(status: _status));
       },
-      (items) => emit(ServiceOrderListState(items: items, status: _status)),
+      (paged) async {
+        // Página esvaziou (ex.: faturamento tirou o último item da aba) →
+        // recua para a última página existente em vez de lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reloadList(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(ServiceOrderListState(
+          items: paged.items,
+          status: _status,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
+      },
     );
   }
 
@@ -95,6 +119,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       ServiceOrderListRequested event, Emitter<ServiceOrderState> emit) async {
     _status = event.status ?? _status;
     _filter = event.filter ?? _filter;
+    // Troca de aba/filtro SEMPRE volta à página 1 (default do evento);
+    // só a navegação da barra manda outra página.
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
     await _reloadList(emit);
   }
 
@@ -215,8 +243,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           'forms.serviceOrder.invoiceGenerated',
           args: [invoiceResult.invoiceNumber],
         ));
-        // Fluxo do processo: a OS faturada aparece na aba Faturadas.
+        // Fluxo do processo: a OS faturada aparece na aba Faturadas —
+        // troca de aba SEMPRE volta à página 1.
         _status = 'F';
+        _page = 1;
         await _reloadList(emit);
       },
     );

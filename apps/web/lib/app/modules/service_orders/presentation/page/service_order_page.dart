@@ -1,4 +1,3 @@
-import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +7,8 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
+import '../../../../shared/register/register_config_button.dart';
+import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/service_order_datasource.dart';
 import '../../domain/entity/service_order_entity.dart';
 import '../bloc/service_order_bloc.dart';
@@ -65,17 +66,6 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     _tabs.dispose();
     _filter.dispose();
     super.dispose();
-  }
-
-  /// Engrenagem padrão da lista (Framework de Configurações, decisão 11) —
-  /// replicada manualmente porque a tela de processo não usa a fábrica.
-  void _openConfigs() {
-    Modular.to.navigate('/home/interface-configs/', arguments: {
-      'title': trCatalog('interface-configs', 'Interface Configs',
-          prefix: 'menu.interfaces'),
-      'moduleKey': 'service-orders',
-      'returnTo': Modular.to.path,
-    });
   }
 
   // -------------------------------------------------------------------
@@ -181,11 +171,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             tooltip: 'forms.serviceOrder.monthlyRun'.tr(),
             onPressed: _openMonthlyRun,
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'register.configTooltip'.tr(),
-            onPressed: _openConfigs,
-          ),
+          const RegisterConfigButton(moduleKey: 'service-orders'),
         ],
       ),
       // FAB = Abrir OS (lookup de cliente + POST — padrão Icons.add)
@@ -221,6 +207,22 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                   ),
                   const SizedBox(height: 16),
                   Expanded(child: _buildListBody(state)),
+                  // Barra de paginação compartilhada (Onda 4) no rodapé —
+                  // só aparece com os metadados da API no estado.
+                  if (state.pageSize != null && state.total != null) ...[
+                    const Divider(height: 1),
+                    const SizedBox(height: 4),
+                    RegisterPagingBar(
+                      page: state.page,
+                      pageSize: state.pageSize!,
+                      total: state.total!,
+                      configModuleKey: 'service-orders',
+                      onPageChanged: (page) => _bloc
+                          .add(ServiceOrderListRequested(page: page)),
+                      onPageSizeChanged: (size) => _bloc
+                          .add(ServiceOrderListRequested(pageSize: size)),
+                    ),
+                  ],
                 ],
               ),
             ),

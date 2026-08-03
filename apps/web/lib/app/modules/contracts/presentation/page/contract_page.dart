@@ -53,7 +53,7 @@ class _ContractPageState extends State<ContractPage> with FieldConfigLoader {
   void initState() {
     super.initState();
     _bloc = Modular.get<ContractBloc>()
-      ..add(const ContractListRequested('', refresh: true));
+      ..add(const ContractListRequested(''));
     _datasource = Modular.get<ContractDatasource>();
     loadFieldConfig('contracts'); // engine de campos configuráveis (decisão 7)
   }
@@ -80,6 +80,16 @@ class _ContractPageState extends State<ContractPage> with FieldConfigLoader {
               ? 'forms.contract.activeRow'.tr()
               : 'forms.contract.inactiveRow'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(ContractListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(ContractListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(ContractListRequested(filter)),
         onNew: () => _bloc.add(const ContractNewPressed()),
         onView: (c) => _bloc.add(ContractEditPressed(c.id)),

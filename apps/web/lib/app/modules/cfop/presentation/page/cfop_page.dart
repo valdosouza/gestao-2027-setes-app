@@ -229,6 +229,16 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
           if ((c.concise ?? '').isNotEmpty) c.concise!,
           c.way == 'E' ? 'forms.cfop.wayIn'.tr() : 'forms.cfop.wayOut'.tr(),
         ],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(CfopListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(CfopListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(CfopListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

@@ -7,26 +7,64 @@ sealed class SettlementState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Aba EM ABERTO (buildável) — carteira de títulos com saldo derivado.
+/// Aba EM ABERTO (buildável) — PÁGINA da carteira de títulos com saldo
+/// derivado + a seleção múltipla VIVA no bloc: [selected] carrega os
+/// títulos INTEIROS marcados em qualquer página (a soma e o dialog de
+/// baixa não dependem da página visível). Paginação D3: metadados para a
+/// RegisterPagingBar do rodapé (null até a primeira resposta da API).
 class SettlementBillsState extends SettlementState {
-  const SettlementBillsState({this.items = const [], this.loading = false});
+  const SettlementBillsState({
+    this.items = const [],
+    this.loading = false,
+    this.page = 1,
+    this.pageSize,
+    this.total,
+    this.selected = const [],
+  });
 
   final List<SettlementBill> items;
   final bool loading;
+  final int page;
+
+  /// null até a primeira resposta da API (barra só aparece com metadados).
+  final int? pageSize;
+  final int? total;
+
+  /// Títulos selecionados (TODAS as páginas) — só baixa/estorno limpam.
+  final List<SettlementBill> selected;
+
+  /// Chaves selecionadas (orderId-parcel) para as checkboxes da página.
+  Set<String> get selectedKeys => {for (final bill in selected) bill.key};
+
+  /// Soma dos saldos selecionados — correta mesmo fora da página visível
+  /// (os valores viajam junto das chaves na seleção).
+  double get selectedTotal =>
+      selected.fold<double>(0, (sum, bill) => sum + bill.balance);
 
   @override
-  List<Object?> get props => [items, loading];
+  List<Object?> get props => [items, loading, page, pageSize, total, selected];
 }
 
-/// Aba BAIXADOS (buildável) — linha por EVENTO da parcela.
+/// Aba BAIXADOS (buildável) — PÁGINA das linhas por EVENTO da parcela.
 class SettlementSettledState extends SettlementState {
-  const SettlementSettledState({this.items = const [], this.loading = false});
+  const SettlementSettledState({
+    this.items = const [],
+    this.loading = false,
+    this.page = 1,
+    this.pageSize,
+    this.total,
+  });
 
   final List<SettlementSettled> items;
   final bool loading;
+  final int page;
+
+  /// null até a primeira resposta da API (barra só aparece com metadados).
+  final int? pageSize;
+  final int? total;
 
   @override
-  List<Object?> get props => [items, loading];
+  List<Object?> get props => [items, loading, page, pageSize, total];
 }
 
 /// Aba MOVIMENTO (buildável) — extrato com totais prontos da API.

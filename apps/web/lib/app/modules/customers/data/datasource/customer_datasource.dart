@@ -8,7 +8,10 @@ import '../../domain/entity/object_customer.dart';
 /// Fase 3 Entidade Única: o POST devolve { id, reused } — reused=true quando
 /// a API reaproveitou uma entity existente pelo CPF/CNPJ (decisões 1 e 9).
 abstract class CustomerDatasource {
-  Future<List<CustomerListItem>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<CustomerListItem>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Objeto COMPLETO (entity + fiscal + 3 listas + customer).
   Future<ObjectCustomer> get(int id);
@@ -23,14 +26,15 @@ class CustomerDatasourceImpl implements CustomerDatasource {
   final ApiClient client;
 
   @override
-  Future<List<CustomerListItem>> getList(String filter) async {
-    final query =
-        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/customers$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => CustomerListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<CustomerListItem>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/customers?${params.join('&')}');
+    return PagedResult.fromJson(json, CustomerListItem.fromJson);
   }
 
   @override

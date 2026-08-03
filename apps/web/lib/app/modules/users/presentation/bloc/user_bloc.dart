@@ -39,24 +39,46 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   final UserPut put;
   final UserDelete delete;
 
-  /// Último filtro aplicado — recarga após salvar/excluir/voltar.
+  /// Últimos filtro/página/tamanho aplicados — recarga após salvar/excluir/
+  /// voltar devolve o usuário exatamente onde estava (paginação, critério 6).
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
 
   Future<void> _onListRequested(
       UserListRequested event, Emitter<UserState> emit) async {
     _filter = event.filter;
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<UserState> emit) async {
     emit(const UserListState(loading: true));
-    final result = await getlist(_filter);
-    result.fold(
-      (failure) {
+    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(UserActionFailure(failure));
         emit(const UserListState());
       },
-      (items) => emit(UserListState(items: items)),
+      (paged) async {
+        // Página esvaziou (ex.: exclusão do último item) → recua para a
+        // última página existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reload(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(UserListState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
+      },
     );
   }
 

@@ -1,8 +1,9 @@
-import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
+
+import 'register_config_button.dart';
+import 'register_paging_bar.dart';
 
 /// Fábrica de cadastros (decisão 20 — composição + genéricos, não herança):
 /// tela de pesquisa no contrato visual do customer_register
@@ -29,19 +30,29 @@ class RegisterSearchPage<T> extends StatefulWidget {
     this.actions,
     this.banner,
     this.configModuleKey,
+    this.page,
+    this.pageSize,
+    this.total,
+    this.onPageChanged,
+    this.onPageSizeChanged,
     super.key,
   });
+
+  /// Opções do seletor de itens por página (paginação D5) — a barra em si
+  /// vive no widget compartilhado [RegisterPagingBar] (Onda 4).
+  static const pageSizeOptions = RegisterPagingBar.pageSizeOptions;
 
   final String title;
 
   /// Ações extras do AppBar da lista. null = sem ações.
   final List<Widget>? actions;
 
-  /// PADRÃO do produto (Framework de Configurações, decisão 11): toda lista
-  /// de cadastro informa a CHAVE do seu módulo e ganha a engrenagem no
-  /// AppBar — mesmo sem configurações no catálogo (o painel mostra "não há
-  /// configurações"). Abre /home/interface-configs/ já filtrado na
-  /// interface; o voltar do painel retorna para ESTA tela (returnTo).
+  /// PADRÃO do produto (Framework de Configurações, decisão 11 — ajuste
+  /// 2026-08-03): toda lista de cadastro informa a CHAVE do seu módulo; a
+  /// engrenagem ([RegisterConfigButton]) só APARECE se o módulo tem
+  /// configurações no catálogo — ícone visível = existe algo a configurar.
+  /// Abre /home/interface-configs/ já filtrado na interface; o voltar do
+  /// painel retorna para ESTA tela (returnTo).
   final String? configModuleKey;
 
   /// Widget informativo entre o filtro e a lista (ex.: aviso de filtro de
@@ -72,6 +83,25 @@ class RegisterSearchPage<T> extends StatefulWidget {
   /// e chama o callback ao clicar. null = sem botão de novo.
   final VoidCallback? onNew;
 
+  /// Paginação (prompt_paginacao_telas_pesquisa.md, D1/D9): com [page],
+  /// [pageSize], [total] e [onPageChanged] preenchidos a lista ganha a
+  /// barra « anterior | página X de Y | próxima » + seletor de itens por
+  /// página no rodapé. Todos null = comportamento antigo (telas ainda não
+  /// migradas convivem com a fábrica nova).
+  final int? page;
+  final int? pageSize;
+
+  /// Total de registros do filtro corrente (D2) — exibido na barra.
+  final int? total;
+
+  /// Usuário navegou para outra página (1-based).
+  final void Function(int page)? onPageChanged;
+
+  /// Usuário trocou o tamanho da página. A fábrica PERSISTE a escolha como
+  /// override do usuário (config page_size, D4) quando [configModuleKey]
+  /// está presente — o callback só precisa recarregar a lista na página 1.
+  final void Function(int pageSize)? onPageSizeChanged;
+
   @override
   State<RegisterSearchPage<T>> createState() => _RegisterSearchPageState<T>();
 }
@@ -81,22 +111,17 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
 
   void _search() => widget.onFilterChanged(_filter.text.trim());
 
-  /// Engrenagem padrão (decisão 11): painel filtrado no módulo; o retorno
-  /// SEM arguments faz o módulo chamador recair no título trCatalog padrão.
-  void _openConfigs() {
-    Modular.to.navigate('/home/interface-configs/', arguments: {
-      'title': trCatalog('interface-configs', 'Interface Configs',
-          prefix: 'menu.interfaces'),
-      'moduleKey': widget.configModuleKey,
-      'returnTo': Modular.to.path,
-    });
-  }
-
   @override
   void dispose() {
     _filter.dispose();
     super.dispose();
   }
+
+  bool get _paged =>
+      widget.page != null &&
+      widget.pageSize != null &&
+      widget.total != null &&
+      widget.onPageChanged != null;
 
   Widget _buildList() {
     if (widget.loading) return const SetesCircularProgressIndicator();
@@ -130,11 +155,7 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
           actions: [
             ...?widget.actions,
             if (widget.configModuleKey != null)
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'register.configTooltip'.tr(),
-                onPressed: _openConfigs,
-              ),
+              RegisterConfigButton(moduleKey: widget.configModuleKey!),
           ],
         ),
         floatingActionButton: widget.onNew != null
@@ -162,6 +183,18 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
               ],
               const SizedBox(height: 16),
               Expanded(child: _buildList()),
+              if (_paged) ...[
+                const Divider(height: 1),
+                const SizedBox(height: 4),
+                RegisterPagingBar(
+                  page: widget.page!,
+                  pageSize: widget.pageSize!,
+                  total: widget.total!,
+                  configModuleKey: widget.configModuleKey,
+                  onPageChanged: widget.onPageChanged!,
+                  onPageSizeChanged: widget.onPageSizeChanged,
+                ),
+              ],
             ],
           ),
         ),

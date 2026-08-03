@@ -8,12 +8,17 @@ sealed class PrivilegeEvent extends Equatable {
 }
 
 /// Carrega/filtra a lista (também usado na abertura da página).
+/// Paginação D3: [page] navega (filtro novo SEMPRE volta à página 1 na
+/// tela); [pageSize] null mantém o tamanho corrente (1º load = config
+/// page_size resolvida pela API — D4).
 class PrivilegeListRequested extends PrivilegeEvent {
-  const PrivilegeListRequested(this.filter);
+  const PrivilegeListRequested(this.filter, {this.page = 1, this.pageSize});
   final String filter;
+  final int page;
+  final int? pageSize;
 
   @override
-  List<Object?> get props => [filter];
+  List<Object?> get props => [filter, page, pageSize];
 }
 
 class PrivilegeNewPressed extends PrivilegeEvent {

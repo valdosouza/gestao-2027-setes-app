@@ -21,8 +21,9 @@ class StateRepositoryImpl implements StateRepository {
   }
 
   @override
-  Future<Either<Failure, List<StateEntity>>> getList(String filter) =>
-      _guard(() => datasource.getList(filter));
+  Future<Either<Failure, PagedResult<StateEntity>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, int>> post(StateEntity state) =>

@@ -5,7 +5,10 @@ import '../../domain/entity/cfop_entity.dart';
 /// Datasource remoto de CFOP: /api/cfop na setes-api.
 /// Acesso exclusivo para role='super' (guard isSuper() no backend).
 abstract class CfopDatasource {
-  Future<List<CfopEntity>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<CfopEntity>> getList(String filter,
+      {int page = 1, int? pageSize});
   Future<void> post(CfopEntity cfop);
   Future<void> put(CfopEntity cfop);
   Future<void> delete(String id);
@@ -17,13 +20,15 @@ class CfopDatasourceImpl implements CfopDatasource {
   final ApiClient client;
 
   @override
-  Future<List<CfopEntity>> getList(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/cfop$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => CfopEntity.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<CfopEntity>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/cfop?${params.join('&')}');
+    return PagedResult.fromJson(json, CfopEntity.fromJson);
   }
 
   /// O código é digitado pelo usuário (409 se já existir — inclui excluídos).

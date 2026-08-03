@@ -21,8 +21,9 @@ class ContractRepositoryImpl implements ContractRepository {
   }
 
   @override
-  Future<Either<Failure, List<ContractListItem>>> getList() =>
-      _guard(() => datasource.getList());
+  Future<Either<Failure, PagedResult<ContractListItem>>> getList(String filter,
+          {int page = 1, int? pageSize}) =>
+      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
 
   @override
   Future<Either<Failure, ContractFull>> getById(int id) =>

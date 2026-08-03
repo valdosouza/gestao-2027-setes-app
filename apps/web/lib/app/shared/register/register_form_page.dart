@@ -5,6 +5,7 @@ import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../feedback/feedback.dart';
+import '../feedback/form_pendency.dart';
 
 /// Descritor de campo (decisão 20): parametriza o formulário genérico.
 ///
@@ -222,20 +223,28 @@ class RegisterFormPageState extends State<RegisterFormPage> {
 
   /// Ancora o erro de campo do SERVIDOR (`fields[]` do envelope 400/409) no
   /// formulário: dialog com a message do 1º campo apontado → OK → foco nele.
-  /// Sem correspondência (ou sem fields[]) → feedback genérico da ponte.
-  /// A página chama no listener do bloc via GlobalKey da fábrica.
+  /// O path do servidor pode vir aninhado (matchesServerFieldPath). Sem
+  /// fields[] → feedback genérico da ponte; com fields[] sem campo na tela
+  /// → dialog campo + mensagem (showUnanchoredServerField) — nunca só o
+  /// "Validação falhou". A página chama no listener do bloc via GlobalKey.
   Future<void> showServerFieldError(Failure failure) async {
     if (failure.fields.isEmpty) return showFailureFeedback(context, failure);
 
     final serverField = failure.fields.first;
-    final known = widget.fields.any((f) => f.name == serverField.field);
-    if (!known) return showFailureFeedback(context, failure);
+    RegisterField? known;
+    for (final f in widget.fields) {
+      if (matchesServerFieldPath(f.name, serverField.field)) {
+        known = f;
+        break;
+      }
+    }
+    if (known == null) return showUnanchoredServerField(context, serverField);
 
     // Regra do servidor (o validator local não a conhece): dialog + foco,
     // sem validate() inline — a marca vermelha ficaria mentirosa.
     await showValidationFeedback(context, serverField.message.tr());
     if (!mounted) return;
-    _focusNodes[serverField.field]?.requestFocus();
+    _focusNodes[known.name]?.requestFocus();
   }
 
   /// Exclusão confirmada via decisão TIPADA da ponte (R4): Sim = excluir;

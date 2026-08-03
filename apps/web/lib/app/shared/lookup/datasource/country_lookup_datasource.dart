@@ -16,8 +16,13 @@ class CountryLookupDatasourceImpl implements CountryLookupDatasource {
 
   @override
   Future<List<CountryLookup>> list(String filter) async {
-    final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/countries$query');
+    // Lookup NÃO pagina (D6), mas o envelope agora traz pageSize default 25
+    // — pageSize=100 mantém o alcance da lista de apoio.
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'pageSize=100',
+    ];
+    final json = await client.get('/api/countries?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CountryLookup.fromJson(e as Map<String, dynamic>))

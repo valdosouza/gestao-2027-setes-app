@@ -42,55 +42,68 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
   final ContractPut put;
   final ContractDelete delete;
 
-  /// Lista completa (a API limita a 200 — o filtro da tela é LOCAL).
-  List<ContractListItem> _all = const [];
+  /// Últimos filtro/página/tamanho aplicados — recarga após salvar/excluir/
+  /// voltar devolve o usuário exatamente onde estava (paginação, critério 6).
+  /// D7: o filtro por nome do cliente é REMOTO (?filter=) — o cache local
+  /// `_all/_filtered` foi aposentado.
   String _filter = '';
+  int _page = 1;
+  int? _pageSize;
 
   /// Contrato aberto no form (null = novo) — preserva o editing nos
   /// re-emits de saving/falha.
   ContractFull? _editing;
 
-  List<ContractListItem> get _filtered {
-    if (_filter.isEmpty) return _all;
-    final lower = _filter.toLowerCase();
-    return _all
-        .where((c) => (c.customerName ?? '').toLowerCase().contains(lower))
-        .toList();
-  }
-
   Future<void> _onListRequested(
       ContractListRequested event, Emitter<ContractState> emit) async {
     _filter = event.filter;
-    if (event.refresh || _all.isEmpty) {
-      await _reload(emit);
-    } else {
-      emit(ContractListState(items: _filtered));
-    }
+    _page = event.page;
+    _pageSize = event.pageSize ?? _pageSize;
+    await _reload(emit);
   }
 
   Future<void> _reload(Emitter<ContractState> emit) async {
     emit(const ContractListState(loading: true));
-    final result = await getlist();
-    result.fold(
-      (failure) {
+    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    await result.fold(
+      (failure) async {
         emit(ContractActionFailure(failure));
         emit(const ContractListState());
       },
-      (items) {
-        _all = items;
-        emit(ContractListState(items: _filtered));
+      (paged) async {
+        // Página esvaziou (ex.: exclusão do último item) → recua para a
+        // última página existente em vez de mostrar lista vazia.
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+          _page = paged.pageCount;
+          return _reload(emit);
+        }
+        // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
+        _page = paged.page;
+        _pageSize = paged.pageSize;
+        emit(ContractListState(
+          items: paged.items,
+          filter: _filter,
+          page: paged.page,
+          pageSize: paged.pageSize,
+          total: paged.total,
+        ));
       },
     );
   }
 
+  List<ContractListItem> get _currentItems {
+    final current = state;
+    return current is ContractListState ? current.items : const [];
+  }
+
   Future<void> _onEditPressed(
       ContractEditPressed event, Emitter<ContractState> emit) async {
-    emit(const ContractListState(loading: true));
+    emit(ContractListState(items: _currentItems, loading: true));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(ContractActionFailure(failure));
-        emit(ContractListState(items: _filtered));
+        emit(ContractListState(items: _currentItems));
       },
       (full) async {
         _editing = full;

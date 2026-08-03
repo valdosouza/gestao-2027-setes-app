@@ -8,12 +8,17 @@ sealed class InstitutionEvent extends Equatable {
 }
 
 /// Carrega/filtra a lista (também usado na abertura da página).
+/// Paginação D3: [page] navega (filtro novo SEMPRE volta à página 1 na
+/// tela); [pageSize] null mantém o tamanho corrente (1º load = config
+/// page_size resolvida pela API — D4).
 class InstitutionListRequested extends InstitutionEvent {
-  const InstitutionListRequested(this.filter);
+  const InstitutionListRequested(this.filter, {this.page = 1, this.pageSize});
   final String filter;
+  final int page;
+  final int? pageSize;
 
   @override
-  List<Object?> get props => [filter];
+  List<Object?> get props => [filter, page, pageSize];
 }
 
 class InstitutionNewPressed extends InstitutionEvent {

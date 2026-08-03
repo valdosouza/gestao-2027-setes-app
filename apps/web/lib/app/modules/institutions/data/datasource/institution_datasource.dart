@@ -11,7 +11,10 @@ import '../../domain/entity/sync_api_key.dart';
 /// a cadeia fiscal em transação única, provisiona o schema do cliente
 /// (migrações) e só então ativa a institution.
 abstract class InstitutionDatasource {
-  Future<List<InstitutionListItem>> getList(String filter);
+  /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
+  /// config page_size do usuário (D4).
+  Future<PagedResult<InstitutionListItem>> getList(String filter,
+      {int page = 1, int? pageSize});
 
   /// Objeto COMPLETO (entity + fiscal + 3 listas + institution).
   Future<ObjectInstitution> get(int id);
@@ -41,14 +44,15 @@ class InstitutionDatasourceImpl implements InstitutionDatasource {
   final ApiClient client;
 
   @override
-  Future<List<InstitutionListItem>> getList(String filter) async {
-    final query =
-        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/institutions$query');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => InstitutionListItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<PagedResult<InstitutionListItem>> getList(String filter,
+      {int page = 1, int? pageSize}) async {
+    final params = [
+      if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      'page=$page',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
+    final json = await client.get('/api/institutions?${params.join('&')}');
+    return PagedResult.fromJson(json, InstitutionListItem.fromJson);
   }
 
   @override

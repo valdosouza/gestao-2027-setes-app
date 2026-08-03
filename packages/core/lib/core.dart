@@ -8,6 +8,7 @@ export 'src/shared/helpers/json_utils.dart';
 export 'src/shared/helpers/jwt_utils.dart';
 export 'src/shared/helpers/responsive.dart';
 export 'src/shared/http/api_client.dart';
+export 'src/shared/http/paged_result.dart';
 export 'src/shared/storage/local_prefs.dart';
 
 export 'src/auth/auth_module.dart';

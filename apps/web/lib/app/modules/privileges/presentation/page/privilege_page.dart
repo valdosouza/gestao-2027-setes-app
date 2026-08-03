@@ -96,6 +96,16 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
         loading: state.loading,
         avatarBuilder: (p) => '${p.id}',
         rowBuilder: (p) => [p.description ?? ''],
+        // Paginação (D1/D3): metadados do estado montam a barra da fábrica;
+        // filtro novo volta à página 1; troca de tamanho recarrega na 1
+        // (a persistência da escolha é da fábrica — D4).
+        page: state.page,
+        pageSize: state.pageSize,
+        total: state.total,
+        onPageChanged: (page) =>
+            _bloc.add(PrivilegeListRequested(state.filter, page: page)),
+        onPageSizeChanged: (size) =>
+            _bloc.add(PrivilegeListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(PrivilegeListRequested(filter)),
         onNew: () => _bloc.add(const PrivilegeNewPressed()),
         onView: (p) => _bloc.add(PrivilegeEditPressed(p)),
