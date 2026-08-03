@@ -22,6 +22,8 @@ const Map<String, String> interfaceRoutes = {
   // Onda 2 — Vendedor (promoção de colaborador, D1) e Transportadora (D2)
   'salesmen': '/home/salesmen/',
   'carriers': '/home/carriers/',
+  // Onda 3 — Fornecedor (espelho do carrier, D1 da Onda 3)
+  'providers': '/home/providers/',
   // Categorias de produtos e serviços (cadastro do cliente)
   'categories': '/home/categories/',
   // Formas de pagamento (grupo Financeiro)

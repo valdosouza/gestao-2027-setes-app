@@ -17,6 +17,7 @@ import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
+import '../providers/providers_module.dart';
 import '../salesmen/salesmen_module.dart';
 import '../service_orders/service_orders_module.dart';
 import '../settlements/settlements_module.dart';
@@ -68,6 +69,9 @@ class HomeModule extends Module {
             // Transportadora (cadeia fiscal + Tributação, D2)
             ModuleRoute('/salesmen', module: SalesmenModule()),
             ModuleRoute('/carriers', module: CarriersModule()),
+            // Onda 3 — Fornecedor (espelho do carrier: cadeia fiscal +
+            // Tributação, D1 da Onda 3)
+            ModuleRoute('/providers', module: ProvidersModule()),
             // Categorias de produtos e serviços (cadastro do cliente)
             ModuleRoute('/categories', module: CategoriesModule()),
             // Formas de pagamento (grupo Financeiro)

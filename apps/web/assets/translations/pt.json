@@ -335,6 +335,14 @@
       "duplicateRole": "Esta entidade já está cadastrada como transportadora deste estabelecimento. Deseja abrir o cadastro existente?",
       "openEdit": "Abrir cadastro"
     },
+    "provider": {
+      "tab": "Fornecedor",
+      "active": "Ativo",
+      "inactive": "Inativo",
+      "reusedEntity": "Entidade já existente reaproveitada — dados atualizados.",
+      "duplicateRole": "Esta entidade já está cadastrada como fornecedor deste estabelecimento. Deseja abrir o cadastro existente?",
+      "openEdit": "Abrir cadastro"
+    },
     "salesman": {
       "collaborator": "Colaborador",
       "nickTrade": "Apelido / Nome Fantasia",
@@ -676,6 +684,7 @@
       "collaborators": "Colaboradores",
       "salesmen": "Vendedores",
       "carriers": "Transportadoras",
+      "providers": "Fornecedores",
       "categories": "Categorias",
       "financial-plans": "Plano de Contas",
       "payment-types": "Formas de Pagamento",

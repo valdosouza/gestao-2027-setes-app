@@ -335,6 +335,14 @@
       "duplicateRole": "This entity is already registered as a carrier of this establishment. Open the existing record?",
       "openEdit": "Open record"
     },
+    "provider": {
+      "tab": "Provider",
+      "active": "Active",
+      "inactive": "Inactive",
+      "reusedEntity": "Existing entity reused — data updated.",
+      "duplicateRole": "This entity is already registered as a provider of this establishment. Open the existing record?",
+      "openEdit": "Open record"
+    },
     "salesman": {
       "collaborator": "Collaborator",
       "nickTrade": "Nickname / Trade Name",
@@ -676,6 +684,7 @@
       "collaborators": "Collaborators",
       "salesmen": "Salesmen",
       "carriers": "Carriers",
+      "providers": "Providers",
       "categories": "Categories",
       "financial-plans": "Chart of Accounts",
       "payment-types": "Payment Types",
