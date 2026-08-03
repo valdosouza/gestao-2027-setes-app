@@ -3,19 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
-import '../../domain/entity/object_customer.dart';
+import '../domain/entity_tax.dart';
 
-/// Aba "Tributação" — fatia [EntityTaxData] do draft (tb_entity_tax, Fase 3
-/// Rodada 4, decisões 14–17). Mesmo contrato das demais abas: recebe
-/// `value` + `onChanged` e o draft vive no bloc do módulo.
+/// Aba "Tributação" COMPARTILHADA — fatia [EntityTaxData] do draft
+/// (tb_entity_tax, Fase 3 Rodada 4, decisões 14–17). Nasceu como
+/// CustomerTaxTab e foi PROMOVIDA a shared/entity na Onda 2 (D2: Carrier é
+/// o 2º consumidor). Mesmo contrato das demais abas compartilhadas: recebe
+/// `value` + `onChanged` e o draft vive no bloc do módulo concreto — NUNCA
+/// importa nada de modules/ (contrato de genericidade).
 ///
 /// Instruções de UI campo a campo: migration 006_entity_tax.sql —
 /// radioboxes S/N (consumer, issRetido, issIndIncFiscal), checkboxes
 /// (byPassSt, autoSendInvoice, autoSendInvoiceJustXml), dropdowns
 /// canônicos (taxRegime grava o RÓTULO completo; indIeDest 1/2/9;
 /// issExigibilidade 01..07).
-class CustomerTaxTab extends StatefulWidget {
-  const CustomerTaxTab({
+class EntityTaxTab extends StatefulWidget {
+  const EntityTaxTab({
     required this.value,
     required this.onChanged,
     super.key,
@@ -25,21 +28,21 @@ class CustomerTaxTab extends StatefulWidget {
   final ValueChanged<EntityTaxData> onChanged;
 
   @override
-  State<CustomerTaxTab> createState() => _CustomerTaxTabState();
+  State<EntityTaxTab> createState() => _EntityTaxTabState();
 }
 
-class _CustomerTaxTabState extends State<CustomerTaxTab> {
+class _EntityTaxTabState extends State<EntityTaxTab> {
   late final TextEditingController _issProcessNr;
 
   /// Valor canônico → chave i18n do rótulo exibido (o VALOR enviado é o
   /// rótulo completo — decisão 15).
   static const Map<String, String> _regimeLabels = {
-    '1 - Simples Nacional': 'forms.customer.tax.regimeSimples',
+    '1 - Simples Nacional': 'forms.entityTax.regimeSimples',
     '2 - Simples Nacional - excesso de sublimite de receita bruta':
-        'forms.customer.tax.regimeSimplesExcesso',
-    '3 - Regime Normal - Lucro Real': 'forms.customer.tax.regimeLucroReal',
+        'forms.entityTax.regimeSimplesExcesso',
+    '3 - Regime Normal - Lucro Real': 'forms.entityTax.regimeLucroReal',
     '3 - Regime Normal - Lucro Presumido':
-        'forms.customer.tax.regimeLucroPresumido',
+        'forms.entityTax.regimeLucroPresumido',
   };
 
   @override
@@ -81,14 +84,14 @@ class _CustomerTaxTabState extends State<CustomerTaxTab> {
         children: [
           // Consumidor final: radiobox Sim/Não
           field(SetesRadioGroup<String>(
-            label: 'forms.customer.tax.consumer'.tr(),
+            label: 'forms.entityTax.consumer'.tr(),
             value: v.consumer,
             options: _yesNo,
             onChanged: (sel) => _emit(v.copyWith(consumer: sel ?? 'N')),
           )),
           // Regime tributário: dropdown canônico (grava o rótulo completo)
           field(SetesDropdown<String>(
-            label: 'forms.customer.tax.regime'.tr(),
+            label: 'forms.entityTax.regime'.tr(),
             value: _known(v.taxRegime, kTaxRegimes),
             items: kTaxRegimes,
             itemLabel: (regime) => _regimeLabels[regime]!.tr(),
@@ -101,14 +104,14 @@ class _CustomerTaxTabState extends State<CustomerTaxTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SetesCheckbox(
-                  label: 'forms.customer.tax.byPassSt'.tr(),
+                  label: 'forms.entityTax.byPassSt'.tr(),
                   value: v.byPassSt,
                   onChanged: (sel) => _emit(v.copyWith(byPassSt: sel ?? false)),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 12),
                   child: SetesText(
-                    'forms.customer.tax.byPassStHelp'.tr(),
+                    'forms.entityTax.byPassStHelp'.tr(),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -117,25 +120,25 @@ class _CustomerTaxTabState extends State<CustomerTaxTab> {
           ),
           // Indicador de IE do destinatário (NFe)
           field(SetesDropdown<String>(
-            label: 'forms.customer.tax.indIeDest'.tr(),
+            label: 'forms.entityTax.indIeDest'.tr(),
             value: _known(v.indIeDest, kIndIeDestCodes),
             items: kIndIeDestCodes,
-            itemLabel: (code) => 'forms.customer.tax.indIeDest$code'.tr(),
+            itemLabel: (code) => 'forms.entityTax.indIeDest$code'.tr(),
             onChanged: (sel) => _emit(v.copyWith(indIeDest: () => sel)),
           )),
           // Exigibilidade do ISS (códigos 01..07 do legado)
           field(SetesDropdown<String>(
-            label: 'forms.customer.tax.issExigibilidade'.tr(),
+            label: 'forms.entityTax.issExigibilidade'.tr(),
             value: _known(v.issExigibilidade, kIssExigibilidadeCodes),
             items: kIssExigibilidadeCodes,
-            itemLabel: (code) => 'forms.customer.tax.issExig$code'.tr(),
+            itemLabel: (code) => 'forms.entityTax.issExig$code'.tr(),
             onChanged: (sel) =>
                 _emit(v.copyWith(issExigibilidade: () => sel)),
           )),
           field(FocusTraversalOrder(
             order: const NumericFocusOrder(0),
             child: SetesTextField(
-              label: 'forms.customer.tax.issProcessNr'.tr(),
+              label: 'forms.entityTax.issProcessNr'.tr(),
               controller: _issProcessNr,
               textInputAction: TextInputAction.done,
               inputFormatters: [LengthLimitingTextInputFormatter(25)],
@@ -145,14 +148,14 @@ class _CustomerTaxTabState extends State<CustomerTaxTab> {
           )),
           // ISS retido: radiobox Sim/Não
           field(SetesRadioGroup<String>(
-            label: 'forms.customer.tax.issRetido'.tr(),
+            label: 'forms.entityTax.issRetido'.tr(),
             value: v.issRetido,
             options: _yesNo,
             onChanged: (sel) => _emit(v.copyWith(issRetido: sel ?? 'N')),
           )),
           // Incentivo fiscal ISS: radiobox Sim/Não
           field(SetesRadioGroup<String>(
-            label: 'forms.customer.tax.issIndIncFiscal'.tr(),
+            label: 'forms.entityTax.issIndIncFiscal'.tr(),
             value: v.issIndIncFiscal,
             options: _yesNo,
             onChanged: (sel) =>
@@ -163,13 +166,13 @@ class _CustomerTaxTabState extends State<CustomerTaxTab> {
             child: Column(
               children: [
                 SetesCheckbox(
-                  label: 'forms.customer.tax.autoSendInvoice'.tr(),
+                  label: 'forms.entityTax.autoSendInvoice'.tr(),
                   value: v.autoSendInvoice,
                   onChanged: (sel) =>
                       _emit(v.copyWith(autoSendInvoice: sel ?? false)),
                 ),
                 SetesCheckbox(
-                  label: 'forms.customer.tax.autoSendInvoiceJustXml'.tr(),
+                  label: 'forms.entityTax.autoSendInvoiceJustXml'.tr(),
                   value: v.autoSendInvoiceJustXml,
                   onChanged: (sel) => _emit(
                       v.copyWith(autoSendInvoiceJustXml: sel ?? false)),

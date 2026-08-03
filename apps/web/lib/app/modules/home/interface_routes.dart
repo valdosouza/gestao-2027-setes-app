@@ -19,6 +19,9 @@ const Map<String, String> interfaceRoutes = {
   'customers':  '/home/customers/',
   // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)
   'collaborators': '/home/collaborators/',
+  // Onda 2 — Vendedor (promoção de colaborador, D1) e Transportadora (D2)
+  'salesmen': '/home/salesmen/',
+  'carriers': '/home/carriers/',
   // Categorias de produtos e serviços (cadastro do cliente)
   'categories': '/home/categories/',
   // Formas de pagamento (grupo Financeiro)

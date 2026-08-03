@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../bank_accounts/bank_accounts_module.dart';
+import '../carriers/carriers_module.dart';
 import '../categories/categories_module.dart';
 import '../cfop/cfop_module.dart';
 import '../cities/cities_module.dart';
@@ -16,6 +17,7 @@ import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../privileges/privileges_module.dart';
+import '../salesmen/salesmen_module.dart';
 import '../service_orders/service_orders_module.dart';
 import '../settlements/settlements_module.dart';
 import '../states/states_module.dart';
@@ -62,6 +64,10 @@ class HomeModule extends Module {
             ModuleRoute('/customers', module: CustomersModule()),
             // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)
             ModuleRoute('/collaborators', module: CollaboratorsModule()),
+            // Onda 2 — Vendedor (promoção de colaborador, D1) e
+            // Transportadora (cadeia fiscal + Tributação, D2)
+            ModuleRoute('/salesmen', module: SalesmenModule()),
+            ModuleRoute('/carriers', module: CarriersModule()),
             // Categorias de produtos e serviços (cadastro do cliente)
             ModuleRoute('/categories', module: CategoriesModule()),
             // Formas de pagamento (grupo Financeiro)

@@ -11,7 +11,7 @@ import '../../domain/entity/object_customer.dart';
 /// cadastro-entidade-fiscal.md; Fase 3 Entidade Única, decisão 11).
 ///
 /// Rodada 4 (Tributação): consumer/byPassSt saíram desta aba (foram para a
-/// aba Tributação — CustomerTaxTab); creditStatus virou radiobox
+/// aba Tributação — EntityTaxTab, compartilhada desde a Onda 2); creditStatus virou radiobox
 /// [L]iberado/[B]loqueado e wallet virou radiobox Sim/Não (intenção — a API
 /// resolve a forma de pagamento "Carteira" sozinha, decisão 18).
 ///
