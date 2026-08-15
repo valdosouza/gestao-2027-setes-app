@@ -49,17 +49,51 @@ class InstitutionTab extends StatefulWidget {
 
 class _InstitutionTabState extends State<InstitutionTab> {
   late final TextEditingController _schemaName;
+  late final TextEditingController _adminName;
+  late final TextEditingController _adminNick;
+  late final TextEditingController _adminEmail;
+  late final TextEditingController _adminPassword;
 
   @override
   void initState() {
     super.initState();
     _schemaName = TextEditingController(text: widget.value.schemaName);
+    final admin = widget.value.admin;
+    _adminName     = TextEditingController(text: admin.nameCompany);
+    _adminNick     = TextEditingController(text: admin.nickTrade);
+    _adminEmail    = TextEditingController(text: admin.email);
+    _adminPassword = TextEditingController(text: admin.password);
   }
 
   @override
   void dispose() {
     _schemaName.dispose();
+    _adminName.dispose();
+    _adminNick.dispose();
+    _adminEmail.dispose();
+    _adminPassword.dispose();
     super.dispose();
+  }
+
+  /// Mesmas regras do institutions.dto (bloco admin) — a marca inline nunca
+  /// mente para a pendência (R3). Só valem na inclusão.
+  String? _requiredAdmin(String? value) =>
+      (value?.trim().isEmpty ?? true) ? 'register.required'.tr() : null;
+
+  String? _validateAdminEmail(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'register.required'.tr();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text)) {
+      return 'forms.institution.adminEmailInvalid'.tr();
+    }
+    return null;
+  }
+
+  String? _validateAdminPassword(String? value) {
+    final text = value ?? '';
+    if (text.isEmpty) return 'register.required'.tr();
+    if (text.length < 5) return 'forms.institution.adminPasswordShort'.tr();
+    return null;
   }
 
   /// Mesmo julgamento do salvar (required + padrão `setes_<nome>`) — a
@@ -111,6 +145,66 @@ class _InstitutionTabState extends State<InstitutionTab> {
                 ),
               ),
             ),
+            // Administrador inicial: SÓ na inclusão (A2 — o cliente nasce
+            // com dono; depois a manutenção é da aba Usuários).
+            if (widget.creating) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text('forms.institution.adminSection'.tr(),
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text('forms.institution.adminHint'.tr(),
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(1),
+                child: SetesTextField(
+                  label: 'forms.institution.adminName'.tr(),
+                  controller: _adminName,
+                  validator: _requiredAdmin,
+                  onChanged: (t) => widget.onChanged(widget.value.copyWith(
+                      admin: widget.value.admin.copyWith(nameCompany: t))),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(2),
+                child: SetesTextField(
+                  label: 'forms.institution.adminNick'.tr(),
+                  controller: _adminNick,
+                  validator: _requiredAdmin,
+                  onChanged: (t) => widget.onChanged(widget.value.copyWith(
+                      admin: widget.value.admin.copyWith(nickTrade: t))),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(3),
+                child: SetesTextField(
+                  label: 'forms.institution.adminEmail'.tr(),
+                  hint: 'forms.institution.adminEmailHint'.tr(),
+                  controller: _adminEmail,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: _validateAdminEmail,
+                  onChanged: (t) => widget.onChanged(widget.value.copyWith(
+                      admin: widget.value.admin.copyWith(email: t))),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(4),
+                child: SetesTextField(
+                  label: 'forms.institution.adminPassword'.tr(),
+                  hint: 'forms.institution.adminPasswordHint'.tr(),
+                  controller: _adminPassword,
+                  obscureText: true,
+                  validator: _validateAdminPassword,
+                  onChanged: (t) => widget.onChanged(widget.value.copyWith(
+                      admin: widget.value.admin.copyWith(password: t))),
+                ),
+              ),
+            ],
             if (widget.institutionId != null && widget.datasource != null) ...[
               const SizedBox(height: 16),
               const Divider(),

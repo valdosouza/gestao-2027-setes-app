@@ -32,6 +32,47 @@ class InstitutionListItem extends Equatable {
   List<Object?> get props => [id, nickTrade, nameCompany, schemaName, active];
 }
 
+/// Primeiro administrador do cliente, informado na INCLUSÃO do
+/// estabelecimento e criado pelo próprio onboarding (A2, 2026-08-15 — o
+/// cliente nunca nasce sem dono). Não existe na edição: a manutenção dos
+/// usuários é da aba Usuários / do cadastro de Usuários.
+class InstitutionAdmin extends Equatable {
+  const InstitutionAdmin({
+    this.nameCompany = '',
+    this.nickTrade   = '',
+    this.email       = '',
+    this.password    = '',
+  });
+
+  final String nameCompany;
+  final String nickTrade;
+  final String email;
+  final String password;
+
+  InstitutionAdmin copyWith({
+    String? nameCompany,
+    String? nickTrade,
+    String? email,
+    String? password,
+  }) =>
+      InstitutionAdmin(
+        nameCompany: nameCompany ?? this.nameCompany,
+        nickTrade:   nickTrade   ?? this.nickTrade,
+        email:       email       ?? this.email,
+        password:    password    ?? this.password,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'nameCompany': nameCompany.trim(),
+        'nickTrade':   nickTrade.trim(),
+        'email':       email.trim(),
+        'password':    password,
+      };
+
+  @override
+  List<Object?> get props => [nameCompany, nickTrade, email, password];
+}
+
 /// Concreta da cadeia de entidade fiscal (skill cadastro-entidade-fiscal.md):
 /// ObjectEntity → ObjectEntityFiscal → ObjectInstitution (tb_institution).
 ///
@@ -42,6 +83,7 @@ class ObjectInstitution extends ObjectEntityFiscal {
     this.id,
     this.schemaName = '',
     this.active = false,
+    this.admin = const InstitutionAdmin(),
     super.nameCompany,
     super.nickTrade,
     super.aniversary,
@@ -59,6 +101,9 @@ class ObjectInstitution extends ObjectEntityFiscal {
   final int?   id;
   final String schemaName;
   final bool   active;
+
+  /// Só viaja na INCLUSÃO (o GET nunca devolve credencial).
+  final InstitutionAdmin admin;
 
   factory ObjectInstitution.fromJson(Map<String, dynamic> json) {
     final entity = json['entity'] as Map<String, dynamic>? ?? const {};
@@ -97,6 +142,8 @@ class ObjectInstitution extends ObjectEntityFiscal {
         'phones':      phones.map((p) => p.toJson()).toList(),
         'socialMedia': socialMedia.map((s) => s.toJson()).toList(),
         if (creating) 'schemaName': schemaName.trim(),
+        // Admin inicial: obrigatório no POST, inexistente no PUT (A2).
+        if (creating) 'admin': admin.toJson(),
         if (!creating) 'active': active ? 'S' : 'N',
       };
 
@@ -114,11 +161,13 @@ class ObjectInstitution extends ObjectEntityFiscal {
     NoDocData? noDoc,
     String? schemaName,
     bool? active,
+    InstitutionAdmin? admin,
   }) =>
       ObjectInstitution(
         id:          id,
         schemaName:  schemaName ?? this.schemaName,
         active:      active ?? this.active,
+        admin:       admin ?? this.admin,
         nameCompany: nameCompany ?? this.nameCompany,
         nickTrade:   nickTrade ?? this.nickTrade,
         aniversary:  aniversary != null ? aniversary() : this.aniversary,
@@ -138,6 +187,7 @@ class ObjectInstitution extends ObjectEntityFiscal {
         id:          id,
         schemaName:  schemaName,
         active:      active,
+        admin:       admin,
         nameCompany: fiscal.nameCompany,
         nickTrade:   fiscal.nickTrade,
         aniversary:  fiscal.aniversary,
@@ -151,5 +201,5 @@ class ObjectInstitution extends ObjectEntityFiscal {
       );
 
   @override
-  List<Object?> get props => [...super.props, id, schemaName, active];
+  List<Object?> get props => [...super.props, id, schemaName, active, admin];
 }
