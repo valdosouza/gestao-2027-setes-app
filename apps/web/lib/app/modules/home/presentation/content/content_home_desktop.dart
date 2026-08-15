@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/icons/material_icon_names.dart';
 import '../../interface_routes.dart';
 import '../bloc/menu_bloc.dart';
 
@@ -72,7 +73,10 @@ class ContentHomeDesktop extends StatelessWidget {
                           : trCatalog(module.description, module.description, prefix: 'menu.groups');
                       return SetesListTile(
                         title: SetesText(title),
-                        leading: const Icon(Icons.apps_outlined),
+                        // Ícone por NOME Material do tb_module (D4);
+                        // null/desconhecido = comportamento anterior.
+                        leading: Icon(materialIconByName(module.icon) ??
+                            Icons.apps_outlined),
                         selected: loaded.selectedModuleIndex == index,
                         onTap: () => bloc.add(MenuModuleSelected(index: index)),
                       );

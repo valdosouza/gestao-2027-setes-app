@@ -13,7 +13,10 @@ class MenuModule extends Equatable {
   /// null = pseudo-módulo vindo de tb_interface.group_default
   final int? id;
   final String description;
-  final int? icon;
+
+  /// NOME de ícone Material (tb_module.image_icon — D4 do módulo de Menus,
+  /// 2026-08-04: deixou de ser INT do legado). null = ícone padrão do shell.
+  final String? icon;
   final List<MenuInterface> interfaces;
 
   @override

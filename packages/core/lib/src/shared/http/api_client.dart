@@ -50,8 +50,8 @@ class ApiClient {
     late http.Response response;
     try {
       response = await run();
-    } catch (_) {
-      throw const NetworkFailure();
+    } catch (e) {
+      throw NetworkFailure(detail: e.toString());
     }
 
     final Map<String, dynamic> json = response.body.isEmpty

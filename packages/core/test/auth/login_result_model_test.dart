@@ -41,8 +41,9 @@ void main() {
 
   group('MenuModuleModel', () {
     test('fromJson monta módulo com interfaces e privilégios', () {
+      // icon = NOME de ícone Material (string — D4 do módulo de Menus)
       final model = MenuModuleModel.fromJson(const {
-        'module': {'id': 10, 'description': 'Sistema', 'icon': 2},
+        'module': {'id': 10, 'description': 'Sistema', 'icon': 'settings'},
         'interfaces': [
           {
             'id': 100,
@@ -55,8 +56,18 @@ void main() {
       });
 
       expect(model.id, 10);
+      expect(model.icon, 'settings');
       expect(model.interfaces.single.can('VIEW'), isTrue);
       expect(model.interfaces.single.can('delete'), isFalse);
+    });
+
+    test('fromJson tolera icon legado não-string (vira null)', () {
+      final model = MenuModuleModel.fromJson(const {
+        'module': {'id': 10, 'description': 'Sistema', 'icon': 2},
+        'interfaces': [],
+      });
+
+      expect(model.icon, isNull);
     });
 
     test('fromJson com module null usa pseudo-módulo Geral', () {

@@ -42,12 +42,14 @@ RegisterField _merge(RegisterField field, FieldConfigEntity? config) {
   ];
 
   return RegisterField(
-    name:         field.name,
-    label:        config.caption ?? field.label,
-    obscure:      field.obscure,
-    readOnly:     field.readOnly,
-    keyboardType: field.keyboardType,
-    mask:         config.mask ?? field.mask,
+    name:            field.name,
+    label:           config.caption ?? field.label,
+    obscure:         field.obscure,
+    readOnly:        field.readOnly,
+    keyboardType:    field.keyboardType,
+    mask:            config.mask ?? field.mask,
+    hint:            field.hint,
+    trailingBuilder: field.trailingBuilder,
     validator:
         validators.isEmpty ? null : SetesValidators.compose(validators),
   );

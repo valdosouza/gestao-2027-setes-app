@@ -104,7 +104,8 @@
     "collaborators": "List of Collaborators",
     "banks": "List of Banks",
     "paymentTypes": "List of Payment Types",
-    "bankAccounts": "List of Accounts"
+    "bankAccounts": "List of Accounts",
+    "moduleScreens": "List of System Screens"
   },
   "forms": {
     "validation": {
@@ -277,6 +278,24 @@
     "privilege": {
       "code": "Privilege Code",
       "description": "Privilege Description"
+    },
+    "module": {
+      "code": "Module Code",
+      "description": "Module Description",
+      "position": "Menu Position",
+      "positionHint": "Empty = end of menu",
+      "icon": "Module Icon (Material name)",
+      "iconHint": "E.g.: shopping_cart, settings, payments",
+      "screens": "Module screens",
+      "screensHint": "The list order is the order of the screens in the menu.",
+      "screensEmpty": "No screens linked — use Add Screen to build the menu.",
+      "addScreen": "Add Screen",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeScreen": "Remove from module",
+      "linkedCount": "Linked screens: {}",
+      "screenNotEligible": "The screen \"{}\" is no longer available for the menu (not contracted or outside the screen catalog) — remove it from the list.",
+      "deleteWarning": "Delete this module? The linked screens will return to the default menu groups."
     },
     "customer": {
       "tab": "Customer",
@@ -632,6 +651,12 @@
       "totalDebits": "Debits: {}",
       "balanceTotal": "Balance: {}"
     },
+    "bank": {
+      "code": "Bank Code",
+      "number": "Bank Number",
+      "numberInvalid": "Bank Number must have 3 digits",
+      "description": "Bank Description"
+    },
     "bankAccount": {
       "bank": "Account Bank",
       "dtOpening": "Account Opening Date",
@@ -678,6 +703,7 @@
       "states": "States",
       "cities": "Cities",
       "cfop": "CFOP",
+      "banks": "Banks",
       "interface-fields": "Interface Fields",
       "interface-configs": "Interface Configurations",
       "general-configs": "General Configurations",

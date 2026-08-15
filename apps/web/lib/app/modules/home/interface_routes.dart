@@ -14,6 +14,9 @@ const Map<String, String> interfaceRoutes = {
   'interfaces': '/home/interfaces/',
   'privileges': '/home/privileges/',
   'cfop':       '/home/cfop/',
+  // Catálogo FEBRABAN central (módulo Super — decisão 2026-08-04, fecho da
+  // decisão 8 da Fase 3; consumo dos clientes segue no lookup bank-accounts)
+  'banks':      '/home/banks/',
   'institutions': '/home/institutions/',
   // Primeiro papel da Fase 3 Entidade Única (cadastro do CLIENTE)
   'customers':  '/home/customers/',
@@ -38,6 +41,8 @@ const Map<String, String> interfaceRoutes = {
   'service-orders': '/home/service-orders/',
   // Baixa de Títulos (Módulo Software House, grupo Financeiro — 2ª tela de processo)
   'settlements': '/home/settlements/',
+  // Módulos de Menu do cliente (camada 2 do menu — D1–D4, 2026-08-04)
+  'modules': '/home/modules/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
   'interface-fields': '/home/interface-fields/',
   // Painel de configurações do sistema (Framework de Configurações, dec. 9)

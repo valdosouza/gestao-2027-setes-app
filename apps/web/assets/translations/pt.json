@@ -104,7 +104,8 @@
     "collaborators": "Lista de Colaboradores",
     "banks": "Lista de Bancos",
     "paymentTypes": "Lista de Formas de Pagamento",
-    "bankAccounts": "Lista de Contas"
+    "bankAccounts": "Lista de Contas",
+    "moduleScreens": "Lista de Telas do Sistema"
   },
   "forms": {
     "validation": {
@@ -277,6 +278,24 @@
     "privilege": {
       "code": "Código do Privilégio",
       "description": "Descrição do Privilégio"
+    },
+    "module": {
+      "code": "Código do Módulo",
+      "description": "Descrição do Módulo",
+      "position": "Posição no Menu",
+      "positionHint": "Vazio = fim do menu",
+      "icon": "Ícone do Módulo (nome Material)",
+      "iconHint": "Ex.: shopping_cart, settings, payments",
+      "screens": "Telas do módulo",
+      "screensHint": "A ordem da lista é a ordem das telas no menu.",
+      "screensEmpty": "Nenhuma tela vinculada — use Adicionar Tela para montar o menu.",
+      "addScreen": "Adicionar Tela",
+      "moveUp": "Subir",
+      "moveDown": "Descer",
+      "removeScreen": "Remover do módulo",
+      "linkedCount": "Telas vinculadas: {}",
+      "screenNotEligible": "A tela \"{}\" não está mais disponível para o menu (não contratada ou fora do catálogo de telas) — remova-a da lista.",
+      "deleteWarning": "Confirma a exclusão do módulo? As telas vinculadas voltam aos grupos padrão do menu."
     },
     "customer": {
       "tab": "Cliente",
@@ -632,6 +651,12 @@
       "totalDebits": "Débitos: {}",
       "balanceTotal": "Saldo: {}"
     },
+    "bank": {
+      "code": "Código do Banco",
+      "number": "Número do Banco",
+      "numberInvalid": "Número do Banco deve ter 3 dígitos",
+      "description": "Descrição do Banco"
+    },
     "bankAccount": {
       "bank": "Banco da Conta",
       "dtOpening": "Data de Abertura da Conta",
@@ -678,6 +703,7 @@
       "states": "Estados",
       "cities": "Cidades",
       "cfop": "CFOP",
+      "banks": "Bancos",
       "interface-fields": "Campos das Interfaces",
       "interface-configs": "Configurações das Interfaces",
       "general-configs": "Configurações Gerais",

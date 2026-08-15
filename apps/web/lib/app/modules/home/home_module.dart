@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../bank_accounts/bank_accounts_module.dart';
+import '../banks/banks_module.dart';
 import '../carriers/carriers_module.dart';
 import '../categories/categories_module.dart';
 import '../cfop/cfop_module.dart';
@@ -16,6 +17,7 @@ import '../interface_configs/interface_configs_module.dart';
 import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
+import '../modules/modules_module.dart';
 import '../privileges/privileges_module.dart';
 import '../providers/providers_module.dart';
 import '../salesmen/salesmen_module.dart';
@@ -60,6 +62,9 @@ class HomeModule extends Module {
             ModuleRoute('/privileges', module: PrivilegesModule()),
             // Referencia fiscal do catalogo central (modulo Super)
             ModuleRoute('/cfop', module: CfopModule()),
+            // Catálogo FEBRABAN central (módulo Super — decisão 2026-08-04,
+            // fecho da decisão 8 da Fase 3; sem cadeia fiscal)
+            ModuleRoute('/banks', module: BanksModule()),
             ModuleRoute('/institutions', module: InstitutionsModule()),
             // Fase 3 Entidade Única — primeiro papel novo (Customer)
             ModuleRoute('/customers', module: CustomersModule()),
@@ -88,6 +93,8 @@ class HomeModule extends Module {
             // Baixa de Títulos (Módulo Software House, grupo Financeiro —
             // 2ª tela de processo: carteira, baixa em lote, estorno, extrato)
             ModuleRoute('/settlements', module: SettlementsModule()),
+            // Módulos de Menu do cliente (camada 2 do menu — D1–D4)
+            ModuleRoute('/modules', module: ModulesModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
             // Painel de configurações do sistema (Framework de Configurações)

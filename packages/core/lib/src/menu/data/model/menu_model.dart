@@ -15,10 +15,14 @@ class MenuModuleModel extends MenuModule {
     final interfaces = (json['interfaces'] as List<dynamic>? ?? [])
         .map((e) => MenuInterfaceModel.fromJson(e as Map<String, dynamic>))
         .toList();
+    // icon = NOME de ícone Material (string — D4 do módulo de Menus,
+    // 2026-08-04); valor legado não-string (int do Delphi) vira null e o
+    // shell usa o ícone padrão.
+    final icon = module['icon'];
     return MenuModuleModel(
       id: (module['id'] as num?)?.toInt(),
       description: module['description'] as String? ?? 'Geral',
-      icon: (module['icon'] as num?)?.toInt(),
+      icon: icon is String && icon.isNotEmpty ? icon : null,
       interfaces: interfaces,
     );
   }

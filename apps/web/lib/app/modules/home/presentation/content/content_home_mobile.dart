@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/icons/material_icon_names.dart';
 import '../../interface_routes.dart';
 import '../bloc/menu_bloc.dart';
 
@@ -61,7 +62,11 @@ class ContentHomeMobile extends StatelessWidget {
                         ? loaded.modules[i].description
                         : trCatalog(loaded.modules[i].description,
                             loaded.modules[i].description, prefix: 'menu.groups')),
-                    leading: const Icon(Icons.apps_outlined),
+                    // Ícone por NOME Material do tb_module (D4);
+                    // null/desconhecido = comportamento anterior.
+                    leading: Icon(
+                        materialIconByName(loaded.modules[i].icon) ??
+                            Icons.apps_outlined),
                     children: [
                       for (final item in loaded.modules[i].interfaces)
                         SetesListTile(

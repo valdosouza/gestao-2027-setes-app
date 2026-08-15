@@ -66,7 +66,11 @@ class Failure extends Equatable {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure({super.message = 'core.errors.network'});
+  /// [detail] é a exceção técnica original (ex.: `ClientException: Failed to
+  /// fetch, uri=...`) — reaproveita a linha de código de suporte (R2) para
+  /// expor a causa real em vez do "falha de conexão" genérico sem pista.
+  const NetworkFailure({super.message = 'core.errors.network', String? detail})
+      : super(supportRef: detail);
 }
 
 class UnauthorizedFailure extends Failure {

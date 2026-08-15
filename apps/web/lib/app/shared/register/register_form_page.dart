@@ -23,6 +23,8 @@ class RegisterField {
     this.keyboardType,
     this.validator,
     this.mask,
+    this.hint,
+    this.trailingBuilder,
   })  : isLookup = false,
         display = '',
         onPick = null,
@@ -43,7 +45,9 @@ class RegisterField {
         readOnly = true,
         keyboardType = null,
         validator = null,
-        mask = null;
+        mask = null,
+        hint = null,
+        trailingBuilder = null;
 
   final String name;
   final String label;
@@ -57,6 +61,14 @@ class RegisterField {
   /// Máscara de digitação `#`/`A` (decisão 16). O valor salvo vai SEM
   /// máscara (decisão 19 — a fábrica aplica unmask no onSave).
   final String? mask;
+
+  /// Texto de apoio dentro do campo vazio (ex.: "Vazio = fim do menu").
+  final String? hint;
+
+  /// Widget renderizado AO LADO do campo, reconstruído a cada digitação com
+  /// o valor atual (ex.: preview do ícone Material no cadastro de Módulos —
+  /// D4). Fica fora da sequência de Tab.
+  final Widget Function(BuildContext context, String value)? trailingBuilder;
 
   /// true = campo de FK (constructor [RegisterField.lookup]).
   final bool isLookup;
@@ -108,6 +120,7 @@ class RegisterFormPage extends StatefulWidget {
     this.extraChildren = const <Widget>[],
     this.extraTabs = const <RegisterTab>[],
     this.mainTabLabel,
+    this.deleteConfirmMessage,
     super.key,
   });
 
@@ -142,6 +155,11 @@ class RegisterFormPage extends StatefulWidget {
 
   /// Rótulo da aba principal quando há [extraTabs] (default register.tabMain).
   final String? mainTabLabel;
+
+  /// Mensagem JÁ TRADUZIDA da confirmação de exclusão quando o cadastro tem
+  /// consequência específica (ex.: Módulos de Menu — as telas voltam aos
+  /// grupos padrão). null = 'register.confirmDelete' genérico.
+  final String? deleteConfirmMessage;
 
   @override
   State<RegisterFormPage> createState() => RegisterFormPageState();
@@ -252,7 +270,7 @@ class RegisterFormPageState extends State<RegisterFormPage> {
   Future<void> _confirmDelete() async {
     final decision = await askDecision(
       context,
-      message: 'register.confirmDelete'.tr(),
+      message: widget.deleteConfirmMessage ?? 'register.confirmDelete'.tr(),
       yesLabel: 'register.delete'.tr(),
     );
     if (decision == SetesDecision.yes) widget.onDelete?.call();
@@ -267,6 +285,26 @@ class RegisterFormPageState extends State<RegisterFormPage> {
       node.dispose();
     }
     super.dispose();
+  }
+
+  /// [RegisterField.trailingBuilder]: campo + widget lateral reconstruído a
+  /// cada digitação (ValueListenableBuilder no controller) — fora do Tab.
+  Widget _withTrailing(RegisterField field, Widget fieldWidget) {
+    final builder = field.trailingBuilder;
+    if (builder == null) return fieldWidget;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: fieldWidget),
+        const SizedBox(width: 12),
+        ExcludeFocusTraversal(
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controllers[field.name]!,
+            builder: (context, value, _) => builder(context, value.text),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -298,28 +336,32 @@ class RegisterFormPageState extends State<RegisterFormPage> {
                   validatorMessage: field.validatorMessage,
                 )
               else
-                FocusTraversalOrder(
-                  order: NumericFocusOrder(index.toDouble()),
-                  child: SetesTextField(
-                    label: field.label,
-                    controller: _controllers[field.name],
-                    focusNode: _focusNodes[field.name],
-                    fieldKey: _fieldKeys[field.name],
-                    obscureText: field.obscure,
-                    readOnly: field.readOnly,
-                    autofocus: index == firstEditable,
-                    keyboardType: field.keyboardType,
-                    textInputAction: index == lastEditable
-                        ? TextInputAction.done
-                        : TextInputAction.next,
-                    // Valida e traduz: setes_validators devolve chave i18n
-                    // (.tr() em texto já traduzido devolve o próprio texto).
-                    validator: field.validator == null
-                        ? null
-                        : (value) => field.validator!(value)?.tr(),
-                    inputFormatters: field.mask == null
-                        ? null
-                        : [SetesMaskFormatter(field.mask!)],
+                _withTrailing(
+                  field,
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(index.toDouble()),
+                    child: SetesTextField(
+                      label: field.label,
+                      hint: field.hint,
+                      controller: _controllers[field.name],
+                      focusNode: _focusNodes[field.name],
+                      fieldKey: _fieldKeys[field.name],
+                      obscureText: field.obscure,
+                      readOnly: field.readOnly,
+                      autofocus: index == firstEditable,
+                      keyboardType: field.keyboardType,
+                      textInputAction: index == lastEditable
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      // Valida e traduz: setes_validators devolve chave i18n
+                      // (.tr() em texto já traduzido devolve o próprio texto).
+                      validator: field.validator == null
+                          ? null
+                          : (value) => field.validator!(value)?.tr(),
+                      inputFormatters: field.mask == null
+                          ? null
+                          : [SetesMaskFormatter(field.mask!)],
+                    ),
                   ),
                 ),
               const SizedBox(height: 16),
