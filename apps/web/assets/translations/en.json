@@ -294,7 +294,8 @@
       "moveDown": "Move down",
       "removeScreen": "Remove from module",
       "linkedCount": "Linked screens: {}",
-      "screenNotEligible": "The screen \"{}\" is no longer available for the menu (not contracted or outside the screen catalog) — remove it from the list.",
+      "screenUnavailable": "Screen not contracted (#{})",
+      "screenNotEligible": "The screen \"{}\" is not available for the menu (not contracted or outside the screen catalog) — remove it from the list.",
       "deleteWarning": "Delete this module? The linked screens will return to the default menu groups."
     },
     "customer": {

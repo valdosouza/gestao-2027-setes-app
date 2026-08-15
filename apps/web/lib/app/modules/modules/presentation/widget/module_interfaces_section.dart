@@ -7,7 +7,9 @@ import '../../domain/entity/module_entity.dart';
 
 /// Rótulo da interface vinculada: tradução do catálogo com fallback na
 /// description (decisão 26); vinculada que perdeu a elegibilidade (fora do
-/// lookup) aparece pelo id. Usado pela seção e pela âncora do 422 na página.
+/// lookup) se explica em vez de aparecer como um número solto (Q5) — o
+/// vínculo agora SOBREVIVE ao salvar, então o admin precisa entender por que
+/// a linha está ali. Usado pela seção e pela âncora do 422 na página.
 String moduleInterfaceLabel(List<ModuleInterfaceOption> options, int id) {
   for (final option in options) {
     if (option.id == id) {
@@ -15,7 +17,7 @@ String moduleInterfaceLabel(List<ModuleInterfaceOption> options, int id) {
           prefix: 'menu.interfaces');
     }
   }
-  return '#$id';
+  return 'register.module.screenUnavailable'.tr(args: ['$id']);
 }
 
 /// Seção "Telas do módulo" do cadastro de Módulos de Menu (D3 — vínculo

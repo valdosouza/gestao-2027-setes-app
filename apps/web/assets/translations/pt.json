@@ -294,7 +294,8 @@
       "moveDown": "Descer",
       "removeScreen": "Remover do módulo",
       "linkedCount": "Telas vinculadas: {}",
-      "screenNotEligible": "A tela \"{}\" não está mais disponível para o menu (não contratada ou fora do catálogo de telas) — remova-a da lista.",
+      "screenUnavailable": "Tela não contratada (#{})",
+      "screenNotEligible": "A tela \"{}\" não está disponível para o menu (não contratada ou fora do catálogo de telas) — remova-a da lista.",
       "deleteWarning": "Confirma a exclusão do módulo? As telas vinculadas voltam aos grupos padrão do menu."
     },
     "customer": {
