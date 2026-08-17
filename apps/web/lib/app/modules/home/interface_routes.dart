@@ -33,6 +33,8 @@ const Map<String, String> interfaceRoutes = {
   'payment-types': '/home/payment-types/',
   // Plano de Contas (2o cadastro em arvore)
   'financial-plans': '/home/financial-plans/',
+  // Regras de Tributação (fase Faturamento Fiscal e Financeiro)
+  'tax-rules': '/home/tax-rules/',
   // Contratos de serviço (Módulo Software House)
   'contracts': '/home/contracts/',
   // Contas Bancárias (Módulo Software House, grupo Financeiro)

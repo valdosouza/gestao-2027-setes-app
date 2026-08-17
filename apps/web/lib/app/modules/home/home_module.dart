@@ -24,6 +24,7 @@ import '../salesmen/salesmen_module.dart';
 import '../service_orders/service_orders_module.dart';
 import '../settlements/settlements_module.dart';
 import '../states/states_module.dart';
+import '../tax_rules/tax_rules_module.dart';
 import '../users/users_module.dart';
 import 'presentation/bloc/menu_bloc.dart';
 import 'presentation/content/home_frames.dart';
@@ -83,6 +84,9 @@ class HomeModule extends Module {
             ModuleRoute('/payment-types', module: PaymentTypesModule()),
             // Plano de Contas (2o cadastro em arvore)
             ModuleRoute('/financial-plans', module: FinancialPlansModule()),
+            // Regras de Tributação (fase Faturamento Fiscal e Financeiro —
+            // seletor + peças por tributo, presença = incidência)
+            ModuleRoute('/tax-rules', module: TaxRulesModule()),
             // Contratos de serviço (Módulo Software House)
             ModuleRoute('/contracts', module: ContractsModule()),
             // Contas Bancárias (Módulo Software House, grupo Financeiro)
