@@ -156,7 +156,6 @@
       "cfop": "Rule CFOP",
       "cfopTooLong": "CFOP must have at most 10 characters",
       "direction": "Operation Direction",
-      "directionAny": "Both directions",
       "directionIn": "Inbound",
       "directionOut": "Outbound",
       "finalConsumer": "Final Consumer",

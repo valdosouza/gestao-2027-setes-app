@@ -156,7 +156,6 @@
       "cfop": "CFOP da Regra",
       "cfopTooLong": "O CFOP deve ter no máximo 10 caracteres",
       "direction": "Sentido da Operação",
-      "directionAny": "Ambos os sentidos",
       "directionIn": "Entrada",
       "directionOut": "Saída",
       "finalConsumer": "Consumidor Final",

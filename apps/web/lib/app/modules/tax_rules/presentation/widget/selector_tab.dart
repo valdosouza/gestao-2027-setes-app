@@ -210,18 +210,17 @@ class _SelectorTabState extends State<SelectorTab> {
               onChanged: (t) => _emit(v.copyWith(cfopId: t.trim())),
             ),
           )),
-          // Sentido da operação (filtro de cadastro do lookup de CFOP)
+          // Sentido da regra — OBRIGATÓRIO E/S, sem "Ambos" (decisão 35:
+          // regra nunca vale para os dois sentidos; paridade NAT_SENTIDO).
           field(SetesDropdown<String>(
             label: 'forms.taxRules.direction'.tr(),
-            value: v.direction ?? '',
-            items: const ['', 'E', 'S'],
-            itemLabel: (code) => switch (code) {
-              'E' => 'forms.taxRules.directionIn'.tr(),
-              'S' => 'forms.taxRules.directionOut'.tr(),
-              _ => 'forms.taxRules.directionAny'.tr(),
-            },
-            onChanged: (sel) => _emit(v.copyWith(
-                direction: () => sel == null || sel.isEmpty ? null : sel)),
+            value: v.direction,
+            items: const ['S', 'E'],
+            itemLabel: (code) => code == 'E'
+                ? 'forms.taxRules.directionIn'.tr()
+                : 'forms.taxRules.directionOut'.tr(),
+            onChanged: (sel) =>
+                _emit(v.copyWith(direction: sel ?? v.direction)),
           )),
           field(SetesRadioGroup<String>(
             label: 'forms.taxRules.finalConsumer'.tr(),

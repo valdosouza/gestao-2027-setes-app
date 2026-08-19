@@ -38,7 +38,7 @@ class TaxRuleSelectorData extends Equatable {
     this.simples = 'N',
     this.st = 'N',
     this.purpose = '0',
-    this.direction,
+    this.direction = 'S',
     this.cfopId = '',
     this.stateId,
     this.stateName = '',
@@ -56,8 +56,9 @@ class TaxRuleSelectorData extends Equatable {
   final String st;
   final String purpose;
 
-  /// 'E'/'S'; null = ambos os sentidos.
-  final String? direction;
+  /// 'E'/'S' — OBRIGATÓRIO, sem coringa (decisão 35: "Ambos" não existe;
+  /// default 'S' = saída/venda, o caso dominante).
+  final String direction;
   final String cfopId;
   final int? stateId;
 
@@ -77,7 +78,8 @@ class TaxRuleSelectorData extends Equatable {
         simples:       json['simples'] as String? ?? 'N',
         st:            json['st'] as String? ?? 'N',
         purpose:       json['purpose'] as String? ?? '0',
-        direction:     json['direction'] as String?,
+        // Parse tolerante a linha pré-migration 029 (null → 'S').
+        direction:     json['direction'] as String? ?? 'S',
         cfopId:        json['cfopId'] as String? ?? '',
         stateId:       (json['stateId'] as num?)?.toInt(),
         observationId: (json['observationId'] as num?)?.toInt(),
@@ -93,7 +95,7 @@ class TaxRuleSelectorData extends Equatable {
         'simples':       simples,
         'st':            st,
         'purpose':       purpose,
-        'direction':     _idOrNull(direction),
+        'direction':     direction,
         'cfopId':        cfopId.trim().isEmpty ? null : cfopId.trim(),
         'stateId':       stateId,
         'observationId': observationId,
@@ -109,7 +111,7 @@ class TaxRuleSelectorData extends Equatable {
     String? simples,
     String? st,
     String? purpose,
-    String? Function()? direction,
+    String? direction,
     String? cfopId,
     int? Function()? stateId,
     String? stateName,
@@ -123,7 +125,7 @@ class TaxRuleSelectorData extends Equatable {
         simples:       simples ?? this.simples,
         st:            st ?? this.st,
         purpose:       purpose ?? this.purpose,
-        direction:     direction != null ? direction() : this.direction,
+        direction:     direction ?? this.direction,
         cfopId:        cfopId ?? this.cfopId,
         stateId:       stateId != null ? stateId() : this.stateId,
         stateName:     stateName ?? this.stateName,
