@@ -156,6 +156,7 @@
       "cfop": "CFOP da Regra",
       "cfopTooLong": "O CFOP deve ter no máximo 10 caracteres",
       "direction": "Sentido da Operação",
+      "originFilledHint": "Preenchido pelo cadastro de origem (produto/cliente)",
       "directionIn": "Entrada",
       "directionOut": "Saída",
       "finalConsumer": "Consumidor Final",

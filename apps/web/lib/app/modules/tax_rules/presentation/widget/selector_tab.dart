@@ -11,17 +11,11 @@ import '../../domain/entity/tax_rule_draft.dart';
 class SelectorTabHooks {
   final ncmFocus = FocusNode();
   final ncmKey = GlobalKey<FormFieldState<String>>();
-  final productFocus = FocusNode();
-  final productKey = GlobalKey<FormFieldState<String>>();
-  final entityFocus = FocusNode();
-  final entityKey = GlobalKey<FormFieldState<String>>();
   final cfopFocus = FocusNode();
   final cfopKey = GlobalKey<FormFieldState<String>>();
 
   void dispose() {
     ncmFocus.dispose();
-    productFocus.dispose();
-    entityFocus.dispose();
     cfopFocus.dispose();
   }
 }
@@ -108,15 +102,6 @@ class _SelectorTabState extends State<SelectorTab> {
         : 'forms.taxRules.ncmInvalid'.tr();
   }
 
-  String? _optionalIntValidator(String? text) {
-    final t = (text ?? '').trim();
-    if (t.isEmpty) return null;
-    final parsed = int.tryParse(t);
-    return parsed == null || parsed <= 0
-        ? 'register.invalidNumber'.tr()
-        : null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final v = widget.value;
@@ -160,33 +145,21 @@ class _SelectorTabState extends State<SelectorTab> {
               onChanged: (t) => _emit(v.copyWith(ncm: t.trim())),
             ),
           )),
-          field(FocusTraversalOrder(
-            order: const NumericFocusOrder(1),
-            child: SetesTextField(
-              label: 'forms.taxRules.product'.tr(),
-              hint: 'forms.taxRules.wildcardHint'.tr(),
-              controller: _product,
-              focusNode: hooks.productFocus,
-              fieldKey: hooks.productKey,
-              keyboardType: TextInputType.number,
-              validator: _optionalIntValidator,
-              textInputAction: TextInputAction.next,
-              onChanged: (t) => _emit(v.copyWith(productId: t.trim())),
-            ),
+          // Produto/Cliente da regra: SOMENTE LEITURA aqui (decisão 38 —
+          // RA-Q1): a especialização NASCE do cadastro de origem (produto/
+          // cliente), nunca digitada nesta tela; vazio = coringa. Esses
+          // códigos são os critérios de DESEMPATE do motor (pickRule).
+          field(SetesTextField(
+            label: 'forms.taxRules.product'.tr(),
+            hint: 'forms.taxRules.originFilledHint'.tr(),
+            controller: _product,
+            readOnly: true,
           )),
-          field(FocusTraversalOrder(
-            order: const NumericFocusOrder(2),
-            child: SetesTextField(
-              label: 'forms.taxRules.entity'.tr(),
-              hint: 'forms.taxRules.wildcardHint'.tr(),
-              controller: _entity,
-              focusNode: hooks.entityFocus,
-              fieldKey: hooks.entityKey,
-              keyboardType: TextInputType.number,
-              validator: _optionalIntValidator,
-              textInputAction: TextInputAction.next,
-              onChanged: (t) => _emit(v.copyWith(entityId: t.trim())),
-            ),
+          field(SetesTextField(
+            label: 'forms.taxRules.entity'.tr(),
+            hint: 'forms.taxRules.originFilledHint'.tr(),
+            controller: _entity,
+            readOnly: true,
           )),
           // UF do destinatário — vazio = coringa interestadual
           field(SetesLookupField(

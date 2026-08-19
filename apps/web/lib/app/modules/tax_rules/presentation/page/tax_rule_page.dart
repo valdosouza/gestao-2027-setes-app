@@ -254,16 +254,6 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
     return null;
   }
 
-  String? _optionalIntPendency(String text, String labelKey) {
-    final t = text.trim();
-    if (t.isEmpty) return null;
-    final parsed = int.tryParse(t);
-    if (parsed == null || parsed <= 0) {
-      return 'forms.taxRules.idInvalid'.tr(args: [labelKey.tr()]);
-    }
-    return null;
-  }
-
   /// Validação do draft inteiro (as abas podem estar desmontadas — a fonte
   /// de verdade é o draft do bloc), NA ORDEM das abas e dos campos na tela
   /// (R3). Os names carregam o PATH do payload (selector.ncm, icms.cstNr,
@@ -294,22 +284,9 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
               : 'forms.taxRules.ncmInvalid';
         },
       ),
-      PendencyField(
-        name: 'selector.productId',
-        beforeFocus: toSelector,
-        focusNode: _selectorHooks.productFocus,
-        fieldKey: _selectorHooks.productKey,
-        validate: () =>
-            _optionalIntPendency(sel.productId, 'forms.taxRules.product'),
-      ),
-      PendencyField(
-        name: 'selector.entityId',
-        beforeFocus: toSelector,
-        focusNode: _selectorHooks.entityFocus,
-        fieldKey: _selectorHooks.entityKey,
-        validate: () =>
-            _optionalIntPendency(sel.entityId, 'forms.taxRules.entity'),
-      ),
+      // Produto/Cliente não têm pendência local: são SOMENTE LEITURA na
+      // tela (decisão 38 — preenchidos pelo cadastro de origem; a API
+      // valida a existência com 422).
       PendencyField(
         name: 'selector.cfopId',
         beforeFocus: toSelector,

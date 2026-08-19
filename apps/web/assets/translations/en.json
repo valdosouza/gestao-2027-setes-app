@@ -156,6 +156,7 @@
       "cfop": "Rule CFOP",
       "cfopTooLong": "CFOP must have at most 10 characters",
       "direction": "Operation Direction",
+      "originFilledHint": "Filled from the source register (product/customer)",
       "directionIn": "Inbound",
       "directionOut": "Outbound",
       "finalConsumer": "Final Consumer",
