@@ -13,6 +13,8 @@ class PisCofinsTab extends StatefulWidget {
   const PisCofinsTab({
     required this.pis,
     required this.cofins,
+    required this.restorePis,
+    required this.restoreCofins,
     required this.catalogs,
     required this.onPisChanged,
     required this.onCofinsChanged,
@@ -22,6 +24,11 @@ class PisCofinsTab extends StatefulWidget {
   /// null = tributo não definido (toggle desligado).
   final PisCofinsData? pis;
   final PisCofinsData? cofins;
+
+  /// Últimas fatias vistas, guardadas no FORM (sobrevivem ao descarte da
+  /// aba pelo TabBarView — L3 dos gates): religar o toggle restaura daqui.
+  final PisCofinsData restorePis;
+  final PisCofinsData restoreCofins;
   final TaxRuleCatalogs catalogs;
   final ValueChanged<PisCofinsData?> onPisChanged;
   final ValueChanged<PisCofinsData?> onCofinsChanged;
@@ -34,17 +41,13 @@ class _PisCofinsTabState extends State<PisCofinsTab> {
   late final TextEditingController _pisAliq;
   late final TextEditingController _cofinsAliq;
 
-  /// Últimas fatias vistas — religar o toggle restaura o que foi digitado.
-  PisCofinsData _lastPis = const PisCofinsData(kind: 'P');
-  PisCofinsData _lastCofins = const PisCofinsData(kind: 'C');
-
   @override
   void initState() {
     super.initState();
-    _lastPis = widget.pis ?? const PisCofinsData(kind: 'P');
-    _lastCofins = widget.cofins ?? const PisCofinsData(kind: 'C');
-    _pisAliq = TextEditingController(text: _lastPis.aliq);
-    _cofinsAliq = TextEditingController(text: _lastCofins.aliq);
+    _pisAliq = TextEditingController(
+        text: (widget.pis ?? widget.restorePis).aliq);
+    _cofinsAliq = TextEditingController(
+        text: (widget.cofins ?? widget.restoreCofins).aliq);
   }
 
   @override
@@ -54,15 +57,9 @@ class _PisCofinsTabState extends State<PisCofinsTab> {
     super.dispose();
   }
 
-  void _emitPis(PisCofinsData updated) {
-    _lastPis = updated;
-    widget.onPisChanged(updated);
-  }
+  void _emitPis(PisCofinsData updated) => widget.onPisChanged(updated);
 
-  void _emitCofins(PisCofinsData updated) {
-    _lastCofins = updated;
-    widget.onCofinsChanged(updated);
-  }
+  void _emitCofins(PisCofinsData updated) => widget.onCofinsChanged(updated);
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +79,7 @@ class _PisCofinsTabState extends State<PisCofinsTab> {
             subtitle: 'forms.taxRules.defineHint'.tr(),
             value: pis != null,
             onChanged: (checked) =>
-                widget.onPisChanged(checked ? _lastPis : null),
+                widget.onPisChanged(checked ? widget.restorePis : null),
           ),
         ),
         const SizedBox(height: 16),
@@ -110,8 +107,8 @@ class _PisCofinsTabState extends State<PisCofinsTab> {
             label: 'forms.taxRules.defineCofins'.tr(),
             subtitle: 'forms.taxRules.defineHint'.tr(),
             value: cofins != null,
-            onChanged: (checked) =>
-                widget.onCofinsChanged(checked ? _lastCofins : null),
+            onChanged: (checked) => widget
+                .onCofinsChanged(checked ? widget.restoreCofins : null),
           ),
         ),
         const SizedBox(height: 16),

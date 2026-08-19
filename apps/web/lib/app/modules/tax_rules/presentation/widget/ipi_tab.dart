@@ -10,6 +10,7 @@ import 'tax_rule_catalog_dropdown.dart';
 class IpiTab extends StatefulWidget {
   const IpiTab({
     required this.value,
+    required this.restore,
     required this.catalogs,
     required this.onChanged,
     super.key,
@@ -17,6 +18,10 @@ class IpiTab extends StatefulWidget {
 
   /// null = tributo não definido (toggle desligado).
   final IpiData? value;
+
+  /// Última fatia vista, guardada no FORM (sobrevive ao descarte da aba
+  /// pelo TabBarView — L3 dos gates): religar o toggle restaura daqui.
+  final IpiData restore;
   final TaxRuleCatalogs catalogs;
   final ValueChanged<IpiData?> onChanged;
 
@@ -27,14 +32,11 @@ class IpiTab extends StatefulWidget {
 class _IpiTabState extends State<IpiTab> {
   late final TextEditingController _aliq;
 
-  /// Última fatia vista — religar o toggle restaura o que foi digitado.
-  IpiData _last = const IpiData();
-
   @override
   void initState() {
     super.initState();
-    _last = widget.value ?? const IpiData();
-    _aliq = TextEditingController(text: _last.aliq);
+    _aliq = TextEditingController(
+        text: (widget.value ?? widget.restore).aliq);
   }
 
   @override
@@ -43,10 +45,7 @@ class _IpiTabState extends State<IpiTab> {
     super.dispose();
   }
 
-  void _emit(IpiData updated) {
-    _last = updated;
-    widget.onChanged(updated);
-  }
+  void _emit(IpiData updated) => widget.onChanged(updated);
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +64,7 @@ class _IpiTabState extends State<IpiTab> {
             subtitle: 'forms.taxRules.defineHint'.tr(),
             value: on,
             onChanged: (checked) =>
-                widget.onChanged(checked ? _last : null),
+                widget.onChanged(checked ? widget.restore : null),
           ),
         ),
         const SizedBox(height: 16),

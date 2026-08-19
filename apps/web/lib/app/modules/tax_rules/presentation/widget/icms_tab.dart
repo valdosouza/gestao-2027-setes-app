@@ -12,6 +12,7 @@ import 'tax_rule_catalog_dropdown.dart';
 class IcmsTab extends StatefulWidget {
   const IcmsTab({
     required this.value,
+    required this.restore,
     required this.catalogs,
     required this.onChanged,
     super.key,
@@ -19,6 +20,10 @@ class IcmsTab extends StatefulWidget {
 
   /// null = tributo não definido (toggle desligado).
   final IcmsData? value;
+
+  /// Última fatia vista, guardada no FORM (sobrevive ao descarte da aba
+  /// pelo TabBarView — L3 dos gates): religar o toggle restaura daqui.
+  final IcmsData restore;
   final TaxRuleCatalogs catalogs;
   final ValueChanged<IcmsData?> onChanged;
 
@@ -32,18 +37,16 @@ class _IcmsTabState extends State<IcmsTab> {
   late final TextEditingController _baseReduction;
   late final TextEditingController _deferredAliq;
 
-  /// Última fatia vista — religar o toggle restaura o que foi digitado
-  /// (enquanto a aba está montada).
-  IcmsData _last = const IcmsData();
-
   @override
   void initState() {
     super.initState();
-    _last = widget.value ?? const IcmsData();
-    _aliq = TextEditingController(text: _last.aliq);
-    _aliqReduction = TextEditingController(text: _last.aliqReduction);
-    _baseReduction = TextEditingController(text: _last.baseReduction);
-    _deferredAliq = TextEditingController(text: _last.deferredAliq);
+    // Toggle desligado: os controllers nascem da memória do form, para o
+    // religar exibir exatamente o que será restaurado.
+    final init = widget.value ?? widget.restore;
+    _aliq = TextEditingController(text: init.aliq);
+    _aliqReduction = TextEditingController(text: init.aliqReduction);
+    _baseReduction = TextEditingController(text: init.baseReduction);
+    _deferredAliq = TextEditingController(text: init.deferredAliq);
   }
 
   @override
@@ -55,10 +58,7 @@ class _IcmsTabState extends State<IcmsTab> {
     super.dispose();
   }
 
-  void _emit(IcmsData updated) {
-    _last = updated;
-    widget.onChanged(updated);
-  }
+  void _emit(IcmsData updated) => widget.onChanged(updated);
 
   List<SetesRadioOption<String>> get _yesNo => [
         SetesRadioOption(value: 'S', label: 'register.yes'.tr()),
@@ -82,7 +82,7 @@ class _IcmsTabState extends State<IcmsTab> {
             subtitle: 'forms.taxRules.defineHint'.tr(),
             value: on,
             onChanged: (checked) =>
-                widget.onChanged(checked ? _last : null),
+                widget.onChanged(checked ? widget.restore : null),
           ),
         ),
         const SizedBox(height: 16),

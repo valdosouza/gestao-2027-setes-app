@@ -191,7 +191,9 @@ class IcmsData extends Equatable {
         'aliqReduction': _numOrNull(aliqReduction),
         'baseReduction': _numOrNull(baseReduction),
         'deferred':      deferred,
-        'deferredAliq':  _numOrNull(deferredAliq),
+        // Sem diferimento o campo fica OCULTO na tela — o resquício
+        // digitado não viaja (L1 dos gates).
+        'deferredAliq':  deferred == 'S' ? _numOrNull(deferredAliq) : null,
         'highlight':     highlight,
       };
 
@@ -403,10 +405,12 @@ class TaxRuleDraft extends Equatable {
     PisCofinsData? cofins;
     for (final raw in pieces['pisCofins'] as List<dynamic>? ?? const []) {
       final piece = PisCofinsData.fromJson(raw as Map<String, dynamic>);
+      // Kind duplicado vindo do banco: a PRIMEIRA ocorrência vale
+      // (determinístico — L5 dos gates; o DTO da API já rejeita na escrita).
       if (piece.kind == 'P') {
-        pis = piece;
+        pis ??= piece;
       } else {
-        cofins = piece;
+        cofins ??= piece;
       }
     }
     return TaxRuleDraft(

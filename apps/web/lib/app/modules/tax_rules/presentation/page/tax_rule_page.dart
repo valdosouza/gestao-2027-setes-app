@@ -199,6 +199,41 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
   /// Ganchos de foco/marcação dos campos de texto da aba Seletor (R3).
   final _selectorHooks = SelectorTabHooks();
 
+  /// Memória das fatias desligadas (L3 dos gates): o TabBarView DESCARTA a
+  /// aba fora de tela — religar o toggle depois de trocar de aba perdia o
+  /// digitado. A última fatia vista sobrevive aqui (este State fica montado
+  /// o form inteiro) e volta pelo toggle da aba.
+  IcmsData _lastIcms = const IcmsData();
+  IcmsStData _lastIcmsSt = const IcmsStData();
+  IpiData _lastIpi = const IpiData();
+  PisCofinsData _lastPis = const PisCofinsData(kind: 'P');
+  PisCofinsData _lastCofins = const PisCofinsData(kind: 'C');
+  IiData _lastIi = const IiData();
+
+  void _rememberSlices() {
+    final d = _draft;
+    if (d.icms != null) _lastIcms = d.icms!;
+    if (d.icmsSt != null) _lastIcmsSt = d.icmsSt!;
+    if (d.ipi != null) _lastIpi = d.ipi!;
+    if (d.pis != null) _lastPis = d.pis!;
+    if (d.cofins != null) _lastCofins = d.cofins!;
+    if (d.ii != null) _lastIi = d.ii!;
+  }
+
+  @override
+  void didUpdateWidget(covariant _TaxRuleFormView old) {
+    super.didUpdateWidget(old);
+    // Troca de registro zera a memória (não vazar fatia de outra regra).
+    if (old.creating != widget.creating || old.draft.id != widget.draft.id) {
+      _lastIcms = const IcmsData();
+      _lastIcmsSt = const IcmsStData();
+      _lastIpi = const IpiData();
+      _lastPis = const PisCofinsData(kind: 'P');
+      _lastCofins = const PisCofinsData(kind: 'C');
+      _lastIi = const IiData();
+    }
+  }
+
   @override
   void dispose() {
     _tabs.dispose();
@@ -330,7 +365,9 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
       PendencyField(
         name: 'icms.deferredAliq',
         beforeFocus: toIcms,
-        validate: () => draft.icms == null
+        // Sem diferimento o campo está OCULTO e não viaja no payload —
+        // não pode gerar pendência em controle inacessível (L1, par do M1).
+        validate: () => draft.icms == null || draft.icms!.deferred != 'S'
             ? null
             : _rangePendency(draft.icms!.deferredAliq,
                 'forms.taxRules.icmsDeferredAliq'),
@@ -497,6 +534,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
   @override
   Widget build(BuildContext context) {
     final draft = _draft;
+    _rememberSlices();
     return SetesFormShell(
       title: widget.title,
       saving: widget.saving,
@@ -535,6 +573,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   ),
                   IcmsTab(
                     value: draft.icms,
+                    restore: _lastIcms,
                     catalogs: widget.catalogs,
                     // Desligar o ICMS derruba a ST junto (ST exige o
                     // próprio — P3.3): sem isso o toggle da ST ficava
@@ -546,6 +585,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   ),
                   IcmsStTab(
                     value: draft.icmsSt,
+                    restore: _lastIcmsSt,
                     icmsOn: draft.icms != null,
                     catalogs: widget.catalogs,
                     onChanged: (icmsSt) => widget.onDraftChanged(
@@ -553,6 +593,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   ),
                   IpiTab(
                     value: draft.ipi,
+                    restore: _lastIpi,
                     catalogs: widget.catalogs,
                     onChanged: (ipi) => widget
                         .onDraftChanged(draft.copyWith(ipi: () => ipi)),
@@ -560,6 +601,8 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   PisCofinsTab(
                     pis: draft.pis,
                     cofins: draft.cofins,
+                    restorePis: _lastPis,
+                    restoreCofins: _lastCofins,
                     catalogs: widget.catalogs,
                     onPisChanged: (pis) => widget
                         .onDraftChanged(draft.copyWith(pis: () => pis)),
@@ -568,6 +611,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   ),
                   IiTab(
                     value: draft.ii,
+                    restore: _lastIi,
                     onChanged: (ii) =>
                         widget.onDraftChanged(draft.copyWith(ii: () => ii)),
                   ),

@@ -9,12 +9,17 @@ import '../../domain/entity/tax_rule_draft.dart';
 class IiTab extends StatefulWidget {
   const IiTab({
     required this.value,
+    required this.restore,
     required this.onChanged,
     super.key,
   });
 
   /// null = tributo não definido (toggle desligado).
   final IiData? value;
+
+  /// Última fatia vista, guardada no FORM (sobrevive ao descarte da aba
+  /// pelo TabBarView — L3 dos gates): religar o toggle restaura daqui.
+  final IiData restore;
   final ValueChanged<IiData?> onChanged;
 
   @override
@@ -28,18 +33,15 @@ class _IiTabState extends State<IiTab> {
   late final TextEditingController _afrmm;
   late final TextEditingController _siscomex;
 
-  /// Última fatia vista — religar o toggle restaura o que foi digitado.
-  IiData _last = const IiData();
-
   @override
   void initState() {
     super.initState();
-    _last = widget.value ?? const IiData();
-    _ii = TextEditingController(text: _last.iiAliq);
-    _irpj = TextEditingController(text: _last.irpjAliq);
-    _csll = TextEditingController(text: _last.csllAliq);
-    _afrmm = TextEditingController(text: _last.afrmmAliq);
-    _siscomex = TextEditingController(text: _last.siscomexAliq);
+    final init = widget.value ?? widget.restore;
+    _ii = TextEditingController(text: init.iiAliq);
+    _irpj = TextEditingController(text: init.irpjAliq);
+    _csll = TextEditingController(text: init.csllAliq);
+    _afrmm = TextEditingController(text: init.afrmmAliq);
+    _siscomex = TextEditingController(text: init.siscomexAliq);
   }
 
   @override
@@ -52,10 +54,7 @@ class _IiTabState extends State<IiTab> {
     super.dispose();
   }
 
-  void _emit(IiData updated) {
-    _last = updated;
-    widget.onChanged(updated);
-  }
+  void _emit(IiData updated) => widget.onChanged(updated);
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +93,7 @@ class _IiTabState extends State<IiTab> {
             subtitle: 'forms.taxRules.defineHint'.tr(),
             value: on,
             onChanged: (checked) =>
-                widget.onChanged(checked ? _last : null),
+                widget.onChanged(checked ? widget.restore : null),
           ),
         ),
         const SizedBox(height: 16),

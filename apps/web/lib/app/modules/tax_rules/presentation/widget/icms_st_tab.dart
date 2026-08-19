@@ -11,6 +11,7 @@ import 'tax_rule_catalog_dropdown.dart';
 class IcmsStTab extends StatefulWidget {
   const IcmsStTab({
     required this.value,
+    required this.restore,
     required this.icmsOn,
     required this.catalogs,
     required this.onChanged,
@@ -19,6 +20,10 @@ class IcmsStTab extends StatefulWidget {
 
   /// null = tributo não definido (toggle desligado).
   final IcmsStData? value;
+
+  /// Última fatia vista, guardada no FORM (sobrevive ao descarte da aba
+  /// pelo TabBarView — L3 dos gates): religar o toggle restaura daqui.
+  final IcmsStData restore;
 
   /// A peça ICMS está ligada? (pré-requisito da ST.)
   final bool icmsOn;
@@ -30,20 +35,7 @@ class IcmsStTab extends StatefulWidget {
 }
 
 class _IcmsStTabState extends State<IcmsStTab> {
-  /// Última fatia vista — religar o toggle restaura a escolha (enquanto a
-  /// aba está montada).
-  IcmsStData _last = const IcmsStData();
-
-  @override
-  void initState() {
-    super.initState();
-    _last = widget.value ?? const IcmsStData();
-  }
-
-  void _emit(IcmsStData updated) {
-    _last = updated;
-    widget.onChanged(updated);
-  }
+  void _emit(IcmsStData updated) => widget.onChanged(updated);
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +57,7 @@ class _IcmsStTabState extends State<IcmsStTab> {
             value: on,
             enabled: widget.icmsOn,
             onChanged: (checked) =>
-                widget.onChanged(checked ? _last : null),
+                widget.onChanged(checked ? widget.restore : null),
           ),
         ),
         const SizedBox(height: 16),
