@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../bank_accounts/bank_accounts_module.dart';
 import '../banks/banks_module.dart';
 import '../carriers/carriers_module.dart';
+import '../cashier/cashier_module.dart';
 import '../categories/categories_module.dart';
 import '../cfop/cfop_module.dart';
 import '../cities/cities_module.dart';
@@ -18,6 +19,8 @@ import '../payment_types/payment_types_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../modules/modules_module.dart';
+import '../order_returns/order_returns_module.dart';
+import '../orders/orders_module.dart';
 import '../privileges/privileges_module.dart';
 import '../providers/providers_module.dart';
 import '../salesmen/salesmen_module.dart';
@@ -97,8 +100,17 @@ class HomeModule extends Module {
             // Baixa de Títulos (Módulo Software House, grupo Financeiro —
             // 2ª tela de processo: carteira, baixa em lote, estorno, extrato)
             ModuleRoute('/settlements', module: SettlementsModule()),
+            // Abertura/Fechamento de Caixa (grupo Financeiro — 3º TIPO de
+            // tela: sessão/status, não lista+form nem árvore, W3.2)
+            ModuleRoute('/cashier', module: CashierModule()),
             // Módulos de Menu do cliente (camada 2 do menu — D1–D4)
             ModuleRoute('/modules', module: ModulesModule()),
+            // Pedido de Venda / Conjugado (grupo Vendas — 3ª tela de
+            // processo: itens mercadoria/serviço + Validar e Faturar)
+            ModuleRoute('/orders', module: OrdersModule()),
+            // Devolução de Mercadoria (grupo Vendas — ajuste de Entrada
+            // ancorado no pedido de venda faturado, molde orders)
+            ModuleRoute('/order-returns', module: OrderReturnsModule()),
             // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
             ModuleRoute('/interface-fields', module: InterfaceFieldsModule()),
             // Painel de configurações do sistema (Framework de Configurações)

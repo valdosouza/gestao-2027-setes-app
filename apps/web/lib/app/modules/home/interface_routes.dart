@@ -43,6 +43,12 @@ const Map<String, String> interfaceRoutes = {
   'service-orders': '/home/service-orders/',
   // Baixa de Títulos (Módulo Software House, grupo Financeiro — 2ª tela de processo)
   'settlements': '/home/settlements/',
+  // Abertura/Fechamento de Caixa (grupo Financeiro — tela de SESSÃO/STATUS, W3.2)
+  'cashier': '/home/cashier/',
+  // Pedido de Venda / Conjugado (grupo Vendas — 3ª tela de processo)
+  'orders': '/home/orders/',
+  // Devolução de Mercadoria (grupo Vendas — nasce no pedido faturado)
+  'order-returns': '/home/order-returns/',
   // Módulos de Menu do cliente (camada 2 do menu — D1–D4, 2026-08-04)
   'modules': '/home/modules/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)
