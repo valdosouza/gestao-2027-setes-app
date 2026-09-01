@@ -91,7 +91,8 @@
     "no": "No",
     "ok": "OK",
     "configTooltip": "Settings for this screen",
-    "close": "Close"
+    "close": "Close",
+    "retry": "Try again"
   },
   "lookup": {
     "countries": "List of Countries",
@@ -155,6 +156,7 @@
       "entity": "Customer Code",
       "state": "Recipient State",
       "cfop": "Rule CFOP",
+      "cfopLookupTitle": "Jurisdiction CFOPs",
       "cfopTooLong": "CFOP must have at most 10 characters",
       "direction": "Operation Direction",
       "originFilledHint": "Filled from the source register (product/customer)",
@@ -318,6 +320,18 @@
       "syncApiKeyGenerated": "Synchronization key generated",
       "syncApiKeyCopy": "Copy key",
       "syncApiKeyCopied": "Key copied"
+    },
+    "establishment": {
+      "nameCompany": "Establishment Legal Name",
+      "nickTrade": "Establishment Trade Name",
+      "cpf": "CPF",
+      "cnpj": "CNPJ",
+      "ie": "State Registration",
+      "im": "Municipal Registration",
+      "taxRegime": "Tax Regime",
+      "taxRegimeChangeTitle": "Tax Regime Change",
+      "taxRegimeChangeWarning": "This change will remove the {code} code from all tax rules when saving. After the change you must review the tax rules under the new definitions — otherwise billing may be interrupted due to missing rules. Do you want to continue?",
+      "loadError": "We could not load your establishment's data."
     },
     "user": {
       "code": "User Code",
@@ -894,6 +908,7 @@
       "interfaces": "Interfaces",
       "customers": "Customers",
       "institutions": "Institutions",
+      "establishment": "My Establishment",
       "users": "Users",
       "modules": "Modules",
       "countries": "Countries",

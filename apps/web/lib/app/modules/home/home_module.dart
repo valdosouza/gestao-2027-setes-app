@@ -12,6 +12,7 @@ import '../collaborators/collaborators_module.dart';
 import '../contracts/contracts_module.dart';
 import '../countries/countries_module.dart';
 import '../customers/customers_module.dart';
+import '../establishment/establishment_module.dart';
 import '../financial_plans/financial_plans_module.dart';
 import '../institutions/institutions_module.dart';
 import '../interface_configs/interface_configs_module.dart';
@@ -70,6 +71,8 @@ class HomeModule extends Module {
             // fecho da decisão 8 da Fase 3; sem cadeia fiscal)
             ModuleRoute('/banks', module: BanksModule()),
             ModuleRoute('/institutions', module: InstitutionsModule()),
+            // Meu Estabelecimento (menu Sistema) — CRUD sem lista
+            ModuleRoute('/establishment', module: EstablishmentModule()),
             // Fase 3 Entidade Única — primeiro papel novo (Customer)
             ModuleRoute('/customers', module: CustomersModule()),
             // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)

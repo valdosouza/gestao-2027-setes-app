@@ -91,7 +91,8 @@
     "no": "Não",
     "ok": "OK",
     "configTooltip": "Configurações desta tela",
-    "close": "Fechar"
+    "close": "Fechar",
+    "retry": "Tentar novamente"
   },
   "lookup": {
     "countries": "Lista de Países",
@@ -155,6 +156,7 @@
       "entity": "Código do Cliente",
       "state": "Estado do Destinatário",
       "cfop": "CFOP da Regra",
+      "cfopLookupTitle": "CFOPs da Alçada",
       "cfopTooLong": "O CFOP deve ter no máximo 10 caracteres",
       "direction": "Sentido da Operação",
       "originFilledHint": "Preenchido pelo cadastro de origem (produto/cliente)",
@@ -318,6 +320,18 @@
       "syncApiKeyGenerated": "Chave de sincronização gerada",
       "syncApiKeyCopy": "Copiar chave",
       "syncApiKeyCopied": "Chave copiada"
+    },
+    "establishment": {
+      "nameCompany": "Razão Social do Estabelecimento",
+      "nickTrade": "Nome Fantasia do Estabelecimento",
+      "cpf": "CPF",
+      "cnpj": "CNPJ",
+      "ie": "Inscrição Estadual",
+      "im": "Inscrição Municipal",
+      "taxRegime": "Regime Tributário",
+      "taxRegimeChangeTitle": "Alteração de Regime Tributário",
+      "taxRegimeChangeWarning": "Esta alteração vai provocar a remoção do código {code} de todas as regras de tributação ao salvar. Após a alteração será preciso revisar as regras de tributação com as novas definições — caso contrário haverá o risco de interrupção do faturamento por falta de regras. Deseja continuar?",
+      "loadError": "Não foi possível carregar os dados do seu estabelecimento."
     },
     "user": {
       "code": "Código do Usuário",
@@ -894,6 +908,7 @@
       "interfaces": "Interfaces",
       "customers": "Clientes",
       "institutions": "Estabelecimentos",
+      "establishment": "Meu Estabelecimento",
       "users": "Usuários",
       "modules": "Módulos",
       "countries": "Países",

@@ -92,20 +92,27 @@ class _IcmsTabState extends State<IcmsTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                field(TaxRuleCatalogDropdown(
-                  label: 'forms.taxRules.icmsCst'.tr(),
-                  entries: widget.catalogs.icmsNr,
-                  value: v.cstNr,
-                  onChanged: (sel) =>
-                      _emit(v.copyWith(cstNr: () => sel)),
-                )),
-                field(TaxRuleCatalogDropdown(
-                  label: 'forms.taxRules.icmsCsosn'.tr(),
-                  entries: widget.catalogs.icmsSn,
-                  value: v.csosn,
-                  onChanged: (sel) =>
-                      _emit(v.copyWith(csosn: () => sel)),
-                )),
+                // D39.3 — o form se adapta ao regime do estabelecimento:
+                // Simples (CRT 1/2) só CSOSN; Normal (CRT 3) só CST;
+                // regime não configurado (null) mostra os dois (fallback).
+                // O valor do campo oculto NÃO é apagado — regra é agnóstica
+                // ao regime e o motor despacha pelo CRT ao faturar (D37).
+                if (!widget.catalogs.isSimples)
+                  field(TaxRuleCatalogDropdown(
+                    label: 'forms.taxRules.icmsCst'.tr(),
+                    entries: widget.catalogs.icmsNr,
+                    value: v.cstNr,
+                    onChanged: (sel) =>
+                        _emit(v.copyWith(cstNr: () => sel)),
+                  )),
+                if (!widget.catalogs.isNormal)
+                  field(TaxRuleCatalogDropdown(
+                    label: 'forms.taxRules.icmsCsosn'.tr(),
+                    entries: widget.catalogs.icmsSn,
+                    value: v.csosn,
+                    onChanged: (sel) =>
+                        _emit(v.copyWith(csosn: () => sel)),
+                  )),
                 field(TaxRuleCatalogDropdown(
                   label: 'forms.taxRules.icmsModBc'.tr(),
                   entries: widget.catalogs.modBc,

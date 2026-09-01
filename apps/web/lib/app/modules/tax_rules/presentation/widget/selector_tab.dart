@@ -4,19 +4,26 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/state_lookup_entity.dart';
+import '../../domain/entity/tax_rule_catalogs.dart';
 import '../../domain/entity/tax_rule_draft.dart';
+
+/// Assinatura da busca de CFOPs por ALÇADA (rodada 2026-09-01) — resolvida
+/// na API (sentido + UF do destinatário → 1º dígito; UF do emitente é do
+/// servidor).
+typedef CfopSearch = Future<List<CatalogEntry>> Function({
+  required String direction,
+  int? stateId,
+  required String filter,
+});
 
 /// Ganchos de foco/marcação dos campos de texto da aba Seletor (mecânica
 /// uma-pendência R3 e fields[] do servidor — Framework de Mensagens).
 class SelectorTabHooks {
   final ncmFocus = FocusNode();
   final ncmKey = GlobalKey<FormFieldState<String>>();
-  final cfopFocus = FocusNode();
-  final cfopKey = GlobalKey<FormFieldState<String>>();
 
   void dispose() {
     ncmFocus.dispose();
-    cfopFocus.dispose();
   }
 }
 
@@ -30,6 +37,7 @@ class SelectorTab extends StatefulWidget {
     required this.value,
     required this.onChanged,
     required this.stateLookup,
+    required this.searchCfops,
     required this.hooks,
     super.key,
   });
@@ -37,6 +45,7 @@ class SelectorTab extends StatefulWidget {
   final TaxRuleSelectorData value;
   final ValueChanged<TaxRuleSelectorData> onChanged;
   final StateLookupDatasource stateLookup;
+  final CfopSearch searchCfops;
   final SelectorTabHooks hooks;
 
   @override
@@ -47,7 +56,6 @@ class _SelectorTabState extends State<SelectorTab> {
   late final TextEditingController _ncm;
   late final TextEditingController _product;
   late final TextEditingController _entity;
-  late final TextEditingController _cfop;
 
   @override
   void initState() {
@@ -56,7 +64,6 @@ class _SelectorTabState extends State<SelectorTab> {
     _ncm = TextEditingController(text: v.ncm);
     _product = TextEditingController(text: v.productId);
     _entity = TextEditingController(text: v.entityId);
-    _cfop = TextEditingController(text: v.cfopId);
   }
 
   @override
@@ -64,7 +71,6 @@ class _SelectorTabState extends State<SelectorTab> {
     _ncm.dispose();
     _product.dispose();
     _entity.dispose();
-    _cfop.dispose();
     super.dispose();
   }
 
@@ -81,10 +87,35 @@ class _SelectorTabState extends State<SelectorTab> {
       itemLabel: (s) => '${s.abbreviation ?? ''} · ${s.name ?? ''}',
     );
     if (picked != null) {
+      // UF mudou = alçada mudou — CFOP escolhido deixa de valer (sequência
+      // de preenchimento: estado → sentido → CFOP).
       _emit(widget.value.copyWith(
         stateId: () => picked.id,
         stateName: picked.name ?? '',
+        cfopId: '',
       ));
+    }
+  }
+
+  /// Lookup de CFOP por ALÇADA: a lista vem da API já filtrada pelo 1º
+  /// dígito (sentido + UF do destinatário; UF do emitente é do servidor).
+  Future<void> _pickCfop() async {
+    final v = widget.value;
+    final picked = await showSetesLookup<CatalogEntry>(
+      context: context,
+      title: 'forms.taxRules.cfopLookupTitle'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: (filter) => widget.searchCfops(
+        direction: v.direction,
+        stateId: v.stateId,
+        filter: filter,
+      ),
+      itemId: (c) => int.tryParse(c.id) ?? 0,
+      itemLabel: (c) => c.label,
+    );
+    if (picked != null) {
+      _emit(v.copyWith(cfopId: picked.id));
     }
   }
 
@@ -145,23 +176,27 @@ class _SelectorTabState extends State<SelectorTab> {
               onChanged: (t) => _emit(v.copyWith(ncm: t.trim())),
             ),
           )),
-          // Produto/Cliente da regra: SOMENTE LEITURA aqui (decisão 38 —
+          // Produto/Cliente da regra: NUNCA editáveis aqui (decisão 38 —
           // RA-Q1): a especialização NASCE do cadastro de origem (produto/
-          // cliente), nunca digitada nesta tela; vazio = coringa. Esses
-          // códigos são os critérios de DESEMPATE do motor (pickRule).
-          field(SetesTextField(
-            label: 'forms.taxRules.product'.tr(),
-            hint: 'forms.taxRules.originFilledHint'.tr(),
-            controller: _product,
-            readOnly: true,
-          )),
-          field(SetesTextField(
-            label: 'forms.taxRules.entity'.tr(),
-            hint: 'forms.taxRules.originFilledHint'.tr(),
-            controller: _entity,
-            readOnly: true,
-          )),
-          // UF do destinatário — vazio = coringa interestadual
+          // cliente). Regra comum (vazio = coringa) não mostra os campos;
+          // especialização exibe o código somente-leitura, como contexto.
+          // Esses códigos são os critérios de DESEMPATE do motor (pickRule).
+          if (v.productId.isNotEmpty)
+            field(SetesTextField(
+              label: 'forms.taxRules.product'.tr(),
+              hint: 'forms.taxRules.originFilledHint'.tr(),
+              controller: _product,
+              readOnly: true,
+            )),
+          if (v.entityId.isNotEmpty)
+            field(SetesTextField(
+              label: 'forms.taxRules.entity'.tr(),
+              hint: 'forms.taxRules.originFilledHint'.tr(),
+              controller: _entity,
+              readOnly: true,
+            )),
+          // UF do destinatário — vazio = coringa interestadual. Sequência
+          // de preenchimento (rodada 2026-09-01): estado → sentido → CFOP.
           field(SetesLookupField(
             label: 'forms.taxRules.state'.tr(),
             display: v.stateId == null ? '' : v.stateName,
@@ -169,22 +204,11 @@ class _SelectorTabState extends State<SelectorTab> {
             onClear: v.stateId == null
                 ? null
                 : () => _emit(v.copyWith(
-                    stateId: () => null, stateName: '')),
-          )),
-          field(FocusTraversalOrder(
-            order: const NumericFocusOrder(3),
-            child: SetesTextField(
-              label: 'forms.taxRules.cfop'.tr(),
-              hint: 'forms.taxRules.wildcardHint'.tr(),
-              controller: _cfop,
-              focusNode: hooks.cfopFocus,
-              fieldKey: hooks.cfopKey,
-              textInputAction: TextInputAction.done,
-              onChanged: (t) => _emit(v.copyWith(cfopId: t.trim())),
-            ),
+                    stateId: () => null, stateName: '', cfopId: '')),
           )),
           // Sentido da regra — OBRIGATÓRIO E/S, sem "Ambos" (decisão 35:
           // regra nunca vale para os dois sentidos; paridade NAT_SENTIDO).
+          // Vem ANTES do CFOP: sentido + UF definem a alçada da lista.
           field(SetesDropdown<String>(
             label: 'forms.taxRules.direction'.tr(),
             value: v.direction,
@@ -192,8 +216,21 @@ class _SelectorTabState extends State<SelectorTab> {
             itemLabel: (code) => code == 'E'
                 ? 'forms.taxRules.directionIn'.tr()
                 : 'forms.taxRules.directionOut'.tr(),
-            onChanged: (sel) =>
-                _emit(v.copyWith(direction: sel ?? v.direction)),
+            onChanged: (sel) {
+              if (sel == null || sel == v.direction) return;
+              // sentido mudou = alçada mudou — CFOP escolhido cai
+              _emit(v.copyWith(direction: sel, cfopId: ''));
+            },
+          )),
+          // CFOP por ALÇADA: lista filtrada pelo 1º dígito (mesma UF do
+          // emitente = 1/5; outra UF = 2/6; EX = 3/7; UF vazia = os 3).
+          field(SetesLookupField(
+            label: 'forms.taxRules.cfop'.tr(),
+            display: v.cfopId,
+            onSearch: _pickCfop,
+            onClear: v.cfopId.isEmpty
+                ? null
+                : () => _emit(v.copyWith(cfopId: '')),
           )),
           field(SetesRadioGroup<String>(
             label: 'forms.taxRules.finalConsumer'.tr(),

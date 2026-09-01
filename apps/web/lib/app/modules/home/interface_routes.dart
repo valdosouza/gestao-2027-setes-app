@@ -18,6 +18,9 @@ const Map<String, String> interfaceRoutes = {
   // decisão 8 da Fase 3; consumo dos clientes segue no lookup bank-accounts)
   'banks':      '/home/banks/',
   'institutions': '/home/institutions/',
+  // Meu Estabelecimento (menu Sistema) — CRUD sem lista, institutionId
+  // implícito no token (cardinalidade 1 garantida pela API)
+  'establishment': '/home/establishment/',
   // Primeiro papel da Fase 3 Entidade Única (cadastro do CLIENTE)
   'customers':  '/home/customers/',
   // Onda 2 — papel Colaborador (hierarquia de papéis, decisão 16)

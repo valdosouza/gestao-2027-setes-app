@@ -9,6 +9,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../data/datasource/tax_rule_datasource.dart';
 import '../../domain/entity/tax_rule_catalogs.dart';
 import '../../domain/entity/tax_rule_draft.dart';
 import '../../domain/entity/tax_rule_list_item.dart';
@@ -44,6 +45,10 @@ class _TaxRulePageState extends State<TaxRulePage> {
   late final TaxRuleBloc _bloc;
   late final StateLookupDatasource _stateLookup;
 
+  /// Datasource do módulo — o form usa direto o lookup de CFOPs por alçada
+  /// (leitura de apoio, sem estado — não passa pelo bloc).
+  late final TaxRuleDatasource _datasource;
+
   /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
   /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
   /// lista o currentState é null.
@@ -54,6 +59,7 @@ class _TaxRulePageState extends State<TaxRulePage> {
     super.initState();
     _bloc = Modular.get<TaxRuleBloc>()..add(const TaxRuleListRequested(''));
     _stateLookup = Modular.get<StateLookupDatasource>();
+    _datasource = Modular.get<TaxRuleDatasource>();
   }
 
   /// Célula-título da linha: produto específico > NCM > regra geral.
@@ -113,6 +119,7 @@ class _TaxRulePageState extends State<TaxRulePage> {
         creating: state.creating,
         saving: state.saving,
         stateLookup: _stateLookup,
+        searchCfops: _datasource.getCfopOptions,
         onDraftChanged: (draft) => _bloc.add(TaxRuleDraftChanged(draft)),
         onSave: () => _bloc.add(TaxRuleSaveRequested(
             draft: state.draft, creating: state.creating)),
@@ -170,6 +177,7 @@ class _TaxRuleFormView extends StatefulWidget {
     required this.creating,
     required this.saving,
     required this.stateLookup,
+    required this.searchCfops,
     required this.onDraftChanged,
     required this.onSave,
     required this.onBack,
@@ -183,6 +191,7 @@ class _TaxRuleFormView extends StatefulWidget {
   final bool creating;
   final bool saving;
   final StateLookupDatasource stateLookup;
+  final CfopSearch searchCfops;
   final ValueChanged<TaxRuleDraft> onDraftChanged;
   final VoidCallback onSave;
   final VoidCallback onBack;
@@ -287,14 +296,12 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
       // Produto/Cliente não têm pendência local: são SOMENTE LEITURA na
       // tela (decisão 38 — preenchidos pelo cadastro de origem; a API
       // valida a existência com 422).
+      // CFOP agora é LOOKUP por alçada (rodada 2026-09-01) — valor sempre
+      // vem da lista; a âncora fica só para o fields[] do servidor.
       PendencyField(
         name: 'selector.cfopId',
         beforeFocus: toSelector,
-        focusNode: _selectorHooks.cfopFocus,
-        fieldKey: _selectorHooks.cfopKey,
-        validate: () => sel.cfopId.trim().length <= 10
-            ? null
-            : 'forms.taxRules.cfopTooLong',
+        validate: () => null,
       ),
       // Regra sem NENHUM tributo não define nada (espelho do refine do
       // DTO — path 'selector').
@@ -544,6 +551,7 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
                   SelectorTab(
                     value: draft.selector,
                     stateLookup: widget.stateLookup,
+                    searchCfops: widget.searchCfops,
                     hooks: _selectorHooks,
                     onChanged: (selector) => widget
                         .onDraftChanged(draft.copyWith(selector: selector)),
