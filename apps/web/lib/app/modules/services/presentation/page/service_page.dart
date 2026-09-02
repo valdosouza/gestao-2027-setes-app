@@ -13,7 +13,7 @@ import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
-import '../../data/datasource/service_datasource.dart';
+import '../../data/datasource/service_lookup_datasource.dart';
 import '../../domain/entity/service_entity.dart';
 import '../bloc/service_bloc.dart';
 
@@ -41,7 +41,7 @@ class ServicePage extends StatefulWidget {
 
 class _ServicePageState extends State<ServicePage> with FieldConfigLoader {
   late final ServiceBloc _bloc;
-  late final ServiceDatasource _datasource;
+  late final ServiceLookupDatasource _lookup;
 
   /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
   /// campo. O form só está montado no modo formulário.
@@ -51,7 +51,7 @@ class _ServicePageState extends State<ServicePage> with FieldConfigLoader {
   void initState() {
     super.initState();
     _bloc = Modular.get<ServiceBloc>()..add(const ServiceListRequested(''));
-    _datasource = Modular.get<ServiceDatasource>();
+    _lookup = Modular.get<ServiceLookupDatasource>();
     loadFieldConfig('services'); // engine de campos configuráveis
   }
 
@@ -88,7 +88,7 @@ class _ServicePageState extends State<ServicePage> with FieldConfigLoader {
         key: _formViewKey,
         title: widget.title,
         state: state,
-        datasource: _datasource,
+        datasource: _lookup,
         fieldConfig: fieldConfig,
         onSave: (event) => _bloc.add(event),
         onBack: () => _bloc.add(const ServiceBackToListPressed()),
@@ -153,7 +153,7 @@ class _ServiceFormView extends StatefulWidget {
 
   final String title;
   final ServiceFormState state;
-  final ServiceDatasource datasource;
+  final ServiceLookupDatasource datasource;
 
   /// Catálogo resolvido da interface (tb_interface_has_field × cliente).
   final List<FieldConfigEntity> fieldConfig;

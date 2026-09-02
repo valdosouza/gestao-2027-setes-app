@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import 'data/datasource/cfop_lookup_datasource.dart';
 import 'data/datasource/tax_rule_datasource.dart';
 import 'data/repository/tax_rule_repository_impl.dart';
 import 'domain/repository/tax_rule_repository.dart';
@@ -24,6 +25,8 @@ class TaxRulesModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<TaxRuleDatasource>(
             (i) => TaxRuleDatasourceImpl(client: i.get<ApiClient>())),
+        Bind.lazySingleton<CfopLookupDatasource>(
+            (i) => CfopLookupDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<TaxRuleRepository>((i) =>
             TaxRuleRepositoryImpl(datasource: i.get<TaxRuleDatasource>())),
         Bind.lazySingleton<StateLookupDatasource>(

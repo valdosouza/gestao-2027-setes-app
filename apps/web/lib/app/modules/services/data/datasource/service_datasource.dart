@@ -4,9 +4,10 @@ import '../../domain/entity/service_entity.dart';
 
 /// Datasource remoto de Serviços: /api/services na setes-api (módulo gêmeo —
 /// escopo por institution vem do JWT; kind='S' é fixado pela API, D5).
-/// Lookups de categoria e plano financeiro são endpoints do próprio módulo;
-/// a grade do serviço NOVO nasce das tabelas de preço vivas
-/// (GET /api/price-lists — lista de apoio pede pageSize=100 explícito).
+/// Lookups de categoria/plano vivem em ServiceLookupDatasource (o que a
+/// page consome direto); a grade do serviço NOVO nasce das tabelas de preço
+/// vivas — GET /api/services/price-lists (o app fala SÓ com /api/services,
+/// nunca com o endpoint do módulo vizinho).
 abstract class ServiceDatasource {
   /// Página da lista (filtro REMOTO por descrição/identificador):
   /// [pageSize] null deixa a API resolver a config page_size do usuário.
@@ -15,12 +16,6 @@ abstract class ServiceDatasource {
 
   /// Serviço completo (plano, flags, observação e grade de preços).
   Future<ServiceFull> getById(int id);
-
-  /// Categorias para o lookup do form.
-  Future<List<ServiceLookup>> categories(String filter);
-
-  /// Planos financeiros para o lookup do form.
-  Future<List<ServiceLookup>> financialPlans(String filter);
 
   /// Tabelas de preço vivas → grade vazia do serviço NOVO (priceTag null).
   Future<List<ServicePrice>> priceLists();
@@ -39,17 +34,6 @@ class ServiceDatasourceImpl implements ServiceDatasource {
   const ServiceDatasourceImpl({required this.client});
 
   final ApiClient client;
-
-  static String _query(String filter) =>
-      filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-
-  Future<List<ServiceLookup>> _lookup(String path, String filter) async {
-    final json = await client.get('/api/services/$path${_query(filter)}');
-    final data = json['data'] as List<dynamic>? ?? [];
-    return data
-        .map((e) => ServiceLookup.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
 
   @override
   Future<PagedResult<ServiceListItem>> getList(String filter,
@@ -70,16 +54,8 @@ class ServiceDatasourceImpl implements ServiceDatasource {
   }
 
   @override
-  Future<List<ServiceLookup>> categories(String filter) =>
-      _lookup('categories', filter);
-
-  @override
-  Future<List<ServiceLookup>> financialPlans(String filter) =>
-      _lookup('financial-plans', filter);
-
-  @override
   Future<List<ServicePrice>> priceLists() async {
-    final json = await client.get('/api/price-lists?page=1&pageSize=100');
+    final json = await client.get('/api/services/price-lists');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ServicePrice.fromPriceListJson(e as Map<String, dynamic>))

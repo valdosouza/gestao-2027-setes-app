@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import 'data/datasource/service_datasource.dart';
+import 'data/datasource/service_lookup_datasource.dart';
 import 'data/repository/service_repository_impl.dart';
 import 'domain/repository/service_repository.dart';
 import 'domain/usecase/service_delete.dart';
@@ -23,6 +24,8 @@ class ServicesModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<ServiceDatasource>(
             (i) => ServiceDatasourceImpl(client: i.get<ApiClient>())),
+        Bind.lazySingleton<ServiceLookupDatasource>(
+            (i) => ServiceLookupDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<ServiceRepository>((i) =>
             ServiceRepositoryImpl(datasource: i.get<ServiceDatasource>())),
         Bind.factory<ServiceGetlist>(

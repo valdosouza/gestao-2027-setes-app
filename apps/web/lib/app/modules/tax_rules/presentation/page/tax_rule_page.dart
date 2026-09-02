@@ -9,7 +9,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
-import '../../data/datasource/tax_rule_datasource.dart';
+import '../../data/datasource/cfop_lookup_datasource.dart';
 import '../../domain/entity/tax_rule_catalogs.dart';
 import '../../domain/entity/tax_rule_draft.dart';
 import '../../domain/entity/tax_rule_list_item.dart';
@@ -45,9 +45,10 @@ class _TaxRulePageState extends State<TaxRulePage> {
   late final TaxRuleBloc _bloc;
   late final StateLookupDatasource _stateLookup;
 
-  /// Datasource do módulo — o form usa direto o lookup de CFOPs por alçada
-  /// (leitura de apoio, sem estado — não passa pelo bloc).
-  late final TaxRuleDatasource _datasource;
+  /// Lookup de CFOPs por alçada (leitura de apoio, sem estado — a page
+  /// consome direto, padrão StateLookupDatasource; nunca o datasource
+  /// principal do módulo).
+  late final CfopLookupDatasource _cfopLookup;
 
   /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
   /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
@@ -59,7 +60,7 @@ class _TaxRulePageState extends State<TaxRulePage> {
     super.initState();
     _bloc = Modular.get<TaxRuleBloc>()..add(const TaxRuleListRequested(''));
     _stateLookup = Modular.get<StateLookupDatasource>();
-    _datasource = Modular.get<TaxRuleDatasource>();
+    _cfopLookup = Modular.get<CfopLookupDatasource>();
   }
 
   /// Célula-título da linha: produto específico > NCM > regra geral.
@@ -119,7 +120,7 @@ class _TaxRulePageState extends State<TaxRulePage> {
         creating: state.creating,
         saving: state.saving,
         stateLookup: _stateLookup,
-        searchCfops: _datasource.getCfopOptions,
+        searchCfops: _cfopLookup.search,
         onDraftChanged: (draft) => _bloc.add(TaxRuleDraftChanged(draft)),
         onSave: () => _bloc.add(TaxRuleSaveRequested(
             draft: state.draft, creating: state.creating)),
