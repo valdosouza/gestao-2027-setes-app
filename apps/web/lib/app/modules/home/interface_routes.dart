@@ -52,6 +52,10 @@ const Map<String, String> interfaceRoutes = {
   'orders': '/home/orders/',
   // Devolução de Mercadoria (grupo Vendas — nasce no pedido faturado)
   'order-returns': '/home/order-returns/',
+  // Tabelas de Preço e Serviços (prompt_modulo_services.md, D1–D7 2026-09-01 —
+  // grupo Cadastros; serviço = tb_product kind='S' + grade de preços)
+  'price-lists': '/home/price-lists/',
+  'services': '/home/services/',
   // Módulos de Menu do cliente (camada 2 do menu — D1–D4, 2026-08-04)
   'modules': '/home/modules/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)

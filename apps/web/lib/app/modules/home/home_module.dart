@@ -17,6 +17,7 @@ import '../financial_plans/financial_plans_module.dart';
 import '../institutions/institutions_module.dart';
 import '../interface_configs/interface_configs_module.dart';
 import '../payment_types/payment_types_module.dart';
+import '../price_lists/price_lists_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../modules/modules_module.dart';
@@ -26,6 +27,7 @@ import '../privileges/privileges_module.dart';
 import '../providers/providers_module.dart';
 import '../salesmen/salesmen_module.dart';
 import '../service_orders/service_orders_module.dart';
+import '../services/services_module.dart';
 import '../settlements/settlements_module.dart';
 import '../states/states_module.dart';
 import '../tax_rules/tax_rules_module.dart';
@@ -106,6 +108,11 @@ class HomeModule extends Module {
             // Abertura/Fechamento de Caixa (grupo Financeiro — 3º TIPO de
             // tela: sessão/status, não lista+form nem árvore, W3.2)
             ModuleRoute('/cashier', module: CashierModule()),
+            // Tabelas de Preço e Serviços (prompt_modulo_services.md,
+            // D1–D7: serviço = tb_product kind='S' + grade de preços por
+            // tabela; telas irmãs do futuro cadastro de produtos — D6)
+            ModuleRoute('/price-lists', module: PriceListsModule()),
+            ModuleRoute('/services', module: ServicesModule()),
             // Módulos de Menu do cliente (camada 2 do menu — D1–D4)
             ModuleRoute('/modules', module: ModulesModule()),
             // Pedido de Venda / Conjugado (grupo Vendas — 3ª tela de

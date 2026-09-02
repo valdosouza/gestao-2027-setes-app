@@ -107,7 +107,9 @@
     "paymentTypes": "List of Payment Types",
     "bankAccounts": "List of Accounts",
     "moduleScreens": "List of System Screens",
-    "cfop": "List of CFOP"
+    "cfop": "List of CFOP",
+    "categories": "List of Categories",
+    "financialPlans": "List of Financial Plans"
   },
   "forms": {
     "validation": {
@@ -881,6 +883,34 @@
       "dtContract": "Account Contract Date",
       "accountRow": "Branch {} · Account {}",
       "managerRow": "Manager: {}"
+    },
+    "priceLists": {
+      "description": "Price List Description",
+      "validity": "Price List Validity",
+      "modality": "Price List Modality",
+      "modalityHint": "1 character (optional)",
+      "published": "Price List Published",
+      "validityRow": "Validity: {}"
+    },
+    "services": {
+      "tabMain": "Main",
+      "tabPrices": "Prices",
+      "identifier": "Service Identifier",
+      "identifierHint": "Blank = uses the service code",
+      "description": "Service Description",
+      "category": "Service Category",
+      "financialPlan": "Service Financial Plan",
+      "active": "Service Active",
+      "promotion": "Service on Promotion",
+      "highlights": "Service Highlighted",
+      "published": "Service Published",
+      "note": "Service Note",
+      "priceTag": "Price",
+      "priceInvalid": "Enter a price greater than or equal to zero",
+      "noPriceLists": "No price list registered — register one in Price Lists to set the service prices",
+      "identifierRow": "Identifier: {} · Category: {}",
+      "activeRow": "Active",
+      "inactiveRow": "Inactive"
     }
   },
   "theme": {
@@ -933,7 +963,9 @@
       "settlements": "Settlements",
       "orders": "Sales Orders",
       "order-returns": "Returns",
-      "cashier": "Cashier"
+      "cashier": "Cashier",
+      "price-lists": "Price Lists",
+      "services": "Services"
     },
     "privileges": {
       "view": "View",

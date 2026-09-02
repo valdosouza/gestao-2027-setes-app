@@ -107,7 +107,9 @@
     "paymentTypes": "Lista de Formas de Pagamento",
     "bankAccounts": "Lista de Contas",
     "moduleScreens": "Lista de Telas do Sistema",
-    "cfop": "Lista de CFOP"
+    "cfop": "Lista de CFOP",
+    "categories": "Lista de Categorias",
+    "financialPlans": "Lista de Planos Financeiros"
   },
   "forms": {
     "validation": {
@@ -881,6 +883,34 @@
       "dtContract": "Data do Contrato da Conta",
       "accountRow": "Ag. {} · Conta {}",
       "managerRow": "Gerente: {}"
+    },
+    "priceLists": {
+      "description": "Descrição da Tabela de Preço",
+      "validity": "Vigência da Tabela de Preço",
+      "modality": "Modalidade da Tabela de Preço",
+      "modalityHint": "1 caractere (opcional)",
+      "published": "Tabela de Preço Publicada",
+      "validityRow": "Vigência: {}"
+    },
+    "services": {
+      "tabMain": "Principal",
+      "tabPrices": "Preços",
+      "identifier": "Identificador do Serviço",
+      "identifierHint": "Em branco = usa o código do serviço",
+      "description": "Descrição do Serviço",
+      "category": "Categoria do Serviço",
+      "financialPlan": "Plano Financeiro do Serviço",
+      "active": "Serviço Ativo",
+      "promotion": "Serviço em Promoção",
+      "highlights": "Serviço em Destaque",
+      "published": "Serviço Publicado",
+      "note": "Observação do Serviço",
+      "priceTag": "Preço",
+      "priceInvalid": "Informe um preço maior ou igual a zero",
+      "noPriceLists": "Nenhuma tabela de preço cadastrada — cadastre em Tabelas de Preço para informar os preços do serviço",
+      "identifierRow": "Identificador: {} · Categoria: {}",
+      "activeRow": "Ativo",
+      "inactiveRow": "Inativo"
     }
   },
   "theme": {
@@ -933,7 +963,9 @@
       "settlements": "Baixa de Títulos",
       "orders": "Pedidos de Venda",
       "order-returns": "Devoluções",
-      "cashier": "Caixa"
+      "cashier": "Caixa",
+      "price-lists": "Tabelas de Preço",
+      "services": "Serviços"
     },
     "privileges": {
       "view": "Visualizar",
