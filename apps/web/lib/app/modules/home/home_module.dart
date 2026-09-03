@@ -28,6 +28,7 @@ import '../privileges/privileges_module.dart';
 import '../providers/providers_module.dart';
 import '../salesmen/salesmen_module.dart';
 import '../service_orders/service_orders_module.dart';
+import '../service_tax_rules/service_tax_rules_module.dart';
 import '../services/services_module.dart';
 import '../settlements/settlements_module.dart';
 import '../states/states_module.dart';
@@ -116,6 +117,9 @@ class HomeModule extends Module {
             // tabela; telas irmãs do futuro cadastro de produtos — D6)
             ModuleRoute('/price-lists', module: PriceListsModule()),
             ModuleRoute('/services', module: ServicesModule()),
+            // Regras de Tributação de Serviço (ISS — D1–D14: cidade de
+            // incidência × item LC 116 → alíquota + código municipal)
+            ModuleRoute('/service-tax-rules', module: ServiceTaxRulesModule()),
             // Módulos de Menu do cliente (camada 2 do menu — D1–D4)
             ModuleRoute('/modules', module: ModulesModule()),
             // Pedido de Venda / Conjugado (grupo Vendas — 3ª tela de

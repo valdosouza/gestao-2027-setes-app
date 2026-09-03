@@ -2,14 +2,19 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/service_entity.dart';
 
-/// Lookups de apoio do form de Serviço (categoria e plano financeiro) —
-/// SÓ LEITURA, endpoints do próprio módulo (/api/services/*). É o que a
-/// page pode consumir direto (padrão StateLookupDatasource): a page NUNCA
-/// toca o ServiceDatasource principal (escrita passa por usecase/bloc).
-/// Promover para app/shared/lookup quando um segundo módulo precisar.
+/// Lookups de apoio do form de Serviço (categoria, plano financeiro e regra
+/// de tributação de serviço) — SÓ LEITURA, endpoints do próprio módulo
+/// (/api/services/*). É o que a page pode consumir direto (padrão
+/// StateLookupDatasource): a page NUNCA toca o ServiceDatasource principal
+/// (escrita passa por usecase/bloc). Promover para app/shared/lookup quando
+/// um segundo módulo precisar.
 abstract class ServiceLookupDatasource {
   Future<List<ServiceLookup>> categories(String filter);
   Future<List<ServiceLookup>> financialPlans(String filter);
+
+  /// Regras de tributação de serviço da institution (D1 — FK literal):
+  /// {id, description "1.02 · Curitiba/PR · 5.00%"}.
+  Future<List<ServiceLookup>> taxRules(String filter);
 }
 
 class ServiceLookupDatasourceImpl implements ServiceLookupDatasource {
@@ -34,4 +39,8 @@ class ServiceLookupDatasourceImpl implements ServiceLookupDatasource {
   @override
   Future<List<ServiceLookup>> financialPlans(String filter) =>
       _lookup('financial-plans', filter);
+
+  @override
+  Future<List<ServiceLookup>> taxRules(String filter) =>
+      _lookup('tax-rules', filter);
 }

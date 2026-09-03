@@ -199,6 +199,10 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   int? _financialPlansId;
   String _financialPlansDisplay = '';
 
+  /// Regra de Tributação de Serviço (D1 — FK literal; opcional).
+  int? _serviceTaxRuleId;
+  String _serviceTaxRuleDisplay = '';
+
   /// Flags S/N (D2: todas expostas).
   String _active = 'S';
   String _promotion = 'N';
@@ -218,6 +222,8 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     _categoryDisplay        = editing?.categoryDescription ?? '';
     _financialPlansId       = editing?.financialPlansId;
     _financialPlansDisplay  = editing?.financialPlansDescription ?? '';
+    _serviceTaxRuleId       = editing?.serviceTaxRuleId;
+    _serviceTaxRuleDisplay  = editing?.serviceTaxRuleLabel ?? '';
     _active     = editing?.active ?? 'S';
     _promotion  = editing?.promotion ?? 'N';
     _highlights = editing?.highlights ?? 'N';
@@ -286,6 +292,24 @@ class _ServiceFormViewState extends State<_ServiceFormView>
       setState(() {
         _financialPlansId = picked.id;
         _financialPlansDisplay = picked.display;
+      });
+    }
+  }
+
+  Future<void> _pickServiceTaxRule() async {
+    final picked = await showSetesLookup<ServiceLookup>(
+      context: context,
+      title: 'forms.services.serviceTaxRuleLookupTitle'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: widget.datasource.taxRules,
+      itemId: (r) => r.id,
+      itemLabel: (r) => r.display,
+    );
+    if (picked != null) {
+      setState(() {
+        _serviceTaxRuleId = picked.id;
+        _serviceTaxRuleDisplay = picked.display;
       });
     }
   }
@@ -388,6 +412,17 @@ class _ServiceFormViewState extends State<_ServiceFormView>
                 ])
               : null,
         ),
+        PendencyField(
+          name: 'serviceTaxRuleId',
+          beforeFocus: _toMain,
+          validate: () => _serviceTaxRuleId == null &&
+                  _requiredCfg('tb_service_tax_rule_id')
+              ? 'register.requiredField'.tr(args: [
+                  _label('tb_service_tax_rule_id',
+                      'forms.services.serviceTaxRule')
+                ])
+              : null,
+        ),
         PendencyField(name: 'active', beforeFocus: _toMain, validate: () => null),
         PendencyField(
             name: 'promotion', beforeFocus: _toMain, validate: () => null),
@@ -437,6 +472,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
         description:      _unmasked('description', _description),
         categoryId:       _categoryId!,
         financialPlansId: _financialPlansId,
+        serviceTaxRuleId: _serviceTaxRuleId,
         promotion:        _promotion,
         highlights:       _highlights,
         published:        _published,
@@ -529,6 +565,17 @@ class _ServiceFormViewState extends State<_ServiceFormView>
             onClear: () => setState(() {
               _financialPlansId = null;
               _financialPlansDisplay = '';
+            }),
+          ),
+          const SizedBox(height: 16),
+          SetesLookupField(
+            label: _label(
+                'tb_service_tax_rule_id', 'forms.services.serviceTaxRule'),
+            display: _serviceTaxRuleDisplay,
+            onSearch: _pickServiceTaxRule,
+            onClear: () => setState(() {
+              _serviceTaxRuleId = null;
+              _serviceTaxRuleDisplay = '';
             }),
           ),
           const SizedBox(height: 16),

@@ -58,6 +58,9 @@ const Map<String, String> interfaceRoutes = {
   // grupo Cadastros; serviço = tb_product kind='S' + grade de preços)
   'price-lists': '/home/price-lists/',
   'services': '/home/services/',
+  // Regras de Tributação de Serviço (ISS — prompt_regra_tributacao_servico.md,
+  // D1–D14: cidade de incidência × item LC 116 → alíquota + código municipal)
+  'service-tax-rules': '/home/service-tax-rules/',
   // Módulos de Menu do cliente (camada 2 do menu — D1–D4, 2026-08-04)
   'modules': '/home/modules/',
   // Painel Sistema/Admin de campos configuráveis (Fase 2, decisão 6)

@@ -913,6 +913,8 @@
       "description": "Service Description",
       "category": "Service Category",
       "financialPlan": "Service Financial Plan",
+      "serviceTaxRule": "Service Tax Rule",
+      "serviceTaxRuleLookupTitle": "List of Service Tax Rules",
       "active": "Service Active",
       "promotion": "Service on Promotion",
       "highlights": "Service Highlighted",
@@ -922,6 +924,21 @@
       "priceInvalid": "Enter a price greater than or equal to zero",
       "noPriceLists": "No price list registered — register one in Price Lists to set the service prices",
       "identifierRow": "Identifier: {} · Category: {}",
+      "activeRow": "Active",
+      "inactiveRow": "Inactive"
+    },
+    "serviceTaxRules": {
+      "state": "State of the Incidence City",
+      "city": "Incidence City",
+      "stateFirst": "Choose the State before the Incidence City",
+      "serviceList": "Service List Item",
+      "serviceListLookupTitle": "Service List Items",
+      "aliq": "ISS Rate (%)",
+      "aliqInvalid": "Enter a rate between 0 and 100",
+      "aliqRow": "Rate: {}%",
+      "municipalCode": "Municipal Tax Code",
+      "municipalCodeTooLong": "Municipal tax code must have at most 20 characters",
+      "active": "Rule Active",
       "activeRow": "Active",
       "inactiveRow": "Inactive"
     }
@@ -979,7 +996,8 @@
       "order-returns": "Returns",
       "cashier": "Cashier",
       "price-lists": "Price Lists",
-      "services": "Services"
+      "services": "Services",
+      "service-tax-rules": "Service Tax Rules"
     },
     "privileges": {
       "view": "View",

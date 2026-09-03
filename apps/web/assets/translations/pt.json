@@ -913,6 +913,8 @@
       "description": "Descrição do Serviço",
       "category": "Categoria do Serviço",
       "financialPlan": "Plano Financeiro do Serviço",
+      "serviceTaxRule": "Regra de Tributação de Serviço",
+      "serviceTaxRuleLookupTitle": "Lista de Regras de Tributação de Serviço",
       "active": "Serviço Ativo",
       "promotion": "Serviço em Promoção",
       "highlights": "Serviço em Destaque",
@@ -922,6 +924,21 @@
       "priceInvalid": "Informe um preço maior ou igual a zero",
       "noPriceLists": "Nenhuma tabela de preço cadastrada — cadastre em Tabelas de Preço para informar os preços do serviço",
       "identifierRow": "Identificador: {} · Categoria: {}",
+      "activeRow": "Ativo",
+      "inactiveRow": "Inativo"
+    },
+    "serviceTaxRules": {
+      "state": "Estado (UF) da Cidade de Incidência",
+      "city": "Cidade de Incidência",
+      "stateFirst": "Escolha o Estado (UF) antes da Cidade de Incidência",
+      "serviceList": "Item da Lista de Serviços",
+      "serviceListLookupTitle": "Itens da Lista de Serviços",
+      "aliq": "Alíquota do ISS (%)",
+      "aliqInvalid": "Informe uma alíquota entre 0 e 100",
+      "aliqRow": "Alíquota: {}%",
+      "municipalCode": "Código de Tributação Municipal",
+      "municipalCodeTooLong": "O código de tributação municipal deve ter no máximo 20 caracteres",
+      "active": "Regra Ativa",
       "activeRow": "Ativo",
       "inactiveRow": "Inativo"
     }
@@ -979,7 +996,8 @@
       "order-returns": "Devoluções",
       "cashier": "Caixa",
       "price-lists": "Tabelas de Preço",
-      "services": "Serviços"
+      "services": "Serviços",
+      "service-tax-rules": "Regras de Tributação de Serviço"
     },
     "privileges": {
       "view": "Visualizar",

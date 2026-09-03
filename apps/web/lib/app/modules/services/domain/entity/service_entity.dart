@@ -86,6 +86,8 @@ class ServiceFull extends ServiceListItem {
     super.active,
     this.financialPlansId,
     this.financialPlansDescription,
+    this.serviceTaxRuleId,
+    this.serviceTaxRuleLabel,
     this.promotion = 'N',
     this.highlights = 'N',
     this.published = 'N',
@@ -95,6 +97,11 @@ class ServiceFull extends ServiceListItem {
 
   final int?    financialPlansId;
   final String? financialPlansDescription;
+
+  /// Regra de Tributação de Serviço apontada (D1 — FK literal) + rótulo
+  /// de exibição montado pela API ("1.02 · Curitiba/PR · 5.00%").
+  final int?    serviceTaxRuleId;
+  final String? serviceTaxRuleLabel;
   final String  promotion;
   final String  highlights;
   final String  published;
@@ -112,6 +119,8 @@ class ServiceFull extends ServiceListItem {
         active:                    json['active'] as String? ?? 'S',
         financialPlansId:          jsonInt(json['financialPlansId']),
         financialPlansDescription: json['financialPlansDescription'] as String?,
+        serviceTaxRuleId:          jsonInt(json['serviceTaxRuleId']),
+        serviceTaxRuleLabel:       json['serviceTaxRuleLabel'] as String?,
         promotion:                 json['promotion'] as String? ?? 'N',
         highlights:                json['highlights'] as String? ?? 'N',
         published:                 json['published'] as String? ?? 'N',
@@ -124,6 +133,7 @@ class ServiceFull extends ServiceListItem {
   @override
   List<Object?> get props => [
         ...super.props, financialPlansId, financialPlansDescription,
+        serviceTaxRuleId, serviceTaxRuleLabel,
         promotion, highlights, published, note, prices,
       ];
 }
@@ -147,14 +157,16 @@ class ServicePriceInput extends Equatable {
 
 /// Body do POST/PUT — mesmo shape do serviceDto da API (Zod: identifier
 /// máx 50 opcional — em branco a API usa o id (D1); description 1..100;
-/// categoryId obrigatório; financialPlansId opcional; flags S/N; note
-/// máx 4000; prices[] sem tabela duplicada).
+/// categoryId obrigatório; financialPlansId e serviceTaxRuleId opcionais
+/// (null = sem vínculo); flags S/N; note máx 4000; prices[] sem tabela
+/// duplicada).
 class ServiceInput extends Equatable {
   const ServiceInput({
     this.identifier,
     required this.description,
     required this.categoryId,
     this.financialPlansId,
+    this.serviceTaxRuleId,
     this.promotion = 'N',
     this.highlights = 'N',
     this.published = 'N',
@@ -167,6 +179,7 @@ class ServiceInput extends Equatable {
   final String  description;
   final int     categoryId;
   final int?    financialPlansId;
+  final int?    serviceTaxRuleId;
   final String  promotion;
   final String  highlights;
   final String  published;
@@ -179,6 +192,7 @@ class ServiceInput extends Equatable {
         'description':      description,
         'categoryId':       categoryId,
         'financialPlansId': financialPlansId,
+        'serviceTaxRuleId': serviceTaxRuleId,
         'promotion':        promotion,
         'highlights':       highlights,
         'published':        published,
@@ -190,7 +204,8 @@ class ServiceInput extends Equatable {
   @override
   List<Object?> get props => [
         identifier, description, categoryId, financialPlansId,
-        promotion, highlights, published, active, note, prices,
+        serviceTaxRuleId, promotion, highlights, published, active, note,
+        prices,
       ];
 }
 
