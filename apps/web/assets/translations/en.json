@@ -595,6 +595,19 @@
       "note": "Application",
       "active": "Active"
     },
+    "serviceList": {
+      "id": "Service List Item",
+      "idHint": "Format N.NN (e.g. 1.01)",
+      "idInvalid": "Invalid item (use the N.NN format, e.g. 1.01)",
+      "description": "Service Description",
+      "descriptionTooLong": "Description must have at most 255 characters",
+      "localIncidence": "ISS Incidence City",
+      "incidenceProvider": "Provider's City",
+      "incidenceExecution": "Execution City",
+      "active": "Active",
+      "activeRow": "Active",
+      "inactiveRow": "Inactive"
+    },
     "paymentType": {
       "description": "Payment Type Description",
       "descriptionHint": "Type or use the magnifier to search the catalog",
@@ -945,6 +958,7 @@
       "states": "States",
       "cities": "Cities",
       "cfop": "CFOP",
+      "service-list": "Services LC 116",
       "banks": "Banks",
       "interface-fields": "Interface Fields",
       "interface-configs": "Interface Configurations",

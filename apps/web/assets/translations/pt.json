@@ -595,6 +595,19 @@
       "note": "Aplicação",
       "active": "Ativo"
     },
+    "serviceList": {
+      "id": "Item da Lista de Serviços",
+      "idHint": "Formato N.NN (ex.: 1.01)",
+      "idInvalid": "Item inválido (use o formato N.NN, ex.: 1.01)",
+      "description": "Descrição do Serviço",
+      "descriptionTooLong": "A descrição deve ter no máximo 255 caracteres",
+      "localIncidence": "Município de Incidência do ISS",
+      "incidenceProvider": "Município do Prestador",
+      "incidenceExecution": "Município da Execução",
+      "active": "Ativo",
+      "activeRow": "Ativo",
+      "inactiveRow": "Inativo"
+    },
     "paymentType": {
       "description": "Descrição da Forma de Pagamento",
       "descriptionHint": "Digite ou use a lupa para buscar no catálogo",
@@ -945,6 +958,7 @@
       "states": "Estados",
       "cities": "Cidades",
       "cfop": "CFOP",
+      "service-list": "Serviços LC 116",
       "banks": "Bancos",
       "interface-fields": "Campos das Interfaces",
       "interface-configs": "Configurações das Interfaces",

@@ -14,6 +14,8 @@ const Map<String, String> interfaceRoutes = {
   'interfaces': '/home/interfaces/',
   'privileges': '/home/privileges/',
   'cfop':       '/home/cfop/',
+  // Lista de Serviços da LC 116 (catálogo central, módulo Super — D10)
+  'service-list': '/home/service-list/',
   // Catálogo FEBRABAN central (módulo Super — decisão 2026-08-04, fecho da
   // decisão 8 da Fase 3; consumo dos clientes segue no lookup bank-accounts)
   'banks':      '/home/banks/',

@@ -18,6 +18,7 @@ import '../institutions/institutions_module.dart';
 import '../interface_configs/interface_configs_module.dart';
 import '../payment_types/payment_types_module.dart';
 import '../price_lists/price_lists_module.dart';
+import '../service_list/service_list_module.dart';
 import '../interface_fields/interface_fields_module.dart';
 import '../interfaces/interfaces_module.dart';
 import '../modules/modules_module.dart';
@@ -69,6 +70,8 @@ class HomeModule extends Module {
             ModuleRoute('/privileges', module: PrivilegesModule()),
             // Referencia fiscal do catalogo central (modulo Super)
             ModuleRoute('/cfop', module: CfopModule()),
+            // Lista de Serviços da LC 116 (catálogo central, módulo Super)
+            ModuleRoute('/service-list', module: ServiceListModule()),
             // Catálogo FEBRABAN central (módulo Super — decisão 2026-08-04,
             // fecho da decisão 8 da Fase 3; sem cadeia fiscal)
             ModuleRoute('/banks', module: BanksModule()),
