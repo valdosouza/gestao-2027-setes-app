@@ -510,7 +510,6 @@
       "state": "Estado",
       "name": "Nome da Cidade",
       "ibge": "Código IBGE",
-      "aliqIss": "Alíquota ISS",
       "population": "População",
       "density": "Densidade",
       "area": "Área"

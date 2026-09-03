@@ -129,7 +129,6 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
               'id':         '${editing.id}',
               'name':       editing.name ?? '',
               'ibge':       editing.ibge ?? '',
-              'aliqIss':    editing.aliqIss != 0 ? '${editing.aliqIss}' : '',
               'population': editing.population != 0 ? '${editing.population}' : '',
               'density':    editing.density != 0 ? '${editing.density}' : '',
               'area':       editing.area != 0 ? '${editing.area}' : '',
@@ -159,12 +158,6 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
           label: 'forms.city.ibge'.tr(),
         ),
         RegisterField(
-          name:         'aliqIss',
-          label:        'forms.city.aliqIss'.tr(),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator:    _validateDecimal,
-        ),
-        RegisterField(
           name:         'population',
           label:        'forms.city.population'.tr(),
           keyboardType: TextInputType.number,
@@ -189,7 +182,6 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
           tbStateId:  _stateId!,
           name:       values['name'] ?? '',
           ibge:       (values['ibge'] ?? '').isEmpty ? null : values['ibge'],
-          aliqIss:    _parseDouble(values['aliqIss']) ?? 0,
           population: int.tryParse(values['population'] ?? '') ?? 0,
           density:    _parseDouble(values['density']) ?? 0,
           area:       _parseDouble(values['area']) ?? 0,

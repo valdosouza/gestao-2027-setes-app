@@ -8,7 +8,6 @@ class CityEntity extends Equatable {
     required this.tbStateId,
     this.ibge,
     this.name,
-    this.aliqIss = 0,
     this.population = 0,
     this.density = 0,
     this.area = 0,
@@ -21,7 +20,6 @@ class CityEntity extends Equatable {
   final int     tbStateId;
   final String? ibge;
   final String? name;
-  final double  aliqIss;
   final int     population;
   final double  density;
   final double  area;
@@ -35,7 +33,6 @@ class CityEntity extends Equatable {
         ibge:       json['ibge'] as String?,
         name:       json['name'] as String?,
         // jsonDouble/jsonInt: DECIMAL pode chegar como string (caso 2026-07-11)
-        aliqIss:    jsonDouble(json['aliqIss']) ?? 0,
         population: jsonInt(json['population']) ?? 0,
         density:    jsonDouble(json['density']) ?? 0,
         area:       jsonDouble(json['area']) ?? 0,
@@ -44,5 +41,5 @@ class CityEntity extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, tbStateId, ibge, name, aliqIss, population, density, area, stateName];
+      [id, tbStateId, ibge, name, population, density, area, stateName];
 }
