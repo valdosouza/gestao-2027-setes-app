@@ -1,0 +1,4 @@
+# Artefatos de build do Flutter/Dart em qualquer pacote do workspace
+# (test_cache/*.dill, unit_test_assets, native_assets) - nunca versionar.
+# apps/web ja tem .gitignore proprio com /build/; esta regra cobre packages/*.
+**/build/
