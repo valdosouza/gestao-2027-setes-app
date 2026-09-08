@@ -12,6 +12,8 @@ import 'domain/usecase/order_get.dart';
 import 'domain/usecase/order_getlist.dart';
 import 'domain/usecase/order_item_delete.dart';
 import 'domain/usecase/order_item_save.dart';
+import 'domain/usecase/order_negotiation_get.dart';
+import 'domain/usecase/order_negotiation_save.dart';
 import 'domain/usecase/order_post.dart';
 import 'domain/usecase/order_return_open.dart';
 import 'presentation/bloc/order_bloc.dart';
@@ -20,10 +22,12 @@ import 'presentation/page/order_page.dart';
 /// Módulo da interface 'orders' — Pedido de Venda / Conjugado (1 interface
 /// = 1 módulo, ARQUITETURA_MODULOS.md). 2ª TELA DE PROCESSO do grupo
 /// Vendas: pedido aberto acumulando itens (mercadoria e, por presença,
-/// serviço) → Validar e Faturar chama /api/billing direto (sem módulo
-/// billing próprio). Gêmeo do /api/orders na setes-api. Vendedor reusa o
-/// shared/lookup/salesman_lookup_datasource (já usado por customers/
-/// carriers/providers).
+/// serviço) → NEGOCIAÇÃO (forma + prazo × parcelamento elaborado, em
+/// /api/orders/:id/negotiation) → Validar e Faturar chama /api/billing
+/// direto (sem módulo billing próprio; cheques por parcela coletados no
+/// próprio faturamento — D5). Gêmeo do /api/orders na setes-api. Vendedor
+/// reusa o shared/lookup/salesman_lookup_datasource (já usado por
+/// customers/carriers/providers).
 class OrdersModule extends Module {
   @override
   List<Bind> get binds => [
@@ -51,6 +55,10 @@ class OrdersModule extends Module {
             OrderBillingInvoiceUsecase(repository: i.get<OrderRepository>())),
         Bind.factory<OrderReturnOpen>(
             (i) => OrderReturnOpen(repository: i.get<OrderRepository>())),
+        Bind.factory<OrderNegotiationGet>(
+            (i) => OrderNegotiationGet(repository: i.get<OrderRepository>())),
+        Bind.factory<OrderNegotiationSave>(
+            (i) => OrderNegotiationSave(repository: i.get<OrderRepository>())),
         Bind.singleton<OrderBloc>((i) => OrderBloc(
               getlist:         i.get<OrderGetlist>(),
               get:             i.get<OrderGet>(),
@@ -61,6 +69,8 @@ class OrdersModule extends Module {
               billingValidate: i.get<OrderBillingValidate>(),
               billingInvoice:  i.get<OrderBillingInvoiceUsecase>(),
               returnOpen:      i.get<OrderReturnOpen>(),
+              negotiationGet:  i.get<OrderNegotiationGet>(),
+              negotiationSave: i.get<OrderNegotiationSave>(),
             )),
       ];
 

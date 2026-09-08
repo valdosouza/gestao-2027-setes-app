@@ -10,6 +10,9 @@ import '../../domain/entity/order_entity.dart';
 /// mesmo endpoint usado por customers/carriers/providers). Faturamento
 /// chama /api/billing/validate + /api/billing/invoice DIRETAMENTE — não
 /// existe módulo billing próprio no app (módulo nunca importa módulo).
+/// Negociação (forma/prazo/parcelas) e os lookups dela (formas de
+/// pagamento, bancos p/ cheque) vivem em /api/orders — NUNCA em
+/// /api/checks, /api/payment-types ou /api/bank-accounts.
 abstract class OrderDatasource {
   /// Página dos pedidos da institution filtrados por [status] 'A'|'F' e
   /// nome do cliente ([filter] — o filtro é da API). Paginação: [pageSize]
@@ -53,8 +56,27 @@ abstract class OrderDatasource {
   Future<OrderBillingValidation> billingValidate(int orderId);
 
   /// Fatura o pedido (POST /api/billing/invoice) — só chamar depois de um
-  /// validate sem issues.
-  Future<OrderBillingInvoice> billingInvoice(int orderId);
+  /// validate sem issues. [checks] = cheques por parcela (bloco `checks`),
+  /// obrigatório para toda parcela cuja forma é cheque (kind 'Q' — D5).
+  Future<OrderBillingInvoice> billingInvoice(int orderId,
+      {List<OrderParcelChecksInput> checks = const []});
+
+  /// Negociação do pedido (GET /api/orders/:id/negotiation): cabeçalho
+  /// (forma + prazo), grade elaborada, preview gerado e base do pedido.
+  Future<OrderNegotiation> getNegotiation(int orderId);
+
+  /// Grava a negociação (PUT /api/orders/:id/negotiation) e devolve a
+  /// negociação RECOMPOSTA pela API (preview/base atualizados).
+  Future<OrderNegotiation> putNegotiation(
+      int orderId, OrderNegotiationInput input);
+
+  /// Formas de pagamento vinculadas/habilitadas (lookup do cabeçalho e da
+  /// forma por parcela) — GET /api/orders/payment-types-lookup.
+  Future<List<OrderPaymentTypeLookup>> paymentTypesLookup(String filter);
+
+  /// Bancos do catálogo para o cheque do faturamento — GET
+  /// /api/orders/banks-lookup (o módulo fala SÓ com /api/orders).
+  Future<List<OrderBankLookup>> banksLookup(String filter);
 
   /// Abre uma DEVOLUÇÃO ancorada neste pedido FATURADO (POST
   /// /api/order-returns {saleOrderId} — HTTP direto: módulo nunca importa
@@ -162,10 +184,49 @@ class OrderDatasourceImpl implements OrderDatasource {
   }
 
   @override
-  Future<OrderBillingInvoice> billingInvoice(int orderId) async {
-    final json =
-        await client.post('/api/billing/invoice', {'orderId': orderId});
+  Future<OrderBillingInvoice> billingInvoice(int orderId,
+      {List<OrderParcelChecksInput> checks = const []}) async {
+    final json = await client.post('/api/billing/invoice', {
+      'orderId': orderId,
+      if (checks.isNotEmpty) 'checks': checks.map((c) => c.toJson()).toList(),
+    });
     return OrderBillingInvoice.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderNegotiation> getNegotiation(int orderId) async {
+    final json = await client.get('/api/orders/$orderId/negotiation');
+    return OrderNegotiation.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderNegotiation> putNegotiation(
+      int orderId, OrderNegotiationInput input) async {
+    final json =
+        await client.put('/api/orders/$orderId/negotiation', input.toJson());
+    return OrderNegotiation.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<OrderPaymentTypeLookup>> paymentTypesLookup(String filter) async {
+    final query =
+        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
+    final json = await client.get('/api/orders/payment-types-lookup$query');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => OrderPaymentTypeLookup.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<OrderBankLookup>> banksLookup(String filter) async {
+    final query =
+        filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
+    final json = await client.get('/api/orders/banks-lookup$query');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => OrderBankLookup.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

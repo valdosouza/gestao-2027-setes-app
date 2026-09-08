@@ -1,21 +1,32 @@
 import 'package:equatable/equatable.dart';
 
-/// Erro por campo do envelope `{ error, fields: [{ field, message }] }`
-/// (Fase 2, decisão de validação; Fase 3 usa `field: 'id'` no 409 de papel
-/// duplicado — o `message` carrega o id do registro existente).
+/// Erro por campo do envelope `{ error, fields: [{ field, message,
+/// expected? }] }` (Fase 2, decisão de validação; Fase 3 usa `field: 'id'`
+/// no 409 de papel duplicado — o `message` carrega o id do registro
+/// existente). [expected] = valor ESPERADO nos erros de conferência
+/// numérica (D-N3 da negociação do pedido, 2026-09-07: INSTALLMENT_MISMATCH
+/// traz a base do pedido, MAX_PARCELS_EXCEEDED o limite, CHECK_SUM_MISMATCH
+/// o valor da parcela) — a tela corrige com o número, nunca com parse da
+/// prosa da mensagem. Ausente na maioria dos erros.
 class FailureField extends Equatable {
-  const FailureField({required this.field, required this.message});
+  const FailureField({
+    required this.field,
+    required this.message,
+    this.expected,
+  });
 
   final String field;
   final String message;
+  final double? expected;
 
   factory FailureField.fromJson(Map<String, dynamic> json) => FailureField(
-        field:   json['field'] as String? ?? '',
-        message: json['message'] as String? ?? '',
+        field:    json['field'] as String? ?? '',
+        message:  json['message'] as String? ?? '',
+        expected: (json['expected'] as num?)?.toDouble(),
       );
 
   @override
-  List<Object?> get props => [field, message];
+  List<Object?> get props => [field, message, expected];
 }
 
 /// Falha de domínio (decisão 12: operações assíncronas retornam
@@ -52,6 +63,15 @@ class Failure extends Equatable {
   String? fieldMessage(String field) {
     for (final f in fields) {
       if (f.field == field) return f.message;
+    }
+    return null;
+  }
+
+  /// Valor esperado apontado no campo [field] (null quando a API não o
+  /// informou — só os erros de conferência numérica carregam `expected`).
+  double? fieldExpected(String field) {
+    for (final f in fields) {
+      if (f.field == field) return f.expected;
     }
     return null;
   }

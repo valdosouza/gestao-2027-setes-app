@@ -44,10 +44,22 @@ const Map<String, String> interfaceRoutes = {
   'contracts': '/home/contracts/',
   // Contas Bancárias (Módulo Software House, grupo Financeiro)
   'bank-accounts': '/home/bank-accounts/',
+  // Carteiras de Cobrança (grupo Financeiro — contratação de cobrança com o
+  // banco; o Boleto congela estas taxas/instruções na emissão)
+  'bank-charge-agreements': '/home/bank-charge-agreements/',
+  // Contratos Financeiros (baixa automática por forma — grupo Financeiro)
+  'financial-contracts': '/home/financial-contracts/',
   // Ordens de Serviço (Módulo Software House, grupo Serviços — 1ª tela de processo)
   'service-orders': '/home/service-orders/',
   // Baixa de Títulos (Módulo Software House, grupo Financeiro — 2ª tela de processo)
   'settlements': '/home/settlements/',
+  // Boletos (grupo Financeiro — tela de processo: emitir, baixar, cancelar,
+  // estornar; prompt_boleto_emitido.md D1–D11)
+  'bank-slips': '/home/bank-slips/',
+  // Cheques (grupo Financeiro — tela de processo: depositar, descontar,
+  // retornar, usar em pagamento, devolver, estornar;
+  // prompt_cheque_rastreabilidade.md D1–D10 + D7a–c)
+  'checks': '/home/checks/',
   // Abertura/Fechamento de Caixa (grupo Financeiro — tela de SESSÃO/STATUS, W3.2)
   'cashier': '/home/cashier/',
   // Pedido de Venda / Conjugado (grupo Vendas — 3ª tela de processo)

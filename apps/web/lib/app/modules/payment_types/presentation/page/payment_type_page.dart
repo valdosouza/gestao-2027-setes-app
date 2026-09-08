@@ -187,7 +187,6 @@ class _PaymentTypeFormViewState extends State<_PaymentTypeFormView> {
   late bool _blockForCustomerBlocked;
   late bool _blockForCustomerNoLimit;
   late bool _tef;
-  late String _usagePreference;
   int _planCreId = 0;
   String _planCreDescription = '';
   int _planDebId = 0;
@@ -209,7 +208,6 @@ class _PaymentTypeFormViewState extends State<_PaymentTypeFormView> {
     _blockForCustomerBlocked = attrs.blockForCustomerBlocked;
     _blockForCustomerNoLimit = attrs.blockForCustomerNoLimit;
     _tef             = attrs.tef;
-    _usagePreference = attrs.usagePreference;
     _planCreId          = attrs.financialPlansIdCre;
     _planCreDescription = editing?.financialPlanCreDescription ?? '';
     _planDebId          = attrs.financialPlansIdDeb;
@@ -297,7 +295,6 @@ class _PaymentTypeFormViewState extends State<_PaymentTypeFormView> {
         tef:                     _tef,
         financialPlansIdCre:     _planCreId,
         financialPlansIdDeb:     _planDebId,
-        usagePreference:         _usagePreference,
       );
 
   /// R3 — UMA pendência por vez (padrão da fábrica): valida os campos na
@@ -432,22 +429,6 @@ class _PaymentTypeFormViewState extends State<_PaymentTypeFormView> {
             controller: _maxParcels,
             focusNode: _maxParcelsFocus,
             keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 16),
-          SetesRadioGroup<String>(
-            label: _label('usagePreference', 'forms.paymentType.usagePreference'),
-            helperText: 'forms.paymentType.usagePreferenceHelper'.tr(),
-            value: _usagePreference,
-            options: [
-              SetesRadioOption(
-                  value: 'C', label: 'forms.paymentType.usageCashier'.tr()),
-              SetesRadioOption(
-                  value: 'B', label: 'forms.paymentType.usageBank'.tr()),
-              SetesRadioOption(
-                  value: 'A', label: 'forms.paymentType.usageBoth'.tr()),
-            ],
-            onChanged: (value) =>
-                setState(() => _usagePreference = value ?? 'A'),
           ),
           const SizedBox(height: 16),
           SetesLookupField(

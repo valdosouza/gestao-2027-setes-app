@@ -66,8 +66,18 @@ class OrderRepositoryImpl implements OrderRepository {
       _guard(() => datasource.billingValidate(orderId));
 
   @override
-  Future<Either<Failure, OrderBillingInvoice>> billingInvoice(int orderId) =>
-      _guard(() => datasource.billingInvoice(orderId));
+  Future<Either<Failure, OrderBillingInvoice>> billingInvoice(int orderId,
+          {List<OrderParcelChecksInput> checks = const []}) =>
+      _guard(() => datasource.billingInvoice(orderId, checks: checks));
+
+  @override
+  Future<Either<Failure, OrderNegotiation>> getNegotiation(int orderId) =>
+      _guard(() => datasource.getNegotiation(orderId));
+
+  @override
+  Future<Either<Failure, OrderNegotiation>> putNegotiation(
+          int orderId, OrderNegotiationInput input) =>
+      _guard(() => datasource.putNegotiation(orderId, input));
 
   @override
   Future<Either<Failure, int>> openReturn(int saleOrderId) =>

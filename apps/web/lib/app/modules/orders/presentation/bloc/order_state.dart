@@ -39,15 +39,23 @@ class OrderListState extends OrderState {
 }
 
 /// Modo detalhe do pedido (buildável). [saving] desabilita as ações
-/// enquanto uma operação (item/cancelar/faturar) está em andamento.
+/// enquanto uma operação (item/cancelar/negociar/faturar) está em
+/// andamento. [negotiation] é carregada JUNTO com o detalhe (GET
+/// /:id/negotiation) — null = a leitura falhou (a seção oferece
+/// "recarregar"); recarregada a cada operação de item (a base muda).
 class OrderDetailState extends OrderState {
-  const OrderDetailState({required this.order, this.saving = false});
+  const OrderDetailState({
+    required this.order,
+    this.negotiation,
+    this.saving = false,
+  });
 
   final OrderFull order;
+  final OrderNegotiation? negotiation;
   final bool saving;
 
   @override
-  List<Object?> get props => [order, saving];
+  List<Object?> get props => [order, negotiation, saving];
 }
 
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
@@ -76,14 +84,43 @@ class OrderActionFailure extends OrderState {
 }
 
 /// Resultado do POST /api/billing/validate (one-shot) — a página decide:
-/// issues vazio dispara o invoice em seguida; issues presentes abrem o
-/// dialog de pendências.
+/// issues presentes abrem o dialog de pendências; issues vazio → se
+/// alguma parcela da [negotiation] (RELIDA após a validação — nunca a
+/// grade velha) é cheque, abre o dialog de cheques (D5) e só então
+/// dispara o invoice com `checks`; senão dispara o invoice direto.
 class OrderBillingValidated extends OrderState {
-  const OrderBillingValidated(this.result);
+  const OrderBillingValidated(this.result, {this.negotiation});
   final OrderBillingValidation result;
 
+  /// null quando há issues (não foi relida) — o fluxo não fatura.
+  final OrderNegotiation? negotiation;
+
   @override
-  List<Object?> get props => [result];
+  List<Object?> get props => [result, negotiation];
+}
+
+/// Falha do POST /api/billing/invoice (one-shot). Carrega os [checks]
+/// enviados: em 422 CHECK_SUM_MISMATCH/CHECK_REQUIRED a página mostra a
+/// mensagem da API e REABRE o dialog com os cheques digitados (a 1ª
+/// parcela pode absorver a diferença de impostos da nota — D7).
+class OrderBillingInvoiceFailure extends OrderState {
+  const OrderBillingInvoiceFailure(this.failure, {this.checks = const []});
+  final Failure failure;
+  final List<OrderParcelChecksInput> checks;
+
+  @override
+  List<Object?> get props => [failure, checks];
+}
+
+/// Falha do PUT /:id/negotiation (one-shot) — a seção de negociação ancora
+/// o `fields[]` (deadline / paymentTypeId / installments[.i.campo]) no
+/// campo certo; sem fields[] cai na ponte genérica.
+class OrderNegotiationFailure extends OrderState {
+  const OrderNegotiationFailure(this.failure);
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
 }
 
 /// Faturamento concluído (one-shot) — a página mostra o nº da fatura e a

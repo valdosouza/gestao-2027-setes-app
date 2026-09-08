@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +15,8 @@ import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/order_datasource.dart';
 import '../../domain/entity/order_entity.dart';
 import '../bloc/order_bloc.dart';
+import 'order_checks_dialog.dart';
+import 'order_negotiation_section.dart';
 
 /// Tela de Pedido de Venda — interface 'orders', grupo Vendas. TELA DE
 /// PROCESSO (molde service_orders): LISTA em abas Abertos × Faturados
@@ -21,8 +24,11 @@ import '../bloc/order_bloc.dart';
 /// opcional); tap na linha abre o DETALHE do pedido — aberto permite
 /// itens (incluir/editar/remover via os DOIS lookups, mercadoria×serviço
 /// — conjugada é CONSEQUÊNCIA do item incluído, nunca escolha na
-/// abertura), cancelar e VALIDAR E FATURAR (chama /api/billing/validate
-/// e, sem pendências, /api/billing/invoice); faturado é somente leitura.
+/// abertura), NEGOCIAÇÃO (forma + prazo × parcelamento elaborado —
+/// seção própria, prompt_negociacao_pedido.md), cancelar e VALIDAR E
+/// FATURAR (chama /api/billing/validate e, sem pendências, RELÊ a
+/// negociação: parcela em cheque abre o dialog de cheques (D5) antes do
+/// /api/billing/invoice); faturado é somente leitura.
 class OrderPage extends StatefulWidget {
   const OrderPage({required this.title, super.key});
 
@@ -46,6 +52,22 @@ class _OrderPageState extends State<OrderPage>
   /// Aba refletida na tela — evita reload redundante quando o BLoC muda a
   /// aba sozinho (ex.: pós-faturamento cai em Faturados).
   String _status = 'A';
+
+  /// Acesso à seção de negociação para ancorar o `fields[]` do PUT no
+  /// campo certo (one-shot OrderNegotiationFailure). Trocada a cada
+  /// pedido aberto — estado da seção nunca vaza de um pedido pro outro.
+  GlobalKey<OrderNegotiationSectionState> _negotiationKey = GlobalKey();
+  int? _negotiationOrderId;
+
+  /// Negociação que dirigiu o ÚLTIMO dialog de cheques — em 422
+  /// CHECK_SUM_MISMATCH/CHECK_REQUIRED o dialog reabre sobre as mesmas
+  /// parcelas com os cheques digitados.
+  OrderNegotiation? _checksNegotiation;
+
+  /// Valor REAL de cada parcela em cheque na nota, apontado pelo `expected`
+  /// do CHECK_SUM_MISMATCH (D-N3/D7) — acumula entre reaberturas do dialog
+  /// (o servidor aponta uma parcela por vez); zera com a negociação.
+  final Map<int, double> _checksExpected = {};
 
   @override
   void initState() {
@@ -205,21 +227,125 @@ class _OrderPageState extends State<OrderPage>
   // Detalhe do pedido
   // -------------------------------------------------------------------
 
-  Widget _buildDetail(OrderDetailState state) => _OrderDetailView(
-        key: ValueKey('order-${state.order.id}'),
-        title: widget.title,
-        state: state,
-        datasource: _datasource,
-        onBack: () => _bloc.add(const OrderBackToListPressed()),
-        onCancel: () => _bloc.add(OrderCancelRequested(state.order.id)),
-        onItemSave: (itemId, input) => _bloc.add(OrderItemSaveRequested(
-            orderId: state.order.id, itemId: itemId, input: input)),
-        onItemRemove: (itemId) => _bloc.add(OrderItemRemoveRequested(
-            orderId: state.order.id, itemId: itemId)),
-        onValidate: () =>
-            _bloc.add(OrderBillingValidateRequested(state.order.id)),
-        onReturn: () => _bloc.add(OrderReturnRequested(state.order.id)),
-      );
+  Widget _buildDetail(OrderDetailState state) {
+    // Pedido diferente do anterior → key nova para a seção (o GlobalKey
+    // preservaria a edição local de um pedido dentro do outro).
+    if (_negotiationOrderId != state.order.id) {
+      _negotiationOrderId = state.order.id;
+      _negotiationKey = GlobalKey();
+      _checksNegotiation = null;
+      _checksExpected.clear();
+    }
+    return _OrderDetailView(
+      key: ValueKey('order-${state.order.id}'),
+      title: widget.title,
+      state: state,
+      datasource: _datasource,
+      negotiationKey: _negotiationKey,
+      onBack: () => _bloc.add(const OrderBackToListPressed()),
+      onCancel: () => _bloc.add(OrderCancelRequested(state.order.id)),
+      onItemSave: (itemId, input) => _bloc.add(OrderItemSaveRequested(
+          orderId: state.order.id, itemId: itemId, input: input)),
+      onItemRemove: (itemId) => _bloc.add(OrderItemRemoveRequested(
+          orderId: state.order.id, itemId: itemId)),
+      onNegotiationSave: (input) => _bloc.add(OrderNegotiationSaveRequested(
+          orderId: state.order.id, input: input)),
+      onNegotiationReload: () =>
+          _bloc.add(OrderNegotiationRequested(state.order.id)),
+      onValidate: () =>
+          _bloc.add(OrderBillingValidateRequested(state.order.id)),
+      onReturn: () => _bloc.add(OrderReturnRequested(state.order.id)),
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // Faturamento: validate → (cheques?) → invoice
+  // -------------------------------------------------------------------
+
+  /// Validação sem pendências: com forma definida e alguma parcela em
+  /// CHEQUE (grade elaborada ou gerada — a negociação foi RELIDA pelo
+  /// bloc), coleta os cheques antes do invoice (D5); sem parcela em
+  /// cheque, o fluxo original (invoice direto) não muda.
+  Future<void> _startInvoice(int orderId, OrderNegotiation? negotiation) async {
+    if (negotiation != null && negotiation.billing == null) {
+      // Sem forma de pagamento o invoice cairia em 422 ORDER_NO_BILLING —
+      // a pendência é da negociação, então a mensagem aponta pra ela.
+      await showValidationFeedback(
+          context, 'forms.order.negotiationRequired'.tr());
+      return;
+    }
+    if (negotiation != null && negotiation.hasCheckParcel) {
+      return _collectChecksAndInvoice(orderId, negotiation);
+    }
+    _bloc.add(OrderBillingInvoiceRequested(orderId));
+  }
+
+  Future<void> _collectChecksAndInvoice(
+    int orderId,
+    OrderNegotiation negotiation, {
+    List<OrderParcelChecksInput> initial = const [],
+    String? hint,
+  }) async {
+    _checksNegotiation = negotiation;
+    final checks = await showOrderChecksDialog(
+      context,
+      parcels: negotiation.effectiveParcels.where((p) => p.isCheck).toList(),
+      datasource: _datasource,
+      initial: initial,
+      expectedAmounts: Map.of(_checksExpected),
+      hint: hint,
+    );
+    if (checks == null || !mounted) return;
+    _bloc.add(OrderBillingInvoiceRequested(orderId, checks: checks));
+  }
+
+  /// Falha do invoice: 422 de cheque (soma/obrigatório) mostra a mensagem
+  /// da API e REABRE o dialog com os cheques digitados, agora com o valor
+  /// REAL da parcela na nota (`expected` — a 1ª parcela pode absorver a
+  /// diferença de impostos, D7/D-N3); 422 da negociação (base nova,
+  /// limite, prazo) ancora na seção, que consome o `expected` como no
+  /// PUT; o resto segue a ponte.
+  Future<void> _onInvoiceFailure(OrderBillingInvoiceFailure state) async {
+    final failure = state.failure;
+    final negotiation = _checksNegotiation;
+    final isCheckIssue =
+        failure.code == 'CHECK_SUM_MISMATCH' || failure.code == 'CHECK_REQUIRED';
+    if (negotiation == null || !isCheckIssue) {
+      final section = _negotiationKey.currentState;
+      if (section != null && failure.fields.isNotEmpty) {
+        return section.showServerFailure(failure);
+      }
+      return _showFailure(failure);
+    }
+    for (final field in failure.fields) {
+      final expected = field.expected;
+      final parcel = int.tryParse(field.field.split('.').last);
+      if (expected != null && field.field.startsWith('checks.') && parcel != null) {
+        _checksExpected[parcel] = expected;
+      }
+    }
+
+    final message = failure.fields.isNotEmpty
+        ? failure.fields.first.message.tr()
+        : failure.message.tr();
+    await showValidationFeedback(context, message);
+    if (!mounted) return;
+    await _collectChecksAndInvoice(
+      negotiation.orderId,
+      negotiation,
+      initial: state.checks,
+      hint: message,
+    );
+  }
+
+  /// Falha genérica (Framework de Mensagens): fields[] presente = dialog de
+  /// validação com a mensagem do campo; senão a ponte deriva o canal.
+  Future<void> _showFailure(Failure failure) {
+    if (failure.fields.isNotEmpty) {
+      return showValidationFeedback(context, failure.fields.first.message.tr());
+    }
+    return showFailureFeedback(context, failure);
+  }
 
   /// Dialog INFORMATIVO de pendências (issues do /billing/validate) — a
   /// mensagem de cada issue já vem PRONTA da API.
@@ -261,25 +387,44 @@ class _OrderPageState extends State<OrderPage>
             current is OrderActionFailure ||
             current is OrderBillingValidated ||
             current is OrderBillingInvoiced ||
+            current is OrderBillingInvoiceFailure ||
+            current is OrderNegotiationFailure ||
             current is OrderReturnOpened,
         // PONTE de feedback (Framework de Mensagens): a tela nunca chama
         // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
         // via ponte; falha = dialog (SALESMAN_REQUIRED, ORDER_INVOICED
         // viram validação com a mensagem da API); validação SEM issues
-        // dispara o invoice em cadeia; validação COM issues abre o dialog
-        // de pendências e NÃO fatura.
+        // segue para o faturamento (cheques antes, se houver parcela em
+        // cheque — D5); validação COM issues abre o dialog de pendências
+        // e NÃO fatura; falha da negociação é ancorada no campo pela
+        // própria seção.
         listener: (context, state) {
           if (state is OrderBillingValidated) {
             if (state.result.canInvoice) {
-              _bloc.add(OrderBillingInvoiceRequested(state.result.orderId));
+              _startInvoice(state.result.orderId, state.negotiation);
             } else {
               _showIssuesDialog(state.result.issues);
             }
             return;
           }
           if (state is OrderBillingInvoiced) {
+            _checksNegotiation = null;
+            _checksExpected.clear();
             showSuccessFeedback(context, 'forms.order.invoiceGenerated',
                 args: [state.result.invoiceNumber]);
+            return;
+          }
+          if (state is OrderBillingInvoiceFailure) {
+            _onInvoiceFailure(state);
+            return;
+          }
+          if (state is OrderNegotiationFailure) {
+            final section = _negotiationKey.currentState;
+            if (section != null) {
+              section.showServerFailure(state.failure);
+            } else {
+              _showFailure(state.failure);
+            }
             return;
           }
           if (state is OrderReturnOpened) {
@@ -293,12 +438,7 @@ class _OrderPageState extends State<OrderPage>
                 args: state.args.isEmpty ? null : state.args);
             return;
           }
-          final failure = (state as OrderActionFailure).failure;
-          if (failure.fields.isNotEmpty) {
-            showValidationFeedback(context, failure.fields.first.message.tr());
-          } else {
-            showFailureFeedback(context, failure);
-          }
+          _showFailure((state as OrderActionFailure).failure);
         },
         buildWhen: (_, current) =>
             current is OrderListState || current is OrderDetailState,
@@ -362,18 +502,22 @@ Future<bool> _firstPendingCheck(
 }
 
 /// Detalhe do pedido: cabeçalho (cliente/vendedor/nº/data/status/total),
-/// itens (com indicador visual mercadoria×serviço) e — no ABERTO —
-/// ações de item, Cancelar (delete_outline na AppBar) e o botão primário
-/// Validar e Faturar. FATURADO é somente leitura.
+/// itens (com indicador visual mercadoria×serviço), seção NEGOCIAÇÃO
+/// (forma + prazo × parcelas — entre os itens e a ação terminal) e — no
+/// ABERTO — ações de item, Cancelar (delete_outline na AppBar) e o botão
+/// primário Validar e Faturar. FATURADO é somente leitura.
 class _OrderDetailView extends StatelessWidget {
   const _OrderDetailView({
     required this.title,
     required this.state,
     required this.datasource,
+    required this.negotiationKey,
     required this.onBack,
     required this.onCancel,
     required this.onItemSave,
     required this.onItemRemove,
+    required this.onNegotiationSave,
+    required this.onNegotiationReload,
     required this.onValidate,
     required this.onReturn,
     super.key,
@@ -382,10 +526,15 @@ class _OrderDetailView extends StatelessWidget {
   final String title;
   final OrderDetailState state;
   final OrderDatasource datasource;
+
+  /// Key da seção de negociação (a página ancora o fields[] por ela).
+  final GlobalKey<OrderNegotiationSectionState> negotiationKey;
   final VoidCallback onBack;
   final VoidCallback onCancel;
   final void Function(int? itemId, OrderItemInput input) onItemSave;
   final void Function(int itemId) onItemRemove;
+  final void Function(OrderNegotiationInput input) onNegotiationSave;
+  final VoidCallback onNegotiationReload;
   final VoidCallback onValidate;
 
   /// Ação "Devolver" do pedido FATURADO — abre a devolução de mercadoria.
@@ -563,8 +712,23 @@ class _OrderDetailView extends StatelessWidget {
                 icon: Icons.add,
                 onPressed: busy ? null : () => _openItemDialog(context),
               ),
+            ],
+            // NEGOCIAÇÃO — entre os itens e a ação terminal (aberto =
+            // editável; faturado = somente leitura).
+            const SizedBox(height: 24),
+            SetesText.title('forms.order.negotiation'.tr()),
+            const SizedBox(height: 8),
+            OrderNegotiationSection(
+              key: negotiationKey,
+              negotiation: state.negotiation,
+              datasource: datasource,
+              busy: busy,
+              onSave: onNegotiationSave,
+              onReload: onNegotiationReload,
+            ),
+            if (order.isOpen) ...[
               const SizedBox(height: 24),
-              // Botão primário do processo: validate → invoice em cadeia.
+              // Botão primário do processo: validate → (cheques) → invoice.
               SetesButton(
                 label: 'forms.order.validateAndInvoice'.tr(),
                 icon: Icons.receipt_long_outlined,

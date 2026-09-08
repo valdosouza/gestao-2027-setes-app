@@ -2,11 +2,15 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../bank_accounts/bank_accounts_module.dart';
+import '../bank_charge_agreements/bank_charge_agreements_module.dart';
+import '../bank_slips/bank_slips_module.dart';
+import '../financial_contracts/financial_contracts_module.dart';
 import '../banks/banks_module.dart';
 import '../carriers/carriers_module.dart';
 import '../cashier/cashier_module.dart';
 import '../categories/categories_module.dart';
 import '../cfop/cfop_module.dart';
+import '../checks/checks_module.dart';
 import '../cities/cities_module.dart';
 import '../collaborators/collaborators_module.dart';
 import '../contracts/contracts_module.dart';
@@ -103,12 +107,28 @@ class HomeModule extends Module {
             ModuleRoute('/contracts', module: ContractsModule()),
             // Contas Bancárias (Módulo Software House, grupo Financeiro)
             ModuleRoute('/bank-accounts', module: BankAccountsModule()),
+            // Carteiras de Cobrança (grupo Financeiro — contratação de
+            // cobrança com o banco; o Boleto congela taxas/instruções
+            // daqui na emissão)
+            ModuleRoute('/bank-charge-agreements',
+                module: BankChargeAgreementsModule()),
+            // Contratos Financeiros (baixa automática por forma de
+            // pagamento — grupo Financeiro, D1–D22)
+            ModuleRoute('/financial-contracts',
+                module: FinancialContractsModule()),
             // Ordens de Serviço (Módulo Software House, grupo Serviços —
             // 1ª tela de processo: ciclo mensal + Gerar Faturamento)
             ModuleRoute('/service-orders', module: ServiceOrdersModule()),
             // Baixa de Títulos (Módulo Software House, grupo Financeiro —
             // 2ª tela de processo: carteira, baixa em lote, estorno, extrato)
             ModuleRoute('/settlements', module: SettlementsModule()),
+            // Boletos (grupo Financeiro — tela de processo: emitir
+            // individual/agrupado, baixar manualmente, cancelar, estornar)
+            ModuleRoute('/bank-slips', module: BankSlipsModule()),
+            // Cheques (grupo Financeiro — tela de processo: depositar,
+            // descontar, retornar, usar em pagamento, devolver, estornar;
+            // prompt_cheque_rastreabilidade.md D1–D10 + D7a–c)
+            ModuleRoute('/checks', module: ChecksModule()),
             // Abertura/Fechamento de Caixa (grupo Financeiro — 3º TIPO de
             // tela: sessão/status, não lista+form nem árvore, W3.2)
             ModuleRoute('/cashier', module: CashierModule()),

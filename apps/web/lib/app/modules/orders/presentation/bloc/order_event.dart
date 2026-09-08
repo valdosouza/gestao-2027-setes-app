@@ -107,13 +107,44 @@ class OrderBillingValidateRequested extends OrderEvent {
 }
 
 /// Fatura o pedido — só disparado pela página depois de um validate sem
-/// issues; sucesso volta pra lista na aba Faturados.
+/// issues; sucesso volta pra lista na aba Faturados. [checks] = cheques
+/// por parcela coletados no dialog (D5) — vazio quando nenhuma parcela da
+/// negociação é cheque (fluxo inalterado).
 class OrderBillingInvoiceRequested extends OrderEvent {
-  const OrderBillingInvoiceRequested(this.orderId);
+  const OrderBillingInvoiceRequested(this.orderId, {this.checks = const []});
+  final int orderId;
+  final List<OrderParcelChecksInput> checks;
+
+  @override
+  List<Object?> get props => [orderId, checks];
+}
+
+/// Relê a negociação do pedido aberto no detalhe (GET /:id/negotiation) —
+/// a carga normal acontece junto com o detalhe; este evento é o
+/// "recarregar" explícito (ex.: quando a 1ª leitura falhou).
+class OrderNegotiationRequested extends OrderEvent {
+  const OrderNegotiationRequested(this.orderId);
   final int orderId;
 
   @override
   List<Object?> get props => [orderId];
+}
+
+/// Grava a negociação (PUT /:id/negotiation): [input] com `installments`
+/// = via ELABORADA; sem = via SIMPLES / "voltar ao prazo". Sucesso =
+/// SnackBar + detalhe com a negociação recomposta; falha = one-shot
+/// [OrderNegotiationFailure] (a seção ancora o campo do fields[]).
+class OrderNegotiationSaveRequested extends OrderEvent {
+  const OrderNegotiationSaveRequested({
+    required this.orderId,
+    required this.input,
+  });
+
+  final int orderId;
+  final OrderNegotiationInput input;
+
+  @override
+  List<Object?> get props => [orderId, input];
 }
 
 /// Botão "Devolver" no detalhe do pedido FATURADO: abre a devolução

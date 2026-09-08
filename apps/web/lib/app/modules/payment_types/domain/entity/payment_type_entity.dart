@@ -48,7 +48,7 @@ class NfceCode {
 /// Atributos do VÍNCULO institution × forma (migration 012 —
 /// tb_institution_has_payment_types). [enable] substitui o antigo active:
 /// a linha do catálogo é compartilhada, o cliente desabilita por um tempo,
-/// não exclui. [usagePreference]: lançamento em 'C'aixa/'B'anco/'A'mbos.
+/// não exclui. O destino da baixa vem do contrato financeiro (D1/D17).
 /// Planos de conta 0 = não definido (referência sem FK física).
 class PaymentTypeLinkAttrs extends Equatable {
   const PaymentTypeLinkAttrs({
@@ -60,7 +60,6 @@ class PaymentTypeLinkAttrs extends Equatable {
     this.tef = false,
     this.financialPlansIdCre = 0,
     this.financialPlansIdDeb = 0,
-    this.usagePreference = 'A',
   });
 
   final bool enable;
@@ -86,9 +85,6 @@ class PaymentTypeLinkAttrs extends Equatable {
   /// Plano de Contas — Centro de Custo (kind 'C'; 0 = não definido).
   final int financialPlansIdDeb;
 
-  /// 'C' Caixa / 'B' Banco / 'A' Ambos.
-  final String usagePreference;
-
   factory PaymentTypeLinkAttrs.fromJson(Map<String, dynamic> json) =>
       PaymentTypeLinkAttrs(
         enable:    (json['enable'] as String?) != 'N',
@@ -103,7 +99,6 @@ class PaymentTypeLinkAttrs extends Equatable {
             (json['financialPlansIdCre'] as num?)?.toInt() ?? 0,
         financialPlansIdDeb:
             (json['financialPlansIdDeb'] as num?)?.toInt() ?? 0,
-        usagePreference: json['usagePreference'] as String? ?? 'A',
       );
 
   Map<String, dynamic> toJson() => {
@@ -115,14 +110,12 @@ class PaymentTypeLinkAttrs extends Equatable {
         'tef':                     tef ? 'S' : 'N',
         'financialPlansIdCre':     financialPlansIdCre,
         'financialPlansIdDeb':     financialPlansIdDeb,
-        'usagePreference':         usagePreference,
       };
 
   @override
   List<Object?> get props => [
         enable, appMobile, blockForCustomerBlocked, blockForCustomerNoLimit,
         maxParcels, tef, financialPlansIdCre, financialPlansIdDeb,
-        usagePreference,
       ];
 }
 

@@ -5,7 +5,8 @@ import '../entity/order_entity.dart';
 
 /// Contrato do repositório do Pedido de Venda/Conjugado (Either/dartz) —
 /// operações do PROCESSO: lista por status, detalhe, abrir/cancelar,
-/// itens e faturamento (validate/invoice, via /api/billing).
+/// itens, negociação (forma/prazo/parcelas) e faturamento (validate/
+/// invoice com cheques por parcela, via /api/billing).
 abstract class OrderRepository {
   Future<Either<Failure, PagedResult<OrderListItem>>> getList(
       String status, String filter,
@@ -18,6 +19,10 @@ abstract class OrderRepository {
       int orderId, int itemId, OrderItemInput input);
   Future<Either<Failure, Unit>> itemDelete(int orderId, int itemId);
   Future<Either<Failure, OrderBillingValidation>> billingValidate(int orderId);
-  Future<Either<Failure, OrderBillingInvoice>> billingInvoice(int orderId);
+  Future<Either<Failure, OrderBillingInvoice>> billingInvoice(int orderId,
+      {List<OrderParcelChecksInput> checks = const []});
+  Future<Either<Failure, OrderNegotiation>> getNegotiation(int orderId);
+  Future<Either<Failure, OrderNegotiation>> putNegotiation(
+      int orderId, OrderNegotiationInput input);
   Future<Either<Failure, int>> openReturn(int saleOrderId);
 }
