@@ -116,6 +116,19 @@ class ServiceOrderMonthlyRunRequested extends ServiceOrderEvent {
 
 /// Gerar Faturamento da OS aberta — sucesso mostra o nº da fatura e volta
 /// para a lista na aba Faturadas.
+/// "Cancelar nota" da OS faturada (Q-G16) — motivo já confirmado no dialog.
+class ServiceOrderInvoiceCancelRequested extends ServiceOrderEvent {
+  const ServiceOrderInvoiceCancelRequested({
+    required this.orderId,
+    required this.reason,
+  });
+  final int orderId;
+  final String reason;
+
+  @override
+  List<Object?> get props => [orderId, reason];
+}
+
 class ServiceOrderInvoiceRequested extends ServiceOrderEvent {
   const ServiceOrderInvoiceRequested({
     required this.orderId,

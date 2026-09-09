@@ -19,6 +19,9 @@ abstract class ServiceOrderRepository {
       int orderId, int itemId, ServiceOrderItemInput input);
   Future<Either<Failure, Unit>> itemDelete(int orderId, int itemId);
   Future<Either<Failure, MonthlyRunReport>> monthlyRun(int year, int month);
+  Future<Either<Failure, ServiceOrderInvoiceCancelResult>> cancelInvoice(
+      int orderId, String reason);
+
   Future<Either<Failure, ServiceOrderInvoiceResult>> invoice(
       int orderId, ServiceOrderInvoiceInput input);
 }

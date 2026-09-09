@@ -15,6 +15,8 @@ import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/order_datasource.dart';
 import '../../domain/entity/order_entity.dart';
 import '../bloc/order_bloc.dart';
+import '../../../../shared/session/current_interface.dart';
+import '../../../../shared/billing/cancel_invoice_dialog.dart';
 import 'order_checks_dialog.dart';
 import 'order_negotiation_section.dart';
 
@@ -255,7 +257,30 @@ class _OrderPageState extends State<OrderPage>
       onValidate: () =>
           _bloc.add(OrderBillingValidateRequested(state.order.id)),
       onReturn: () => _bloc.add(OrderReturnRequested(state.order.id)),
+      onCancelInvoice: () => _askCancelInvoice(state.order),
     );
+  }
+
+  /// "Cancelar nota" (prompt_cancelamento_nota.md D13/D14): confirmação +
+  /// motivo obrigatório no dialog, depois o bloc chama a API.
+  Future<void> _askCancelInvoice(OrderFull order) async {
+    final reason = await showCancelInvoiceDialog(
+        context, order.number?.toString() ?? '${order.id}');
+    if (reason == null || !mounted) return;
+    _bloc.add(OrderInvoiceCancelRequested(orderId: order.id, reason: reason));
+  }
+
+  /// 409 INVOICE_CANCEL_BLOCKED (Q-P4): um código, fields[] tipado com o que
+  /// resolver antes — a tela lista; demais falhas seguem a ponte padrão.
+  void _onInvoiceCancelFailure(OrderInvoiceCancelFailure state) {
+    final failure = state.failure;
+    if (failure.code == 'INVOICE_CANCEL_BLOCKED' && failure.fields.isNotEmpty) {
+      final lines = failure.fields.map((f) => '• ${f.message}').join('\n');
+      showValidationFeedback(
+          context, '${'forms.order.cancelInvoiceBlocked'.tr()}\n$lines');
+      return;
+    }
+    _showFailure(failure);
   }
 
   // -------------------------------------------------------------------
@@ -389,7 +414,9 @@ class _OrderPageState extends State<OrderPage>
             current is OrderBillingInvoiced ||
             current is OrderBillingInvoiceFailure ||
             current is OrderNegotiationFailure ||
-            current is OrderReturnOpened,
+            current is OrderReturnOpened ||
+            current is OrderInvoiceCancelled ||
+            current is OrderInvoiceCancelFailure,
         // PONTE de feedback (Framework de Mensagens): a tela nunca chama
         // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
         // via ponte; falha = dialog (SALESMAN_REQUIRED, ORDER_INVOICED
@@ -425,6 +452,15 @@ class _OrderPageState extends State<OrderPage>
             } else {
               _showFailure(state.failure);
             }
+            return;
+          }
+          if (state is OrderInvoiceCancelled) {
+            showSuccessFeedback(context, 'forms.order.invoiceCancelled',
+                args: [state.result.invoiceNumber]);
+            return;
+          }
+          if (state is OrderInvoiceCancelFailure) {
+            _onInvoiceCancelFailure(state);
             return;
           }
           if (state is OrderReturnOpened) {
@@ -520,6 +556,7 @@ class _OrderDetailView extends StatelessWidget {
     required this.onNegotiationReload,
     required this.onValidate,
     required this.onReturn,
+    required this.onCancelInvoice,
     super.key,
   });
 
@@ -539,6 +576,9 @@ class _OrderDetailView extends StatelessWidget {
 
   /// Ação "Devolver" do pedido FATURADO — abre a devolução de mercadoria.
   final VoidCallback onReturn;
+
+  /// Ação "Cancelar nota" do pedido FATURADO (privilégio CANCELAR — D12).
+  final VoidCallback onCancelInvoice;
 
   OrderFull get order => state.order;
   bool get busy => state.saving;
@@ -738,10 +778,26 @@ class _OrderDetailView extends StatelessWidget {
               const SizedBox(height: 24),
               // Pedido FATURADO: abre a devolução de mercadoria (ajuste de
               // Entrada ancorado neste pedido — módulo order_returns).
-              SetesButton(
-                label: 'forms.order.openReturn'.tr(),
-                icon: Icons.assignment_return_outlined,
-                onPressed: busy ? null : onReturn,
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  SetesButton(
+                    label: 'forms.order.openReturn'.tr(),
+                    icon: Icons.assignment_return_outlined,
+                    onPressed: busy ? null : onReturn,
+                  ),
+                  // Cancelamento da nota (Onda 1 — nota não transmitida):
+                  // só com o privilégio CANCELAR da interface (D12); a API
+                  // aplica de novo na rota.
+                  if (CurrentInterface.can('CANCELAR'))
+                    SetesButton(
+                      label: 'forms.order.cancelInvoice'.tr(),
+                      icon: Icons.cancel_outlined,
+                      kind: SetesButtonKind.secondary,
+                      onPressed: busy ? null : onCancelInvoice,
+                    ),
+                ],
               ),
             ],
           ],

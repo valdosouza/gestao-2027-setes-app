@@ -7,6 +7,7 @@ import 'domain/repository/service_order_repository.dart';
 import 'domain/usecase/service_order_delete.dart';
 import 'domain/usecase/service_order_get.dart';
 import 'domain/usecase/service_order_getlist.dart';
+import 'domain/usecase/service_order_cancel_invoice.dart';
 import 'domain/usecase/service_order_invoice.dart';
 import 'domain/usecase/service_order_item_delete.dart';
 import 'domain/usecase/service_order_item_save.dart';
@@ -44,6 +45,8 @@ class ServiceOrdersModule extends Module {
             repository: i.get<ServiceOrderRepository>())),
         Bind.factory<ServiceOrderInvoice>((i) =>
             ServiceOrderInvoice(repository: i.get<ServiceOrderRepository>())),
+        Bind.factory<ServiceOrderCancelInvoice>((i) => ServiceOrderCancelInvoice(
+            repository: i.get<ServiceOrderRepository>())),
         Bind.singleton<ServiceOrderBloc>((i) => ServiceOrderBloc(
               getlist:    i.get<ServiceOrderGetlist>(),
               get:        i.get<ServiceOrderGet>(),
@@ -53,6 +56,7 @@ class ServiceOrdersModule extends Module {
               itemDelete: i.get<ServiceOrderItemDelete>(),
               monthlyRun: i.get<ServiceOrderMonthlyRun>(),
               invoice:    i.get<ServiceOrderInvoice>(),
+              cancelInvoice: i.get<ServiceOrderCancelInvoice>(),
             )),
       ];
 

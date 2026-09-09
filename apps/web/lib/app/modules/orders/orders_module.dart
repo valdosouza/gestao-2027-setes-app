@@ -6,6 +6,7 @@ import 'data/datasource/order_datasource.dart';
 import 'data/repository/order_repository_impl.dart';
 import 'domain/repository/order_repository.dart';
 import 'domain/usecase/order_billing_invoice.dart';
+import 'domain/usecase/order_billing_cancel.dart';
 import 'domain/usecase/order_billing_validate.dart';
 import 'domain/usecase/order_delete.dart';
 import 'domain/usecase/order_get.dart';
@@ -55,6 +56,8 @@ class OrdersModule extends Module {
             OrderBillingInvoiceUsecase(repository: i.get<OrderRepository>())),
         Bind.factory<OrderReturnOpen>(
             (i) => OrderReturnOpen(repository: i.get<OrderRepository>())),
+        Bind.factory<OrderBillingCancelUsecase>((i) =>
+            OrderBillingCancelUsecase(repository: i.get<OrderRepository>())),
         Bind.factory<OrderNegotiationGet>(
             (i) => OrderNegotiationGet(repository: i.get<OrderRepository>())),
         Bind.factory<OrderNegotiationSave>(
@@ -69,6 +72,7 @@ class OrdersModule extends Module {
               billingValidate: i.get<OrderBillingValidate>(),
               billingInvoice:  i.get<OrderBillingInvoiceUsecase>(),
               returnOpen:      i.get<OrderReturnOpen>(),
+              billingCancel:   i.get<OrderBillingCancelUsecase>(),
               negotiationGet:  i.get<OrderNegotiationGet>(),
               negotiationSave: i.get<OrderNegotiationSave>(),
             )),

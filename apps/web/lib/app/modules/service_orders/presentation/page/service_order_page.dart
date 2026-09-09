@@ -11,6 +11,8 @@ import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/service_order_datasource.dart';
 import '../../domain/entity/service_order_entity.dart';
+import '../../../../shared/billing/cancel_invoice_dialog.dart';
+import '../../../../shared/session/current_interface.dart';
 import '../bloc/service_order_bloc.dart';
 
 /// Tela de Ordens de Serviço — interface 'service-orders', grupo Serviços
@@ -280,7 +282,19 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             orderId: state.order.id, itemId: itemId)),
         onInvoice: (input) => _bloc.add(ServiceOrderInvoiceRequested(
             orderId: state.order.id, input: input)),
+        onCancelInvoice: () => _askCancelInvoice(state.order),
       );
+
+  /// "Cancelar nota" da OS faturada (Q-G16 — vive no documento faturado):
+  /// confirmação + motivo obrigatório no dialog compartilhado, depois o bloc
+  /// chama POST /api/billing/cancel; a OS volta a aberta.
+  Future<void> _askCancelInvoice(ServiceOrderFull order) async {
+    final reason = await showCancelInvoiceDialog(
+        context, '${order.number ?? order.id}');
+    if (reason == null || !mounted) return;
+    _bloc.add(ServiceOrderInvoiceCancelRequested(
+        orderId: order.id, reason: reason));
+  }
 
   @override
   Widget build(BuildContext context) =>
@@ -307,7 +321,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           final failure = (state as ServiceOrderActionFailure).failure;
-          if (failure.fields.isNotEmpty) {
+          if (failure.code == 'INVOICE_CANCEL_BLOCKED' &&
+              failure.fields.isNotEmpty) {
+            // Q-P4: um código, fields[] tipado com o que resolver antes
+            final lines =
+                failure.fields.map((f) => '• ${f.message}').join('\n');
+            showValidationFeedback(context,
+                '${'forms.serviceOrder.cancelInvoiceBlocked'.tr()}\n$lines');
+          } else if (failure.fields.isNotEmpty) {
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
             showFailureFeedback(context, failure);
@@ -376,6 +397,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
     required this.onItemSave,
     required this.onItemRemove,
     required this.onInvoice,
+    required this.onCancelInvoice,
     super.key,
   });
 
@@ -387,6 +409,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
   final void Function(int? itemId, ServiceOrderItemInput input) onItemSave;
   final void Function(int itemId) onItemRemove;
   final void Function(ServiceOrderInvoiceInput input) onInvoice;
+  final VoidCallback onCancelInvoice;
 
   ServiceOrderFull get order => state.order;
   bool get busy => state.saving;
@@ -529,6 +552,14 @@ class _ServiceOrderDetailView extends StatelessWidget {
           ),
           title: Text(title),
           actions: [
+            // Q-G16: "Cancelar nota" vive no DOCUMENTO FATURADO (privilégio
+            // CANCELAR na interface do ramo — service-orders, seed 52)
+            if (!order.isOpen && CurrentInterface.can('CANCELAR'))
+              IconButton(
+                icon: const Icon(Icons.cancel_outlined),
+                tooltip: 'forms.serviceOrder.cancelInvoice'.tr(),
+                onPressed: busy ? null : onCancelInvoice,
+              ),
             if (order.isOpen)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
@@ -563,11 +594,13 @@ class _ServiceOrderDetailView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               // Botão primário do processo: fatura interna + financeiro RA.
-              SetesButton(
-                label: 'forms.serviceOrder.generateInvoice'.tr(),
-                icon: Icons.receipt_long_outlined,
-                onPressed: busy ? null : () => _openInvoiceDialog(context),
-              ),
+              // Q-G23: FATURAR na interface do ramo (a API exige; seed 53)
+              if (CurrentInterface.can('FATURAR'))
+                SetesButton(
+                  label: 'forms.serviceOrder.generateInvoice'.tr(),
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: busy ? null : () => _openInvoiceDialog(context),
+                ),
             ],
           ],
         ),

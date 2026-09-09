@@ -112,8 +112,8 @@
     "financialPlans": "Lista de Planos Financeiros",
     "agreements": "Lista de Carteiras de Cobrança",
     "openTitles": "Lista de Títulos em Aberto",
-      "providers": "Lista de Fornecedores",
-      "openPayables": "Lista de Títulos a Pagar"
+    "providers": "Lista de Fornecedores",
+    "openPayables": "Lista de Títulos a Pagar"
   },
   "forms": {
     "validation": {
@@ -704,7 +704,10 @@
       "parcels": "Número de Parcelas",
       "parcelsInvalid": "Parcelas deve estar entre 1 e 99",
       "dtExpiration": "Data de Vencimento",
-      "invoiceGenerated": "Fatura {} gerada"
+      "invoiceGenerated": "Fatura {} gerada",
+      "cancelInvoice": "Cancelar nota",
+      "invoiceCancelled": "Nota {} cancelada — a OS voltou a aberta",
+      "cancelInvoiceBlocked": "A nota ainda não pode ser cancelada. Resolva antes:"
     },
     "order": {
       "tabOpen": "Abertos",
@@ -743,6 +746,9 @@
       "billingIssuesTitle": "Pendências do faturamento",
       "invoiceGenerated": "Fatura {} gerada",
       "openReturn": "Devolver",
+      "cancelInvoice": "Cancelar nota",
+      "invoiceCancelled": "Nota {} cancelada — o pedido voltou a aberto",
+      "cancelInvoiceBlocked": "A nota ainda não pode ser cancelada. Resolva antes:",
       "negotiation": "Negociação",
       "negotiationUnavailable": "Não foi possível carregar a negociação do pedido",
       "reloadNegotiation": "Recarregar negociação",
@@ -1231,6 +1237,14 @@
       "active": "Regra Ativa",
       "activeRow": "Ativo",
       "inactiveRow": "Inativo"
+    },
+    "billing": {
+      "cancelInvoiceTitle": "Cancelar a nota do documento {}",
+      "cancelInvoiceExplain": "A nota é desfeita e o documento volta a aberto. Baixas, boletos liquidados e devoluções precisam ser resolvidos antes.",
+      "cancelInvoiceReason": "Motivo do cancelamento",
+      "cancelInvoiceReasonRequired": "Informe o motivo do cancelamento",
+      "cancelInvoiceReasonTooLong": "Motivo deve ter até 255 caracteres",
+      "cancelInvoiceConfirm": "Cancelar nota"
     }
   },
   "theme": {

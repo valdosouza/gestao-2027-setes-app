@@ -352,3 +352,30 @@ class ServicePaymentTypeLookup extends Equatable {
   @override
   List<Object?> get props => [id, description, enable];
 }
+
+
+/// Resultado do "Cancelar nota" da OS (POST /api/billing/cancel — Q-G16 do
+/// cancelamento de nota): a nota some (soft-delete), a OS volta a ABERTA
+/// (trava D5 restaurada); a API informa o que desfez junto.
+class ServiceOrderInvoiceCancelResult extends Equatable {
+  const ServiceOrderInvoiceCancelResult({
+    required this.orderId,
+    this.invoiceNumber = '',
+    this.event = 0,
+  });
+
+  final int    orderId;
+  final String invoiceNumber;
+  /// Nº do evento C na história da nota.
+  final int    event;
+
+  factory ServiceOrderInvoiceCancelResult.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderInvoiceCancelResult(
+        orderId:       jsonInt(json['orderId']) ?? 0,
+        invoiceNumber: json['invoiceNumber']?.toString() ?? '',
+        event:         jsonInt(json['event']) ?? 0,
+      );
+
+  @override
+  List<Object?> get props => [orderId, invoiceNumber, event];
+}

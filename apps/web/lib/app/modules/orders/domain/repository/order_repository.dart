@@ -25,4 +25,7 @@ abstract class OrderRepository {
   Future<Either<Failure, OrderNegotiation>> putNegotiation(
       int orderId, OrderNegotiationInput input);
   Future<Either<Failure, int>> openReturn(int saleOrderId);
+
+  /// Cancelamento da nota (POST /api/billing/cancel) — motivo obrigatório.
+  Future<Either<Failure, OrderBillingCancel>> billingCancel(int orderId, String reason);
 }

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entity/order_entity.dart';
 import '../../domain/usecase/order_billing_invoice.dart';
+import '../../domain/usecase/order_billing_cancel.dart';
 import '../../domain/usecase/order_billing_validate.dart';
 import '../../domain/usecase/order_delete.dart';
 import '../../domain/usecase/order_get.dart';
@@ -40,6 +41,7 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
     required this.itemDelete,
     required this.billingValidate,
     required this.billingInvoice,
+    required this.billingCancel,
     required this.returnOpen,
     required this.negotiationGet,
     required this.negotiationSave,
@@ -54,6 +56,7 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
     on<OrderBillingValidateRequested>(_onBillingValidateRequested);
     on<OrderBillingInvoiceRequested>(_onBillingInvoiceRequested);
     on<OrderReturnRequested>(_onReturnRequested);
+    on<OrderInvoiceCancelRequested>(_onInvoiceCancelRequested);
     on<OrderNegotiationRequested>(_onNegotiationRequested);
     on<OrderNegotiationSaveRequested>(_onNegotiationSaveRequested);
   }
@@ -66,6 +69,7 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
   final OrderItemDelete itemDelete;
   final OrderBillingValidate billingValidate;
   final OrderBillingInvoiceUsecase billingInvoice;
+  final OrderBillingCancelUsecase billingCancel;
   final OrderReturnOpen returnOpen;
   final OrderNegotiationGet negotiationGet;
   final OrderNegotiationSave negotiationSave;
@@ -321,6 +325,33 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
       },
     );
   }
+
+  /// "Cancelar nota" do pedido FATURADO (prompt_cancelamento_nota.md Onda
+  /// 1): a API desfaz o faturamento numa transação; sucesso → one-shot +
+  /// o pedido reaparece em ABERTOS (D5 — troca de aba volta à página 1);
+  /// 409 INVOICE_CANCEL_BLOCKED → one-shot próprio com o fields[] tipado.
+  Future<void> _onInvoiceCancelRequested(
+      OrderInvoiceCancelRequested event, Emitter<OrderState> emit) async {
+    if (_invoiceCancelling) return; // duplo-clique (mesmo guard da devolução)
+    _invoiceCancelling = true;
+    _emitDetail(emit, saving: true);
+    final result = await billingCancel(event.orderId, event.reason);
+    _invoiceCancelling = false;
+    await result.fold(
+      (failure) async {
+        emit(OrderInvoiceCancelFailure(failure));
+        _emitDetail(emit);
+      },
+      (cancelResult) async {
+        emit(OrderInvoiceCancelled(cancelResult));
+        _status = 'A';
+        _page = 1;
+        await _reloadList(emit);
+      },
+    );
+  }
+
+  bool _invoiceCancelling = false;
 
   /// "Recarregar negociação" explícito (a carga normal vem com o detalhe).
   Future<void> _onNegotiationRequested(

@@ -775,3 +775,41 @@ class OrderParcelChecksInput extends Equatable {
   @override
   List<Object?> get props => [parcel, items];
 }
+
+/// Resultado do CANCELAMENTO da nota (POST /api/billing/cancel —
+/// prompt_cancelamento_nota.md Onda 1): a nota some (soft-delete, D3), o
+/// pedido volta a aberto (D5); a API informa o que desfez junto.
+class OrderBillingCancel extends Equatable {
+  const OrderBillingCancel({
+    required this.orderId,
+    this.invoiceNumber = '',
+    this.event = 0,
+    this.checksReversed = 0,
+    this.bankSlipsCancelled = 0,
+    this.commissionsCompensated = 0,
+  });
+
+  final int    orderId;
+  final String invoiceNumber;
+  /// Nº do evento C na história da nota.
+  final int    event;
+  final int    checksReversed;
+  final int    bankSlipsCancelled;
+  final int    commissionsCompensated;
+
+  factory OrderBillingCancel.fromJson(Map<String, dynamic> json) =>
+      OrderBillingCancel(
+        orderId:       jsonInt(json['orderId']) ?? 0,
+        invoiceNumber: json['invoiceNumber']?.toString() ?? '',
+        event:         jsonInt(json['event']) ?? 0,
+        checksReversed:
+            (json['checksReversed'] as List<dynamic>? ?? const []).length,
+        bankSlipsCancelled:
+            (json['bankSlipsCancelled'] as List<dynamic>? ?? const []).length,
+        commissionsCompensated: jsonInt(json['commissionsCompensated']) ?? 0,
+      );
+
+  @override
+  List<Object?> get props =>
+      [orderId, invoiceNumber, event, checksReversed, bankSlipsCancelled, commissionsCompensated];
+}

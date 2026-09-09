@@ -82,4 +82,8 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<Either<Failure, int>> openReturn(int saleOrderId) =>
       _guard(() => datasource.openReturn(saleOrderId));
+
+  @override
+  Future<Either<Failure, OrderBillingCancel>> billingCancel(int orderId, String reason) =>
+      _guard(() => datasource.billingCancel(orderId, reason));
 }

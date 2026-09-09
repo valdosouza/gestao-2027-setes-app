@@ -143,3 +143,20 @@ class OrderReturnOpened extends OrderState {
   @override
   List<Object?> get props => [returnId];
 }
+
+/// One-shot: nota cancelada (a lista volta em Abertos — D5).
+class OrderInvoiceCancelled extends OrderState {
+  const OrderInvoiceCancelled(this.result);
+  final OrderBillingCancel result;
+  @override
+  List<Object?> get props => [result];
+}
+
+/// One-shot: cancelamento recusado — 409 INVOICE_CANCEL_BLOCKED traz
+/// fields[] tipado (o que resolver antes); demais falhas, mensagem da API.
+class OrderInvoiceCancelFailure extends OrderState {
+  const OrderInvoiceCancelFailure(this.failure);
+  final Failure failure;
+  @override
+  List<Object?> get props => [failure];
+}

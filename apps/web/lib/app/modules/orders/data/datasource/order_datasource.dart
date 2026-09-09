@@ -84,6 +84,12 @@ abstract class OrderDatasource {
   /// ORIGIN_NOT_INVOICED / NOTHING_RETURNABLE com mensagem pronta.
   /// Devolve o id da devolução criada.
   Future<int> openReturn(int saleOrderId);
+
+  /// Cancela a NOTA do pedido faturado (POST /api/billing/cancel {orderId,
+  /// reason} — HTTP direto no /api/billing, como validate/invoice). 409
+  /// INVOICE_CANCEL_BLOCKED traz fields[] tipado (title/bankSlip/check/
+  /// return) com o que resolver antes; 403 PRIVILEGE_REQUIRED sem CANCELAR.
+  Future<OrderBillingCancel> billingCancel(int orderId, String reason);
 }
 
 class OrderDatasourceImpl implements OrderDatasource {
@@ -227,6 +233,16 @@ class OrderDatasourceImpl implements OrderDatasource {
     return data
         .map((e) => OrderBankLookup.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<OrderBillingCancel> billingCancel(int orderId, String reason) async {
+    final json = await client.post('/api/billing/cancel', {
+      'orderId': orderId,
+      'reason': reason,
+    });
+    return OrderBillingCancel.fromJson(
+        json['data'] as Map<String, dynamic>? ?? const {});
   }
 
   @override

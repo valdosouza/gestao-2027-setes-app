@@ -112,8 +112,8 @@
     "financialPlans": "List of Financial Plans",
     "agreements": "List of Collection Agreements",
     "openTitles": "List of Open Bills",
-      "providers": "List of Suppliers",
-      "openPayables": "List of Payables"
+    "providers": "List of Suppliers",
+    "openPayables": "List of Payables"
   },
   "forms": {
     "validation": {
@@ -704,7 +704,10 @@
       "parcels": "Number of Installments",
       "parcelsInvalid": "Installments must be between 1 and 99",
       "dtExpiration": "Due Date",
-      "invoiceGenerated": "Invoice {} generated"
+      "invoiceGenerated": "Invoice {} generated",
+      "cancelInvoice": "Cancel invoice",
+      "invoiceCancelled": "Invoice {} cancelled — the service order is open again",
+      "cancelInvoiceBlocked": "The invoice cannot be cancelled yet. Resolve first:"
     },
     "order": {
       "tabOpen": "Open",
@@ -743,6 +746,9 @@
       "billingIssuesTitle": "Billing pending issues",
       "invoiceGenerated": "Invoice {} generated",
       "openReturn": "Return",
+      "cancelInvoice": "Cancel invoice",
+      "invoiceCancelled": "Invoice {} cancelled — the order is open again",
+      "cancelInvoiceBlocked": "The invoice cannot be cancelled yet. Resolve first:",
       "negotiation": "Negotiation",
       "negotiationUnavailable": "Could not load the order negotiation",
       "reloadNegotiation": "Reload negotiation",
@@ -1231,6 +1237,14 @@
       "active": "Rule Active",
       "activeRow": "Active",
       "inactiveRow": "Inactive"
+    },
+    "billing": {
+      "cancelInvoiceTitle": "Cancel the invoice of document {}",
+      "cancelInvoiceExplain": "The invoice is undone and the document goes back to open. Settlements, settled bank slips and returns must be resolved first.",
+      "cancelInvoiceReason": "Cancellation reason",
+      "cancelInvoiceReasonRequired": "Enter the cancellation reason",
+      "cancelInvoiceReasonTooLong": "Reason must have up to 255 characters",
+      "cancelInvoiceConfirm": "Cancel invoice"
     }
   },
   "theme": {

@@ -6,6 +6,7 @@ import '../../domain/entity/service_order_entity.dart';
 import '../../domain/usecase/service_order_delete.dart';
 import '../../domain/usecase/service_order_get.dart';
 import '../../domain/usecase/service_order_getlist.dart';
+import '../../domain/usecase/service_order_cancel_invoice.dart';
 import '../../domain/usecase/service_order_invoice.dart';
 import '../../domain/usecase/service_order_item_delete.dart';
 import '../../domain/usecase/service_order_item_save.dart';
@@ -33,6 +34,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     required this.itemDelete,
     required this.monthlyRun,
     required this.invoice,
+    required this.cancelInvoice,
   }) : super(const ServiceOrderListState(loading: true)) {
     on<ServiceOrderListRequested>(_onListRequested);
     on<ServiceOrderOpenRequested>(_onOpenRequested);
@@ -43,6 +45,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderItemRemoveRequested>(_onItemRemoveRequested);
     on<ServiceOrderMonthlyRunRequested>(_onMonthlyRunRequested);
     on<ServiceOrderInvoiceRequested>(_onInvoiceRequested);
+    on<ServiceOrderInvoiceCancelRequested>(_onInvoiceCancelRequested);
   }
 
   final ServiceOrderGetlist getlist;
@@ -53,6 +56,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   final ServiceOrderItemDelete itemDelete;
   final ServiceOrderMonthlyRun monthlyRun;
   final ServiceOrderInvoice invoice;
+  final ServiceOrderCancelInvoice cancelInvoice;
 
   /// Aba ativa ('A' abertas | 'F' faturadas) e filtro atual da lista.
   String _status = 'A';
@@ -224,6 +228,38 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       },
     );
   }
+
+  /// "Cancelar nota" (Q-G16): a nota some e a OS volta a ABERTA — a lista
+  /// reabre na aba Abertas, página 1 (fluxo do processo).
+  Future<void> _onInvoiceCancelRequested(
+      ServiceOrderInvoiceCancelRequested event,
+      Emitter<ServiceOrderState> emit) async {
+    if (_invoiceCancelling) return; // duplo-clique
+    _invoiceCancelling = true;
+    final detail = _detail;
+    if (detail != null) {
+      emit(ServiceOrderDetailState(order: detail, saving: true));
+    }
+    final result = await cancelInvoice(event.orderId, event.reason);
+    _invoiceCancelling = false;
+    await result.fold(
+      (failure) async {
+        emit(ServiceOrderActionFailure(failure));
+        if (detail != null) emit(ServiceOrderDetailState(order: detail));
+      },
+      (cancelResult) async {
+        emit(ServiceOrderActionSuccess(
+          'forms.serviceOrder.invoiceCancelled',
+          args: [cancelResult.invoiceNumber],
+        ));
+        _status = 'A';
+        _page = 1;
+        await _reloadList(emit);
+      },
+    );
+  }
+
+  bool _invoiceCancelling = false;
 
   Future<void> _onInvoiceRequested(
       ServiceOrderInvoiceRequested event,

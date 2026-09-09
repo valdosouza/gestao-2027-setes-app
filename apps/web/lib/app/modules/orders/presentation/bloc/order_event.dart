@@ -158,3 +158,15 @@ class OrderReturnRequested extends OrderEvent {
   @override
   List<Object?> get props => [orderId];
 }
+
+/// Ação "Cancelar nota" do pedido FATURADO (prompt_cancelamento_nota.md
+/// Onda 1): motivo obrigatório (D13). Sucesso = one-shot
+/// [OrderInvoiceCancelled] + pedido de volta na aba Abertos (D5); 409
+/// INVOICE_CANCEL_BLOCKED vira [OrderInvoiceCancelFailure] com a lista.
+class OrderInvoiceCancelRequested extends OrderEvent {
+  const OrderInvoiceCancelRequested({required this.orderId, required this.reason});
+  final int orderId;
+  final String reason;
+  @override
+  List<Object?> get props => [orderId, reason];
+}

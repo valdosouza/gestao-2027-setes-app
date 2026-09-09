@@ -26,6 +26,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:setes_web/app/modules/orders/data/datasource/order_datasource.dart';
 import 'package:setes_web/app/modules/orders/domain/entity/order_entity.dart';
 import 'package:setes_web/app/modules/orders/presentation/page/order_checks_dialog.dart';
+import 'package:setes_web/app/shared/billing/cancel_invoice_dialog.dart';
 import 'package:setes_web/app/modules/orders/presentation/page/order_negotiation_section.dart';
 
 /// Só os lookups da negociação/cheque — o resto nunca é chamado aqui.
@@ -635,6 +636,40 @@ void main() {
     await tester.tap(_button('forms.order.saveNegotiation'.tr()));
     await tester.pumpAndSettle();
     expect(saved!.installments!.first.dueDate, '2026-09-07');
+  });
+
+  testWidgets('dialog "Cancelar nota" (D13): motivo obrigatório com pendência ancorada; confirma devolvendo o motivo',
+      (tester) async {
+    String? reason;
+    await tester.pumpWidget(_wrap(Builder(
+      builder: (context) => TextButton(
+        onPressed: () async {
+          reason = await showCancelInvoiceDialog(context, '1000082');
+        },
+        child: const Text('abrir'),
+      ),
+    )));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    expect(find.text('forms.billing.cancelInvoiceTitle'.tr(args: ['1000082'])), findsOneWidget);
+
+    // Confirmar sem motivo → pendência (uma por vez) → OK → marca no campo
+    await tester.tap(find.widgetWithText(TextButton, 'forms.billing.cancelInvoiceConfirm'.tr()));
+    await tester.pumpAndSettle();
+    expect(find.text('forms.billing.cancelInvoiceReasonRequired'.tr()), findsWidgets);
+    await tester.tap(find.widgetWithText(TextButton, 'register.ok'.tr()));
+    await tester.pumpAndSettle();
+    expect(find.text('forms.billing.cancelInvoiceReasonRequired'.tr()), findsOneWidget);
+    expect(reason, isNull);
+
+    // Digitou → marca some; confirma → motivo devolvido (trim)
+    await tester.enterText(find.byType(TextFormField), '  cliente desistiu  ');
+    await tester.pumpAndSettle();
+    expect(find.text('forms.billing.cancelInvoiceReasonRequired'.tr()), findsNothing);
+    await _shot(tester, 'cancel_invoice_dialog');
+    await tester.tap(find.widgetWithText(TextButton, 'forms.billing.cancelInvoiceConfirm'.tr()));
+    await tester.pumpAndSettle();
+    expect(reason, 'cliente desistiu');
   });
 
   testWidgets('dialog de cheques com expected (D7): a soma fecha contra o valor da NOTA, não o negociado',

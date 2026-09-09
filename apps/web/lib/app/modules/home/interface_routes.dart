@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-
+
+import '../../shared/session/current_interface.dart';
 /// Registro central i18nKey → rota do módulo da interface
 /// (ARQUITETURA_MODULOS.md: 1 interface = 1 módulo, montado como
 /// ModuleRoute filho do Home e renderizado no RouterOutlet).
@@ -86,6 +87,9 @@ const Map<String, String> interfaceRoutes = {
 /// INTERFACE como argumento (título das telas — decisão do Valdo 2026-07-11).
 /// Interface sem módulo ainda → placeholder '/home/pending/'.
 void navigateToInterface(MenuInterface item) {
+  // Privilégios da interface escolhida ficam à disposição das telas
+  // (decisão 21 — 1º consumidor: "Cancelar nota", D12 do cancelamento).
+  CurrentInterface.value = item;
   final title =
       trCatalog(item.i18nKey, item.description, prefix: 'menu.interfaces');
 
