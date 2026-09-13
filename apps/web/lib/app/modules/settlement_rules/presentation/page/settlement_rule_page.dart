@@ -13,11 +13,11 @@ import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
-import '../../data/datasource/financial_contract_lookup_datasource.dart';
-import '../../domain/entity/financial_contract_entity.dart';
-import '../bloc/financial_contract_bloc.dart';
+import '../../data/datasource/settlement_rule_lookup_datasource.dart';
+import '../../domain/entity/settlement_rule_entity.dart';
+import '../bloc/settlement_rule_bloc.dart';
 
-/// Tela de Contratos Financeiros — interface 'financial-contracts', grupo
+/// Tela de Regras de Recebimento — interface 'settlement-rules', grupo
 /// Financeiro (prompt_contrato_financeiro_baixa_automatica.md, D1–D22).
 ///
 /// Lista = forma de pagamento, destino da baixa (Caixa × conta corrente),
@@ -30,105 +30,105 @@ import '../bloc/financial_contract_bloc.dart';
 /// uma-pendência-por-vez (R3), fields[] do servidor ancorado no campo,
 /// exclusão via decisão tipada (R4). A page só toca o datasource de
 /// LOOKUP dedicado; dados via bloc.
-class FinancialContractPage extends StatefulWidget {
-  const FinancialContractPage({required this.title, super.key});
+class SettlementRulePage extends StatefulWidget {
+  const SettlementRulePage({required this.title, super.key});
 
   /// Nome da interface no menu (trCatalog) — título das duas telas.
   final String title;
 
   @override
-  State<FinancialContractPage> createState() => _FinancialContractPageState();
+  State<SettlementRulePage> createState() => _SettlementRulePageState();
 }
 
-class _FinancialContractPageState extends State<FinancialContractPage>
+class _SettlementRulePageState extends State<SettlementRulePage>
     with FieldConfigLoader {
-  late final FinancialContractBloc _bloc;
-  late final FinancialContractLookupDatasource _lookup;
+  late final SettlementRuleBloc _bloc;
+  late final SettlementRuleLookupDatasource _lookup;
 
   /// Acesso ao estado do form: ancora o fields[] do servidor no campo. O
   /// form só está montado no modo formulário — na lista o currentState é
   /// null.
-  final _formViewKey = GlobalKey<_FinancialContractFormViewState>();
+  final _formViewKey = GlobalKey<_SettlementRuleFormViewState>();
 
   @override
   void initState() {
     super.initState();
-    _bloc = Modular.get<FinancialContractBloc>()
-      ..add(const FinancialContractListRequested(''));
-    _lookup = Modular.get<FinancialContractLookupDatasource>();
-    loadFieldConfig('financial-contracts'); // engine de campos configuráveis
+    _bloc = Modular.get<SettlementRuleBloc>()
+      ..add(const SettlementRuleListRequested(''));
+    _lookup = Modular.get<SettlementRuleLookupDatasource>();
+    loadFieldConfig('settlement-rules'); // engine de campos configuráveis
   }
 
   /// Destino da baixa na linha: "Caixa" quando bankAccountId == 0.
-  static String _destination(FinancialContractListItem c) => c.isCashier
-      ? 'forms.financialContract.destinationCashier'.tr()
+  static String _destination(SettlementRuleListItem c) => c.isCashier
+      ? 'forms.settlementRule.destinationCashier'.tr()
       : (c.bankAccountLabel ?? '');
 
-  Widget _buildSearch(FinancialContractListState state) =>
-      RegisterSearchPage<FinancialContractListItem>(
+  Widget _buildSearch(SettlementRuleListState state) =>
+      RegisterSearchPage<SettlementRuleListItem>(
         title: 'register.listTitle'.tr(args: [widget.title]),
         // Engrenagem padrão da lista (Framework de Configurações)
-        configModuleKey: 'financial-contracts',
+        configModuleKey: 'settlement-rules',
         items: state.items,
         loading: state.loading,
         avatarBuilder: (c) => c.isCashier ? 'C' : 'B',
         rowBuilder: (c) => [
           c.paymentTypeDescription ?? '${c.paymentTypeId}',
-          'forms.financialContract.destinationRow'
+          'forms.settlementRule.destinationRow'
               .tr(args: [_destination(c)]),
-          'forms.financialContract.termsRow'.tr(args: [
+          'forms.settlementRule.termsRow'.tr(args: [
             _formatRate(c.feeRate),
             '${c.paymentTerm}',
           ]),
           if (c.expirationDate != null && c.expirationDate!.isNotEmpty)
-            'forms.financialContract.expirationRow'
+            'forms.settlementRule.expirationRow'
                 .tr(args: [isoDateToDisplay(c.expirationDate)]),
         ],
         page: state.page,
         pageSize: state.pageSize,
         total: state.total,
         onPageChanged: (page) => _bloc
-            .add(FinancialContractListRequested(state.filter, page: page)),
+            .add(SettlementRuleListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc
-            .add(FinancialContractListRequested(state.filter, pageSize: size)),
+            .add(SettlementRuleListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) =>
-            _bloc.add(FinancialContractListRequested(filter)),
-        onNew: () => _bloc.add(const FinancialContractNewPressed()),
-        onView: (c) => _bloc.add(FinancialContractEditPressed(c.id)),
+            _bloc.add(SettlementRuleListRequested(filter)),
+        onNew: () => _bloc.add(const SettlementRuleNewPressed()),
+        onView: (c) => _bloc.add(SettlementRuleEditPressed(c.id)),
       );
 
-  Widget _buildForm(FinancialContractFormState state) =>
-      _FinancialContractFormView(
+  Widget _buildForm(SettlementRuleFormState state) =>
+      _SettlementRuleFormView(
         key: _formViewKey,
         title: widget.title,
         state: state,
         lookup: _lookup,
         fieldConfig: fieldConfig,
         onSave: (event) => _bloc.add(event),
-        onBack: () => _bloc.add(const FinancialContractBackToListPressed()),
+        onBack: () => _bloc.add(const SettlementRuleBackToListPressed()),
         onDelete: state.editing == null
             ? null
             : () => _bloc
-                .add(FinancialContractDeleteRequested(state.editing!.id)),
+                .add(SettlementRuleDeleteRequested(state.editing!.id)),
       );
 
   @override
   Widget build(BuildContext context) =>
-      BlocConsumer<FinancialContractBloc, FinancialContractState>(
+      BlocConsumer<SettlementRuleBloc, SettlementRuleState>(
         bloc: _bloc,
         listenWhen: (_, current) =>
-            current is FinancialContractActionSuccess ||
-            current is FinancialContractActionFailure,
+            current is SettlementRuleActionSuccess ||
+            current is SettlementRuleActionFailure,
         // PONTE de feedback: sucesso = SnackBar via ponte (R1); falha =
         // dialog, com fields[] do servidor ancorado no campo quando o form
         // está montado (400 PAYMENT_TYPE_NOT_LINKED/BANK_NOT_FOUND, 409
         // FINANCIAL_CONTRACT_EXISTS em paymentTypeId).
         listener: (context, state) {
-          if (state is FinancialContractActionSuccess) {
+          if (state is SettlementRuleActionSuccess) {
             showSuccessFeedback(context, state.messageKey);
             return;
           }
-          final failure = (state as FinancialContractActionFailure).failure;
+          final failure = (state as SettlementRuleActionFailure).failure;
           final form = _formViewKey.currentState;
           if (failure.fields.isNotEmpty && form != null) {
             form.showServerFieldError(failure);
@@ -137,12 +137,12 @@ class _FinancialContractPageState extends State<FinancialContractPage>
           }
         },
         buildWhen: (_, current) =>
-            current is FinancialContractListState ||
-            current is FinancialContractFormState,
+            current is SettlementRuleListState ||
+            current is SettlementRuleFormState,
         builder: (context, state) => switch (state) {
-          FinancialContractFormState() => _buildForm(state),
-          FinancialContractListState() => _buildSearch(state),
-          _ => _buildSearch(const FinancialContractListState(loading: true)),
+          SettlementRuleFormState() => _buildForm(state),
+          SettlementRuleListState() => _buildSearch(state),
+          _ => _buildSearch(const SettlementRuleListState(loading: true)),
         },
       );
 }
@@ -159,10 +159,10 @@ double? _parseDecimal(String text) =>
 const _destCashier = 'C';
 const _destBank = 'B';
 
-/// Form do contrato financeiro (SetesFormShell): forma (lookup, PK) +
+/// Form do regra de recebimento (SetesFormShell): forma (lookup, PK) +
 /// destino Caixa × Conta corrente + taxa/prazo + validade + observação.
-class _FinancialContractFormView extends StatefulWidget {
-  const _FinancialContractFormView({
+class _SettlementRuleFormView extends StatefulWidget {
+  const _SettlementRuleFormView({
     required this.title,
     required this.state,
     required this.lookup,
@@ -174,22 +174,22 @@ class _FinancialContractFormView extends StatefulWidget {
   });
 
   final String title;
-  final FinancialContractFormState state;
-  final FinancialContractLookupDatasource lookup;
+  final SettlementRuleFormState state;
+  final SettlementRuleLookupDatasource lookup;
 
   /// Catálogo resolvido da interface (tb_interface_has_field × cliente).
   final List<FieldConfigEntity> fieldConfig;
-  final void Function(FinancialContractSaveRequested event) onSave;
+  final void Function(SettlementRuleSaveRequested event) onSave;
   final VoidCallback onBack;
   final VoidCallback? onDelete;
 
   @override
-  State<_FinancialContractFormView> createState() =>
-      _FinancialContractFormViewState();
+  State<_SettlementRuleFormView> createState() =>
+      _SettlementRuleFormViewState();
 }
 
-class _FinancialContractFormViewState
-    extends State<_FinancialContractFormView> {
+class _SettlementRuleFormViewState
+    extends State<_SettlementRuleFormView> {
   late final TextEditingController _paymentTypeText;
   late final TextEditingController _feeRate;
   late final TextEditingController _paymentTerm;
@@ -205,7 +205,7 @@ class _FinancialContractFormViewState
   };
 
   /// Nomes do PAYLOAD (camelCase) na ordem da tela — casam com o fields[]
-  /// do servidor (DTOs Zod do módulo financial-contracts).
+  /// do servidor (DTOs Zod do módulo settlement-rules).
   static const _fieldNames = [
     'feeRate', 'paymentTerm', 'expirationDate', 'note',
   ];
@@ -219,7 +219,7 @@ class _FinancialContractFormViewState
   int? _bankAccountId;
   String _bankAccountDisplay = '';
 
-  FinancialContractFull? get _editing => widget.state.editing;
+  SettlementRuleFull? get _editing => widget.state.editing;
   bool get _creating => _editing == null;
 
   @override
@@ -266,14 +266,14 @@ class _FinancialContractFormViewState
       itemId: (p) => p.id,
       // Forma já contratada (1 contrato por forma — D2): indicada na lista.
       itemLabel: (p) => p.hasContract
-          ? '${p.description} (${'forms.financialContract.alreadyContracted'.tr()})'
+          ? '${p.description} (${'forms.settlementRule.alreadyContracted'.tr()})'
           : p.description,
     );
     if (picked == null || !mounted) return;
     if (picked.hasContract) {
       // Bloqueio no app — a API também recusa (409 FINANCIAL_CONTRACT_EXISTS).
       await showValidationFeedback(
-          context, 'forms.financialContract.alreadyContractedMessage'.tr());
+          context, 'forms.settlementRule.alreadyContractedMessage'.tr());
       return;
     }
     setState(() {
@@ -322,11 +322,11 @@ class _FinancialContractFormViewState
     final text = value?.trim() ?? '';
     if (text.isEmpty) {
       return 'register.requiredField'
-          .tr(args: [_label('fee_rate', 'forms.financialContract.feeRate')]);
+          .tr(args: [_label('fee_rate', 'forms.settlementRule.feeRate')]);
     }
     final parsed = _parseDecimal(text);
     if (parsed == null || parsed < 0 || parsed > 100) {
-      return 'forms.financialContract.feeRateInvalid'.tr();
+      return 'forms.settlementRule.feeRateInvalid'.tr();
     }
     return null;
   }
@@ -336,11 +336,11 @@ class _FinancialContractFormViewState
     final text = value?.trim() ?? '';
     if (text.isEmpty) {
       return 'register.requiredField'.tr(
-          args: [_label('payment_term', 'forms.financialContract.paymentTerm')]);
+          args: [_label('payment_term', 'forms.settlementRule.paymentTerm')]);
     }
     final parsed = int.tryParse(text);
     if (parsed == null || parsed < 0 || parsed > 3650) {
-      return 'forms.financialContract.paymentTermInvalid'.tr();
+      return 'forms.settlementRule.paymentTermInvalid'.tr();
     }
     return null;
   }
@@ -351,7 +351,7 @@ class _FinancialContractFormViewState
     if (text.isEmpty) {
       return _requiredCfg('expiration_date')
           ? 'register.requiredField'.tr(args: [
-              _label('expiration_date', 'forms.financialContract.expirationDate')
+              _label('expiration_date', 'forms.settlementRule.expirationDate')
             ])
           : null;
     }
@@ -364,7 +364,7 @@ class _FinancialContractFormViewState
     if (text.isEmpty) {
       return _requiredCfg('note')
           ? 'register.requiredField'
-              .tr(args: [_label('note', 'forms.financialContract.note')])
+              .tr(args: [_label('note', 'forms.settlementRule.note')])
           : null;
     }
     return text.length > 2000 ? 'forms.validation.maxLength'.tr() : null;
@@ -378,7 +378,7 @@ class _FinancialContractFormViewState
           validate: () => _paymentTypeId == null
               ? 'register.requiredField'.tr(args: [
                   _label('tb_payment_types_id',
-                      'forms.financialContract.paymentType')
+                      'forms.settlementRule.paymentType')
                 ])
               : null,
         ),
@@ -388,7 +388,7 @@ class _FinancialContractFormViewState
               _destination == _destBank && _bankAccountId == null
                   ? 'register.requiredField'.tr(args: [
                       _label('tb_bank_account_id',
-                          'forms.financialContract.bankAccount')
+                          'forms.settlementRule.bankAccount')
                     ])
                   : null,
         ),
@@ -415,9 +415,9 @@ class _FinancialContractFormViewState
   Future<void> _save() async {
     if (!await ensureNoPendency(context, _pendencyFields)) return;
     final note = _note.text.trim();
-    widget.onSave(FinancialContractSaveRequested(
+    widget.onSave(SettlementRuleSaveRequested(
       editingId: _editing?.id,
-      input: FinancialContractInput(
+      input: SettlementRuleInput(
         paymentTypeId:  _paymentTypeId!,
         // D1: Caixa = conta 0 (o lookup de conta some).
         bankAccountId:  _destination == _destCashier ? 0 : _bankAccountId!,
@@ -477,7 +477,7 @@ class _FinancialContractFormViewState
             if (_creating)
               SetesLookupField(
                 label: _label(
-                    'tb_payment_types_id', 'forms.financialContract.paymentType'),
+                    'tb_payment_types_id', 'forms.settlementRule.paymentType'),
                 display: _paymentTypeDisplay,
                 onSearch: _pickPaymentType,
                 onClear: () => setState(() {
@@ -488,26 +488,23 @@ class _FinancialContractFormViewState
             else
               SetesTextField(
                 label: _label(
-                    'tb_payment_types_id', 'forms.financialContract.paymentType'),
+                    'tb_payment_types_id', 'forms.settlementRule.paymentType'),
                 controller: _paymentTypeText,
                 readOnly: true,
               ),
-            // D16/D18: cheque e boleto aceitam contrato, mas o fluxo deles
-            // é fixo — o contrato não muda como essas formas baixam.
-            _helper(context, 'forms.financialContract.paymentTypeHelper'.tr()),
             const SizedBox(height: 16),
             SetesRadioGroup<String>(
               label: _label(
-                  'tb_bank_account_id', 'forms.financialContract.destination'),
-              helperText: 'forms.financialContract.destinationHelper'.tr(),
+                  'tb_bank_account_id', 'forms.settlementRule.destination'),
+              helperText: 'forms.settlementRule.destinationHelper'.tr(),
               value: _destination,
               options: [
                 SetesRadioOption(
                     value: _destCashier,
-                    label: 'forms.financialContract.destinationCashier'.tr()),
+                    label: 'forms.settlementRule.destinationCashier'.tr()),
                 SetesRadioOption(
                     value: _destBank,
-                    label: 'forms.financialContract.destinationBank'.tr()),
+                    label: 'forms.settlementRule.destinationBank'.tr()),
               ],
               onChanged: (value) => setState(() {
                 _destination = value ?? _destCashier;
@@ -521,7 +518,7 @@ class _FinancialContractFormViewState
               const SizedBox(height: 16),
               SetesLookupField(
                 label: _label(
-                    'tb_bank_account_id', 'forms.financialContract.bankAccount'),
+                    'tb_bank_account_id', 'forms.settlementRule.bankAccount'),
                 display: _bankAccountDisplay,
                 onSearch: _pickBankAccount,
                 onClear: () => setState(() {
@@ -536,8 +533,8 @@ class _FinancialContractFormViewState
               children: [
                 Expanded(
                   child: field(SetesTextField(
-                    label: _label('fee_rate', 'forms.financialContract.feeRate'),
-                    hint: 'forms.financialContract.feeRateHint'.tr(),
+                    label: _label('fee_rate', 'forms.settlementRule.feeRate'),
+                    hint: 'forms.settlementRule.feeRateHint'.tr(),
                     controller: _feeRate,
                     focusNode: _focus['feeRate'],
                     fieldKey: _keys['feeRate'],
@@ -556,8 +553,8 @@ class _FinancialContractFormViewState
                 Expanded(
                   child: field(SetesTextField(
                     label: _label(
-                        'payment_term', 'forms.financialContract.paymentTerm'),
-                    hint: 'forms.financialContract.paymentTermHint'.tr(),
+                        'payment_term', 'forms.settlementRule.paymentTerm'),
+                    hint: 'forms.settlementRule.paymentTermHint'.tr(),
                     controller: _paymentTerm,
                     focusNode: _focus['paymentTerm'],
                     fieldKey: _keys['paymentTerm'],
@@ -575,7 +572,7 @@ class _FinancialContractFormViewState
             const SizedBox(height: 16),
             field(SetesTextField(
               label: _label(
-                  'expiration_date', 'forms.financialContract.expirationDate'),
+                  'expiration_date', 'forms.settlementRule.expirationDate'),
               hint: 'register.dateHint'.tr(),
               controller: _expirationDate,
               focusNode: _focus['expirationDate'],
@@ -585,10 +582,10 @@ class _FinancialContractFormViewState
             )),
             // D11: vencido → avisa e o título nasce em aberto (nunca bloqueia).
             _helper(
-                context, 'forms.financialContract.expirationDateHelper'.tr()),
+                context, 'forms.settlementRule.expirationDateHelper'.tr()),
             const SizedBox(height: 16),
             field(SetesTextField(
-              label: _label('note', 'forms.financialContract.note'),
+              label: _label('note', 'forms.settlementRule.note'),
               controller: _note,
               focusNode: _focus['note'],
               fieldKey: _keys['note'],

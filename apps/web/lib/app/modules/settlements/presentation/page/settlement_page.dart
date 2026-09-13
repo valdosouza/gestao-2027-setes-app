@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -247,8 +248,48 @@ class _SettlementPageState extends State<SettlementPage>
         // Vencido: destaque discreto com a cor de erro do tema.
         style: overdue ? TextStyle(color: theme.colorScheme.error) : null,
       ),
+      // D17 (renegociação): redirecionar a cobrança é ato do FINANCEIRO, na
+      // linha do título. Gated pelo privilégio ALTERAR (D21) — quem só baixa
+      // não muda como a dívida será cobrada.
+      trailing: CurrentInterface.can('ALTERAR')
+          ? IconButton(
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'forms.settlement.retargetCharge'.tr(),
+              onPressed: () => _openRetargetDialog(bill),
+            )
+          : null,
       onTap: () => _toggle(bill),
     );
+  }
+
+  /// Redireciona a cobrança do título (D17): escolhe a forma que passa a valer.
+  /// O vencimento também é aceito pela API (D19), mas esta onda expõe só a
+  /// forma — foi o que o Valdo pediu.
+  Future<void> _openRetargetDialog(SettlementBill bill) async {
+    final picked = await showSetesLookup<SettlementPaymentTypeLookup>(
+      context: context,
+      title: 'forms.settlement.retargetCharge'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: (_) => _datasource.paymentTypes(),
+      itemId: (t) => t.id,
+      itemLabel: (t) => t.description ?? '${t.id}',
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final r = await _datasource.retargetCharge(bill.orderId, bill.parcel, picked.id);
+      if (!mounted) return;
+      showSuccessFeedback(
+        context,
+        r.changed
+            ? 'forms.settlement.retargetDone'
+            : 'forms.settlement.retargetUnchanged',
+        args: [picked.description ?? '${picked.id}'],
+      );
+      _bloc.add(const SettlementBillsRequested());
+    } on Failure catch (failure) {
+      if (mounted) showFailureFeedback(context, failure);
+    }
   }
 
   /// Marca/desmarca no BLOC — a seleção sobrevive à troca de página/filtro.

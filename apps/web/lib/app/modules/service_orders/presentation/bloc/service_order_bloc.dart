@@ -6,6 +6,7 @@ import '../../domain/entity/service_order_entity.dart';
 import '../../domain/usecase/service_order_delete.dart';
 import '../../domain/usecase/service_order_get.dart';
 import '../../domain/usecase/service_order_getlist.dart';
+import '../../domain/usecase/service_order_batch_invoice.dart';
 import '../../domain/usecase/service_order_cancel_invoice.dart';
 import '../../domain/usecase/service_order_invoice.dart';
 import '../../domain/usecase/service_order_item_delete.dart';
@@ -35,6 +36,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     required this.monthlyRun,
     required this.invoice,
     required this.cancelInvoice,
+    required this.batchInvoice,
   }) : super(const ServiceOrderListState(loading: true)) {
     on<ServiceOrderListRequested>(_onListRequested);
     on<ServiceOrderOpenRequested>(_onOpenRequested);
@@ -46,6 +48,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderMonthlyRunRequested>(_onMonthlyRunRequested);
     on<ServiceOrderInvoiceRequested>(_onInvoiceRequested);
     on<ServiceOrderInvoiceCancelRequested>(_onInvoiceCancelRequested);
+    on<ServiceOrderBatchInvoiceRequested>(_onBatchInvoiceRequested);
   }
 
   final ServiceOrderGetlist getlist;
@@ -57,6 +60,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   final ServiceOrderMonthlyRun monthlyRun;
   final ServiceOrderInvoice invoice;
   final ServiceOrderCancelInvoice cancelInvoice;
+  final ServiceOrderBatchInvoice batchInvoice;
 
   /// Aba ativa ('A' abertas | 'F' faturadas) e filtro atual da lista.
   String _status = 'A';
@@ -224,6 +228,27 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       },
       (report) async {
         emit(ServiceOrderMonthlyRunDone(report));
+        await _reloadList(emit);
+      },
+    );
+  }
+
+  /// LOTE da cobrança mensal (D6/D7): o relatório volta no one-shot
+  /// [ServiceOrderBatchInvoiceDone] e a lista recarrega. Falha do LOTE
+  /// INTEIRO (sem privilégio, corpo inválido) é [Failure] como qualquer
+  /// outra; ordem recusada NÃO é falha — é linha do relatório.
+  Future<void> _onBatchInvoiceRequested(
+      ServiceOrderBatchInvoiceRequested event,
+      Emitter<ServiceOrderState> emit) async {
+    emit(ServiceOrderListState(loading: true, status: _status));
+    final result = await batchInvoice(event.orderIds, event.input);
+    await result.fold(
+      (failure) async {
+        emit(ServiceOrderActionFailure(failure));
+        await _reloadList(emit);
+      },
+      (report) async {
+        emit(ServiceOrderBatchInvoiceDone(report));
         await _reloadList(emit);
       },
     );

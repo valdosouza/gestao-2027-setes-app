@@ -22,6 +22,9 @@ abstract class ContractDatasource {
   /// Produtos/serviços ATIVOS para o lookup dos itens.
   Future<List<ContractProductLookup>> products(String filter);
 
+  /// Formas de pagamento habilitadas (D14 — a forma combinada no contrato).
+  Future<List<ContractPaymentTypeLookup>> paymentTypes();
+
   /// Cria o contrato (itens inclusos) — devolve o id.
   Future<int> post(ContractInput input);
 
@@ -70,6 +73,15 @@ class ContractDatasourceImpl implements ContractDatasource {
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ContractCustomerLookup.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<ContractPaymentTypeLookup>> paymentTypes() async {
+    final json = await client.get('/api/payment-types');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => ContractPaymentTypeLookup.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

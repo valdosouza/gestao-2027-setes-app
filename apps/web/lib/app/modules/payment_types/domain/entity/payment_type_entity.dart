@@ -48,7 +48,7 @@ class NfceCode {
 /// Atributos do VÍNCULO institution × forma (migration 012 —
 /// tb_institution_has_payment_types). [enable] substitui o antigo active:
 /// a linha do catálogo é compartilhada, o cliente desabilita por um tempo,
-/// não exclui. O destino da baixa vem do contrato financeiro (D1/D17).
+/// não exclui. O destino da baixa vem do regra de recebimento (D1/D17).
 /// Planos de conta 0 = não definido (referência sem FK física).
 class PaymentTypeLinkAttrs extends Equatable {
   const PaymentTypeLinkAttrs({

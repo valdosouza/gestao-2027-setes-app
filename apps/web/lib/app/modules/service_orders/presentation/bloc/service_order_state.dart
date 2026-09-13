@@ -79,6 +79,16 @@ class ServiceOrderActionFailure extends ServiceOrderState {
 /// Efeito one-shot com o RELATÓRIO da rotina mensal (listener-only) — a
 /// página mostra o dialog de resultado (processados/abertas/injetados/
 /// pulados + erros por cliente).
+/// Efeito one-shot do LOTE (D6/D7) — a página abre o relatório: uma linha
+/// por ordem, com o motivo das recusadas.
+class ServiceOrderBatchInvoiceDone extends ServiceOrderState {
+  const ServiceOrderBatchInvoiceDone(this.report);
+  final BatchInvoiceReport report;
+
+  @override
+  List<Object?> get props => [report];
+}
+
 class ServiceOrderMonthlyRunDone extends ServiceOrderState {
   const ServiceOrderMonthlyRunDone(this.report);
   final MonthlyRunReport report;

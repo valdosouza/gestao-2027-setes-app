@@ -74,4 +74,9 @@ class ServiceOrderRepositoryImpl implements ServiceOrderRepository {
   Future<Either<Failure, ServiceOrderInvoiceCancelResult>> cancelInvoice(
           int orderId, String reason) =>
       _guard(() => datasource.cancelInvoice(orderId, reason));
+
+  @override
+  Future<Either<Failure, BatchInvoiceReport>> batchInvoice(
+          List<int> orderIds, ServiceOrderInvoiceInput input) =>
+      _guard(() => datasource.batchInvoice(orderIds, input));
 }

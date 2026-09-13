@@ -5,7 +5,7 @@ import '../entity/bank_charge_agreement_entity.dart';
 
 /// Contrato do repositório de Carteiras de Cobrança (Either/dartz). O
 /// lookup de conta corrente fica FORA do repositório — a page toca o
-/// datasource dedicado diretamente (molde bank_accounts/financial_contracts).
+/// datasource dedicado diretamente (molde bank_accounts/settlement_rules).
 abstract class BankChargeAgreementRepository {
   Future<Either<Failure, PagedResult<BankChargeAgreementListItem>>> getList(
       String filter,

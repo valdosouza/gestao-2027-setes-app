@@ -4,7 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../bank_accounts/bank_accounts_module.dart';
 import '../bank_charge_agreements/bank_charge_agreements_module.dart';
 import '../bank_slips/bank_slips_module.dart';
-import '../financial_contracts/financial_contracts_module.dart';
+import '../settlement_rules/settlement_rules_module.dart';
 import '../banks/banks_module.dart';
 import '../carriers/carriers_module.dart';
 import '../cashier/cashier_module.dart';
@@ -112,10 +112,10 @@ class HomeModule extends Module {
             // daqui na emissão)
             ModuleRoute('/bank-charge-agreements',
                 module: BankChargeAgreementsModule()),
-            // Contratos Financeiros (baixa automática por forma de
+            // Regras de Recebimento (baixa automática por forma de
             // pagamento — grupo Financeiro, D1–D22)
-            ModuleRoute('/financial-contracts',
-                module: FinancialContractsModule()),
+            ModuleRoute('/settlement-rules',
+                module: SettlementRulesModule()),
             // Ordens de Serviço (Módulo Software House, grupo Serviços —
             // 1ª tela de processo: ciclo mensal + Gerar Faturamento)
             ModuleRoute('/service-orders', module: ServiceOrdersModule()),

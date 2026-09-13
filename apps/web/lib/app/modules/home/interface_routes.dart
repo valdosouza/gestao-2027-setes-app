@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-
+
+
 import '../../shared/session/current_interface.dart';
 /// Registro central i18nKey → rota do módulo da interface
 /// (ARQUITETURA_MODULOS.md: 1 interface = 1 módulo, montado como
@@ -48,8 +49,8 @@ const Map<String, String> interfaceRoutes = {
   // Carteiras de Cobrança (grupo Financeiro — contratação de cobrança com o
   // banco; o Boleto congela estas taxas/instruções na emissão)
   'bank-charge-agreements': '/home/bank-charge-agreements/',
-  // Contratos Financeiros (baixa automática por forma — grupo Financeiro)
-  'financial-contracts': '/home/financial-contracts/',
+  // Regras de Recebimento (baixa automática por forma — grupo Financeiro)
+  'settlement-rules': '/home/settlement-rules/',
   // Ordens de Serviço (Módulo Software House, grupo Serviços — 1ª tela de processo)
   'service-orders': '/home/service-orders/',
   // Baixa de Títulos (Módulo Software House, grupo Financeiro — 2ª tela de processo)

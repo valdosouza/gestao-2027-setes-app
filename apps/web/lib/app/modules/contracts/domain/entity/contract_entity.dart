@@ -90,6 +90,8 @@ class ContractFull extends Equatable {
     this.dtStart = '',
     this.dtEnd,
     this.paymentDay = 5,
+    this.paymentTypeId,
+    this.paymentTypeDescription,
     this.active = true,
     this.items = const [],
   });
@@ -100,8 +102,12 @@ class ContractFull extends Equatable {
   final String  dtStart;
   final String? dtEnd;
 
-  /// Dia de vencimento 1..28 — INFORMATIVO (DP1).
+  /// Dia de vencimento 1..28 — D12: é o DEFAULT do vencimento no faturamento.
   final int     paymentDay;
+
+  /// D14: forma combinada com o cliente. null = informar no faturamento.
+  final int?    paymentTypeId;
+  final String? paymentTypeDescription;
   final bool    active;
   final List<ContractItem> items;
 
@@ -112,6 +118,8 @@ class ContractFull extends Equatable {
         dtStart:      json['dtStart'] as String? ?? '',
         dtEnd:        json['dtEnd'] as String?,
         paymentDay:   jsonInt(json['paymentDay']) ?? 5,
+        paymentTypeId: jsonInt(json['paymentTypeId']),
+        paymentTypeDescription: json['paymentTypeDescription'] as String?,
         active:       (json['active'] as String?) != 'N',
         items: (json['items'] as List<dynamic>? ?? [])
             .map((e) => ContractItem.fromJson(e as Map<String, dynamic>))
@@ -120,7 +128,8 @@ class ContractFull extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, customerId, customerName, dtStart, dtEnd, paymentDay, active, items];
+      [id, customerId, customerName, dtStart, dtEnd, paymentDay,
+       paymentTypeId, paymentTypeDescription, active, items];
 }
 
 /// Body do POST/PUT — itens SEMPRE completos (a API sincroniza por
@@ -131,6 +140,7 @@ class ContractInput extends Equatable {
     required this.dtStart,
     this.dtEnd,
     this.paymentDay = 5,
+    this.paymentTypeId,
     this.active = true,
     this.items = const [],
   });
@@ -139,6 +149,9 @@ class ContractInput extends Equatable {
   final String  dtStart;
   final String? dtEnd;
   final int     paymentDay;
+
+  /// D14: null = "informar no faturamento" (a API grava NULL).
+  final int?    paymentTypeId;
   final bool    active;
   final List<ContractItem> items;
 
@@ -147,6 +160,7 @@ class ContractInput extends Equatable {
         'dtStart':    dtStart,
         'dtEnd':      dtEnd,
         'paymentDay': paymentDay,
+        'paymentTypeId': paymentTypeId,
         'active':     active ? 'S' : 'N',
         'items': [
           for (final item in items)
@@ -156,7 +170,25 @@ class ContractInput extends Equatable {
 
   @override
   List<Object?> get props =>
-      [customerId, dtStart, dtEnd, paymentDay, active, items];
+      [customerId, dtStart, dtEnd, paymentDay, paymentTypeId, active, items];
+}
+
+/// Forma de pagamento para o lookup do contrato (GET /api/payment-types —
+/// projeção local: módulo nunca importa módulo).
+class ContractPaymentTypeLookup extends Equatable {
+  const ContractPaymentTypeLookup({required this.id, this.description});
+
+  final int     id;
+  final String? description;
+
+  factory ContractPaymentTypeLookup.fromJson(Map<String, dynamic> json) =>
+      ContractPaymentTypeLookup(
+        id:          jsonInt(json['id']) ?? 0,
+        description: json['description'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [id, description];
 }
 
 /// Cliente para o lookup do form (GET /api/customers — projeção local:

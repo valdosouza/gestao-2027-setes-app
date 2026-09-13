@@ -185,6 +185,11 @@ class _ContractFormViewState extends State<_ContractFormView> {
   int? _customerId;
   String _customerName = '';
 
+  /// D14: forma COMBINADA no contrato. Vazia = "informar no faturamento" —
+  /// a presença é que decide, então limpar o campo é uma escolha válida.
+  int? _paymentTypeId;
+  String _paymentTypeDescription = '';
+
   late bool _active;
   late List<ContractItem> _items;
 
@@ -204,6 +209,8 @@ class _ContractFormViewState extends State<_ContractFormView> {
     _dtEnd   = TextEditingController(text: isoDateToDisplay(editing?.dtEnd));
     _paymentDay =
         TextEditingController(text: '${editing?.paymentDay ?? 5}');
+    _paymentTypeId          = editing?.paymentTypeId;
+    _paymentTypeDescription = editing?.paymentTypeDescription ?? '';
     _active = editing?.active ?? true;
     _items  = List.of(editing?.items ?? const []);
   }
@@ -230,6 +237,38 @@ class _ContractFormViewState extends State<_ContractFormView> {
       _cfg(field)?.caption ?? i18nKey.tr();
 
   bool _requiredCfg(String field) => _cfg(field)?.required ?? false;
+
+  /// D14: formas habilitadas da institution (lookup próprio do módulo).
+  /// Texto de apoio abaixo de um campo (mesmo molde das outras telas).
+  Widget _helper(BuildContext context, String text) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Future<void> _pickPaymentType() async {
+    final picked = await showSetesLookup<ContractPaymentTypeLookup>(
+      context: context,
+      title: 'forms.contract.paymentType'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: (_) => widget.datasource.paymentTypes(),
+      itemId: (t) => t.id,
+      itemLabel: (t) => t.description ?? '${t.id}',
+    );
+    if (picked != null) {
+      setState(() {
+        _paymentTypeId          = picked.id;
+        _paymentTypeDescription = picked.description ?? '${picked.id}';
+      });
+    }
+  }
 
   Future<void> _pickCustomer() async {
     final picked = await showSetesLookup<ContractCustomerLookup>(
@@ -365,6 +404,7 @@ class _ContractFormViewState extends State<_ContractFormView> {
         dtStart:    displayDateToIso(_dtStart.text)!,
         dtEnd:      displayDateToIso(_dtEnd.text),
         paymentDay: int.parse(_paymentDay.text.trim()),
+        paymentTypeId: _paymentTypeId,
         active:     _active,
         items:      _items,
       ),
@@ -502,6 +542,19 @@ class _ContractFormViewState extends State<_ContractFormView> {
               textInputAction: TextInputAction.done,
               validator: _validatePaymentDay,
             )),
+            const SizedBox(height: 16),
+            // D14: a forma COMBINADA com o cliente. Vazia é escolha válida —
+            // significa "informar no faturamento", que era o único modo antes.
+            SetesLookupField(
+              label: _label('tb_payment_types_id', 'forms.contract.paymentType'),
+              display: _paymentTypeDescription,
+              onSearch: _pickPaymentType,
+              onClear: () => setState(() {
+                _paymentTypeId = null;
+                _paymentTypeDescription = '';
+              }),
+            ),
+            _helper(context, 'forms.contract.paymentTypeHelp'.tr()),
             const SizedBox(height: 8),
             ExcludeFocusTraversal(
               child: SetesCheckbox(

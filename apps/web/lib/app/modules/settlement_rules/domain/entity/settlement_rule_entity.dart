@@ -1,17 +1,17 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
-/// Entidades do módulo financial_contracts — Contratos Financeiros (baixa
+/// Entidades do módulo settlement_rules — Regras de Recebimento (baixa
 /// automática por forma de pagamento; prompt_contrato_financeiro_
-/// baixa_automatica.md, D1–D22). Espelho do /api/financial-contracts:
-/// tb_financial_contract no schema do cliente, PK = a forma vinculada
+/// baixa_automatica.md, D1–D22). Espelho do /api/settlement-rules:
+/// tb_settlement_rule no schema do cliente, PK = a forma vinculada
 /// (id == paymentTypeId). bankAccountId 0 = CAIXA (D1); feeRate em %;
 /// paymentTerm em dias; expirationDate informativa 'yyyy-MM-dd' (D2/D11).
 
-/// Linha da PESQUISA (GET /api/financial-contracts) — descrição da forma e
+/// Linha da PESQUISA (GET /api/settlement-rules) — descrição da forma e
 /// rótulo da conta via JOIN da API (null = caixa).
-class FinancialContractListItem extends Equatable {
-  const FinancialContractListItem({
+class SettlementRuleListItem extends Equatable {
+  const SettlementRuleListItem({
     required this.id,
     required this.paymentTypeId,
     this.paymentTypeDescription,
@@ -42,8 +42,8 @@ class FinancialContractListItem extends Equatable {
 
   bool get isCashier => bankAccountId == 0;
 
-  factory FinancialContractListItem.fromJson(Map<String, dynamic> json) =>
-      FinancialContractListItem(
+  factory SettlementRuleListItem.fromJson(Map<String, dynamic> json) =>
+      SettlementRuleListItem(
         id:                     jsonInt(json['id']) ?? 0,
         paymentTypeId:          jsonInt(json['paymentTypeId']) ?? 0,
         paymentTypeDescription: json['paymentTypeDescription'] as String?,
@@ -62,10 +62,10 @@ class FinancialContractListItem extends Equatable {
       ];
 }
 
-/// Contrato COMPLETO (GET /api/financial-contracts/:id) — a lista não traz
+/// Contrato COMPLETO (GET /api/settlement-rules/:id) — a lista não traz
 /// a observação; a edição carrega o objeto cheio.
-class FinancialContractFull extends FinancialContractListItem {
-  const FinancialContractFull({
+class SettlementRuleFull extends SettlementRuleListItem {
+  const SettlementRuleFull({
     required super.id,
     required super.paymentTypeId,
     super.paymentTypeDescription,
@@ -80,8 +80,8 @@ class FinancialContractFull extends FinancialContractListItem {
 
   final String? note;
 
-  factory FinancialContractFull.fromJson(Map<String, dynamic> json) =>
-      FinancialContractFull(
+  factory SettlementRuleFull.fromJson(Map<String, dynamic> json) =>
+      SettlementRuleFull(
         id:                     jsonInt(json['id']) ?? 0,
         paymentTypeId:          jsonInt(json['paymentTypeId']) ?? 0,
         paymentTypeDescription: json['paymentTypeDescription'] as String?,
@@ -101,8 +101,8 @@ class FinancialContractFull extends FinancialContractListItem {
 /// Body do POST/PUT — shape dos DTOs Zod do módulo (feeRate 0..100,
 /// paymentTerm inteiro 0..3650, expirationDate 'yyyy-MM-dd'|null, note máx
 /// 2000). No PUT a forma NÃO viaja (é a PK — [toUpdateJson]).
-class FinancialContractInput extends Equatable {
-  const FinancialContractInput({
+class SettlementRuleInput extends Equatable {
+  const SettlementRuleInput({
     required this.paymentTypeId,
     required this.bankAccountId,
     required this.feeRate,
@@ -139,7 +139,7 @@ class FinancialContractInput extends Equatable {
 }
 
 /// Forma de pagamento vinculada + habilitada para o lookup do form
-/// (GET /api/financial-contracts/payment-types). [hasContract] = já tem
+/// (GET /api/settlement-rules/payment-types). [hasContract] = já tem
 /// contrato vivo (1 por forma — D2): exibida como "já contratada".
 class PaymentTypeLookup extends Equatable {
   const PaymentTypeLookup({
@@ -167,7 +167,7 @@ class PaymentTypeLookup extends Equatable {
 }
 
 /// Conta corrente da institution para o lookup do destino
-/// (GET /api/financial-contracts/bank-accounts).
+/// (GET /api/settlement-rules/bank-accounts).
 class BankAccountLookup extends Equatable {
   const BankAccountLookup({required this.id, this.label = ''});
 

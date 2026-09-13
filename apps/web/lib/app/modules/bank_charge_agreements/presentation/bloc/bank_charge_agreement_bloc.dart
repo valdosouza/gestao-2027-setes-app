@@ -16,7 +16,7 @@ part 'bank_charge_agreement_state.dart';
 /// Orquestra as Carteiras de Cobrança: lista ↔ formulário. A edição carrega
 /// a carteira COMPLETA (GET /:id) porque a lista não traz encargos/
 /// instrução/protesto; o filtro da tela é REMOTO (?filter= — molde
-/// bank_accounts/financial_contracts).
+/// bank_accounts/settlement_rules).
 class BankChargeAgreementBloc
     extends Bloc<BankChargeAgreementEvent, BankChargeAgreementState> {
   BankChargeAgreementBloc({

@@ -42,6 +42,20 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   static const _statuses = ['A', 'F'];
 
+  /// Ordens MARCADAS para o lote (D6: o operador seleciona — segurar um
+  /// cliente em negociação tem que ser possível). Vive só na aba Abertas e é
+  /// limpa quando a lista MUDA (aba, página, tamanho de página ou filtro):
+  /// marcar 12 na página 1, filtrar por outro cliente e clicar em "Faturar
+  /// selecionadas" faturava ordens que o operador não estava mais vendo
+  /// (gates da Onda 1).
+  final Set<int> _selected = <int>{};
+
+  /// Assinatura da lista exibida — muda ⇒ a seleção não vale mais.
+  String _selectionScope = '';
+
+  /// Teto do lote na API (o servidor recusa acima disso).
+  static const _batchLimit = 200;
+
   /// Aba refletida na tela — evita reload redundante quando o BLoC muda a
   /// aba sozinho (ex.: pós-faturamento cai em Faturadas).
   String _status = 'A';
@@ -57,6 +71,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       if (_tabs.indexIsChanging) return;
       final status = _statuses[_tabs.index];
       if (status != _status) {
+        _selected.clear();
         _status = status;
         _bloc.add(ServiceOrderListRequested(status: status));
       }
@@ -160,6 +175,18 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   Widget _buildList(ServiceOrderListState state) {
     _status = state.status;
+    // O estado de LOADING é emitido com page=1/pageSize=null/filter='' — se
+    // entrasse na assinatura, qualquer recarga (inclusive a que acontece logo
+    // depois do lote) limparia a seleção e a promessa de "repetir só as
+    // recusadas" morreria. Só lista CARREGADA define o escopo.
+    if (!state.loading) {
+      final scope =
+          '${state.status}|${state.page}|${state.pageSize}|${state.filter}';
+      if (scope != _selectionScope) {
+        _selectionScope = scope;
+        _selected.clear();
+      }
+    }
     final tabIndex = _statuses.indexOf(state.status);
     if (_tabs.index != tabIndex) _tabs.index = tabIndex;
 
@@ -168,6 +195,18 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
+          // Faturar em LOTE (D6) — só na aba Abertas e só para quem tem o
+          // privilégio FATURAR; desabilitado enquanto nada está marcado.
+          if (state.status == 'A' && CurrentInterface.can('FATURAR'))
+            IconButton(
+              icon: Badge(
+                isLabelVisible: _selected.isNotEmpty,
+                label: SetesText('${_selected.length}'),
+                child: const Icon(Icons.receipt_long_outlined),
+              ),
+              tooltip: 'forms.serviceOrder.batchInvoice'.tr(),
+              onPressed: _selected.isEmpty ? null : _invoiceSelected,
+            ),
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
             tooltip: 'forms.serviceOrder.monthlyRun'.tr(),
@@ -234,6 +273,109 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     );
   }
 
+  void _toggleSelection(int orderId) => setState(() {
+        if (!_selected.remove(orderId)) _selected.add(orderId);
+      });
+
+  /// LOTE (D6/D7): as condições são as MESMAS para todas as marcadas — o
+  /// dialog é o do faturamento avulso, porque a decisão é a mesma (forma,
+  /// parcelas, vencimento). Quem precisa de forma diferente faz dois lotes.
+  Future<void> _invoiceSelected() async {
+    final ids = _selected.toList()..sort();
+    if (ids.isEmpty) return;
+    if (ids.length > _batchLimit) {
+      showValidationFeedback(context,
+          'forms.serviceOrder.batchTooMany'.tr(args: ['$_batchLimit']));
+      return;
+    }
+    final input = await showDialog<ServiceOrderInvoiceInput>(
+      context: context,
+      builder: (_) =>
+          _InvoiceDialog(datasource: _datasource, batchCount: ids.length),
+    );
+    if (input == null || !mounted) return;
+    _bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: ids, input: input));
+  }
+
+  /// RELATÓRIO do lote — informativo próprio (mesmo tratamento da rotina
+  /// mensal): as recusadas aparecem com o motivo da API, uma por linha. A
+  /// seleção só é limpa DEPOIS de o operador ver o relatório.
+  Future<void> _showBatchReport(BatchInvoiceReport report) async {
+    final recusadas = report.results.where((r) => !r.ok).toList();
+    final faturadas = report.results.where((r) => r.ok).toList();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: SetesText('forms.serviceOrder.batchReportTitle'.tr()),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SetesText('forms.serviceOrder.batchRequested'
+                    .tr(args: ['${report.requested}'])),
+                const SizedBox(height: 4),
+                SetesText('forms.serviceOrder.batchFailed'
+                    .tr(args: ['${report.failed}'])),
+                // "faturada" não quer dizer "cobrada": contenção, carteira
+                // ausente ou duplicada deixam a nota sem baixa e sem boleto.
+                if (report.uncharged > 0) ...[
+                  const SizedBox(height: 4),
+                  SetesText('forms.serviceOrder.batchUncharged'
+                      .tr(args: ['${report.uncharged}'])),
+                ],
+                // D13: com o vencimento vindo do contrato de cada ordem, as
+                // datas DIVERGEM — o operador precisa ver qual ordem ficou
+                // com qual vencimento, senão o lote vira caixa-preta.
+                if (faturadas.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SetesText.title('forms.serviceOrder.batchInvoiced'
+                      .tr(args: ['${report.invoiced}'])),
+                  const SizedBox(height: 4),
+                  for (final linha in faturadas)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: SetesText('forms.serviceOrder.batchInvoicedRow'
+                          .tr(args: [
+                        '${linha.orderId}',
+                        isoDateToDisplay(linha.dtExpiration),
+                        linha.invoiceNumber,
+                      ])),
+                    ),
+                ],
+                if (recusadas.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SetesText.title('forms.serviceOrder.batchRefused'.tr()),
+                  const SizedBox(height: 4),
+                  for (final linha in recusadas)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: SetesText('forms.serviceOrder.batchRefusedRow'
+                          .tr(args: ['${linha.orderId}', linha.error])),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          SetesButton(
+            label: 'register.close'.tr(),
+            kind: SetesButtonKind.text,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    // As faturadas saíram da aba Abertas; as recusadas CONTINUAM marcadas,
+    // para o operador corrigir e repetir só elas.
+    setState(() => _selected
+        .removeWhere((id) => !recusadas.any((r) => r.orderId == id)));
+  }
+
   void _search() =>
       _bloc.add(ServiceOrderListRequested(filter: _filter.text.trim()));
 
@@ -247,6 +389,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final order = state.items[index];
+        final selectable =
+            state.status == 'A' && CurrentInterface.can('FATURAR');
         final cells = [
           isoDateToDisplay(order.dtRecord),
           'forms.serviceOrder.itemsCountRow'.tr(args: ['${order.itemsCount}']),
@@ -254,8 +398,17 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
               .tr(args: [setesMoney(order.totalValue)]),
         ].where((cell) => cell.isNotEmpty);
         return SetesListTile(
-          leading:
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selectable)
+                Checkbox(
+                  value: _selected.contains(order.id),
+                  onChanged: (_) => _toggleSelection(order.id),
+                ),
               CircleAvatar(child: SetesText('${order.number ?? order.id}')),
+            ],
+          ),
           title: SetesText(order.customerName ?? ''),
           subtitle: SetesText(cells.join(' · ')),
           onTap: () => _bloc.add(ServiceOrderViewRequested(order.id)),
@@ -303,7 +456,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         listenWhen: (_, current) =>
             current is ServiceOrderActionSuccess ||
             current is ServiceOrderActionFailure ||
-            current is ServiceOrderMonthlyRunDone,
+            current is ServiceOrderMonthlyRunDone ||
+            current is ServiceOrderBatchInvoiceDone,
         // PONTE de feedback (Framework de Mensagens): a tela nunca chama
         // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
         // via ponte (R1); falha = dialog (os 409 de negócio — trava D5,
@@ -313,6 +467,10 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         listener: (context, state) {
           if (state is ServiceOrderMonthlyRunDone) {
             _showMonthlyReport(state.report);
+            return;
+          }
+          if (state is ServiceOrderBatchInvoiceDone) {
+            _showBatchReport(state.report);
             return;
           }
           if (state is ServiceOrderActionSuccess) {
@@ -450,7 +608,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
   Future<void> _openInvoiceDialog(BuildContext context) async {
     final input = await showDialog<ServiceOrderInvoiceInput>(
       context: context,
-      builder: (_) => _InvoiceDialog(datasource: datasource),
+      builder: (_) => _InvoiceDialog(datasource: datasource, orderId: order.id),
     );
     if (input != null) onInvoice(input);
   }
@@ -910,9 +1068,23 @@ class _ServiceOrderItemDialogState extends State<_ServiceOrderItemDialog> {
 /// com a SUGESTÃO da API (5º dia útil) porém LIVREMENTE editável — DP1:
 /// o usuário decide. Devolve o [ServiceOrderInvoiceInput].
 class _InvoiceDialog extends StatefulWidget {
-  const _InvoiceDialog({required this.datasource});
+  const _InvoiceDialog({
+    required this.datasource,
+    this.orderId,
+    this.batchCount,
+  });
 
   final ServiceOrderDatasource datasource;
+
+  /// Quantidade de ordens quando o dialog abre para o LOTE — habilita o modo
+  /// "vencimento pelo contrato de cada ordem" (D13), que é o normal da
+  /// cobrança mensal. null = faturamento de UMA ordem.
+  final int? batchCount;
+
+  /// Ordem sendo faturada — leva o vencimento do CONTRATO dela como default
+  /// (D12). No LOTE não existe uma ordem só, então vem null e o default é o
+  /// genérico (cada cliente pode ter o seu dia — Q-P8).
+  final int? orderId;
 
   @override
   State<_InvoiceDialog> createState() => _InvoiceDialogState();
@@ -929,11 +1101,23 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
   int? _paymentTypeId;
   String _paymentTypeDescription = '';
 
+  /// D13/D14: no LOTE, cada ordem usa as condições do SEU contrato — dia de
+  /// vencimento e forma de pagamento. O operador só informa quando quer
+  /// SOBREPOR isso para todas as ordens.
+  bool _dueFromContract = true;
+
+  bool get _isBatch => widget.batchCount != null;
+
+  /// Vencimento derivado do contrato de cada ordem (só existe no lote).
+  bool get _useContractDue => _isBatch && _dueFromContract;
+
   @override
   void initState() {
     super.initState();
     _parcels = TextEditingController(text: '1');
-    _loadSuggestion();
+    // No lote o campo nasce vazio (a data vem de cada contrato); numa ordem só,
+    // a sugestão preenche o default.
+    if (!_isBatch) _loadSuggestion();
   }
 
   @override
@@ -951,7 +1135,8 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
     try {
       final now = DateTime.now();
       final iso =
-          await widget.datasource.expirationSuggestion(now.year, now.month);
+          await widget.datasource.expirationSuggestion(now.year, now.month,
+              orderId: widget.orderId);
       if (mounted && _dtExpiration.text.isEmpty) {
         _dtExpiration.text = isoDateToDisplay(iso);
       }
@@ -1004,45 +1189,54 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
   /// com foco no pendente (lookup de forma de pagamento sem foco/marca).
   Future<void> _confirm() async {
     final ok = await _firstPendingCheck(context, [
-      _DialogCheck(
-        validate: () => _paymentTypeId == null
-            ? 'register.requiredField'
-                .tr(args: ['forms.serviceOrder.paymentType'.tr()])
-            : null,
-      ),
+      if (!_useContractDue)
+        _DialogCheck(
+          validate: () => _paymentTypeId == null
+              ? 'register.requiredField'
+                  .tr(args: ['forms.serviceOrder.paymentType'.tr()])
+              : null,
+        ),
       _DialogCheck(
         validate: () => _validateParcels(_parcels.text),
         focusNode: _parcelsFocus,
         fieldKey: _parcelsKey,
       ),
-      _DialogCheck(
-        validate: () => _validateDtExpiration(_dtExpiration.text),
-        focusNode: _dtExpirationFocus,
-        fieldKey: _dtExpirationKey,
-      ),
+      if (!_useContractDue)
+        _DialogCheck(
+          validate: () => _validateDtExpiration(_dtExpiration.text),
+          focusNode: _dtExpirationFocus,
+          fieldKey: _dtExpirationKey,
+        ),
     ]);
     if (!ok || !mounted) return;
     Navigator.of(context).pop(ServiceOrderInvoiceInput(
-      dtExpiration:  displayDateToIso(_dtExpiration.text)!,
-      paymentTypeId: _paymentTypeId!,
+      // D13: vazio = "cada ordem no dia do seu contrato" (a API deriva).
+      dtExpiration:  _useContractDue ? '' : displayDateToIso(_dtExpiration.text)!,
+      // D14: 0 = "cada ordem com a forma do seu contrato" (não viaja no JSON).
+      paymentTypeId: _useContractDue ? 0 : _paymentTypeId!,
       parcels:       int.parse(_parcels.text.trim()),
     ));
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: SetesText('forms.serviceOrder.generateInvoice'.tr()),
+        title: SetesText(_isBatch
+            ? 'forms.serviceOrder.batchInvoiceTitle'
+                .tr(args: ['${widget.batchCount}'])
+            : 'forms.serviceOrder.generateInvoice'.tr()),
         content: SizedBox(
           width: 420,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SetesLookupField(
-                label: 'forms.serviceOrder.paymentType'.tr(),
-                display: _paymentTypeDescription,
-                onSearch: _pickPaymentType,
-              ),
-              const SizedBox(height: 16),
+              if (!_useContractDue) ...[
+                SetesLookupField(
+                  label: 'forms.serviceOrder.paymentType'.tr(),
+                  display: _paymentTypeDescription,
+                  onSearch: _pickPaymentType,
+                ),
+                const SizedBox(height: 16),
+              ],
               SetesTextField(
                 label: 'forms.serviceOrder.parcels'.tr(),
                 controller: _parcels,
@@ -1052,15 +1246,27 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
                 validator: (value) => _validateParcels(value)?.tr(),
               ),
               const SizedBox(height: 16),
-              SetesTextField(
-                label: 'forms.serviceOrder.dtExpiration'.tr(),
-                hint: 'register.dateHint'.tr(),
-                controller: _dtExpiration,
-                focusNode: _dtExpirationFocus,
-                fieldKey: _dtExpirationKey,
-                validator: (value) => _validateDtExpiration(value)?.tr(),
-                onSubmitted: (_) => _confirm(),
-              ),
+              // D13: no LOTE o padrão é cada ordem vencer no dia do SEU
+              // contrato; informar data é sobrepor isso para todas.
+              if (_isBatch)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _dueFromContract,
+                  onChanged: (v) => setState(() => _dueFromContract = v),
+                  title: SetesText('forms.serviceOrder.dueFromContract'.tr()),
+                  subtitle: SetesText(
+                      'forms.serviceOrder.dueFromContractHelp'.tr()),
+                ),
+              if (!_useContractDue)
+                SetesTextField(
+                  label: 'forms.serviceOrder.dtExpiration'.tr(),
+                  hint: 'register.dateHint'.tr(),
+                  controller: _dtExpiration,
+                  focusNode: _dtExpirationFocus,
+                  fieldKey: _dtExpirationKey,
+                  validator: (value) => _validateDtExpiration(value)?.tr(),
+                  onSubmitted: (_) => _confirm(),
+                ),
             ],
           ),
         ),

@@ -41,8 +41,16 @@ abstract class ServiceOrderDatasource {
   Future<ServiceOrderInvoiceResult> invoice(
       int orderId, ServiceOrderInvoiceInput input);
 
-  /// SUGESTÃO de vencimento (5º dia útil do mês seguinte) — só o default.
-  Future<String> expirationSuggestion(int year, int month);
+  /// LOTE da cobrança mensal (D6/D7): fatura as ordens SELECIONADAS com as
+  /// mesmas condições. Responde 200 mesmo com falhas parciais — quem conta a
+  /// história é o relatório.
+  Future<BatchInvoiceReport> batchInvoice(
+      List<int> orderIds, ServiceOrderInvoiceInput input);
+
+  /// SUGESTÃO de vencimento — só o DEFAULT (DP1: quem decide é o usuário).
+  /// Com [orderId], a API devolve o dia do CONTRATO que alimentou a ordem
+  /// (D12); sem ele, ou com contratos que divergem no dia, o 5º dia útil.
+  Future<String> expirationSuggestion(int year, int month, {int? orderId});
 
   /// Cancela a NOTA da OS faturada (Q-G16): POST /api/billing/cancel —
   /// endpoint de PROCESSO compartilhado com a venda; a OS volta a aberta.
@@ -144,9 +152,20 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
   }
 
   @override
-  Future<String> expirationSuggestion(int year, int month) async {
-    final json = await client
-        .get('/api/service-orders/expiration-suggestion?year=$year&month=$month');
+  Future<BatchInvoiceReport> batchInvoice(
+      List<int> orderIds, ServiceOrderInvoiceInput input) async {
+    final json = await client.post('/api/service-orders/batch-invoice', {
+      ...input.toJson(),
+      'orderIds': orderIds,
+    });
+    return BatchInvoiceReport.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<String> expirationSuggestion(int year, int month, {int? orderId}) async {
+    final ordem = orderId == null ? '' : '&orderId=$orderId';
+    final json = await client.get(
+        '/api/service-orders/expiration-suggestion?year=$year&month=$month$ordem');
     final data = json['data'] as Map<String, dynamic>? ?? const {};
     return data['dtExpiration'] as String? ?? '';
   }

@@ -26,6 +26,14 @@ abstract class SettlementDatasource {
   Future<SettlementReversalResult> reversal(
       int orderId, int parcel, int event, String reason);
 
+  /// Formas de pagamento habilitadas (lookup da renegociação — D17).
+  Future<List<SettlementPaymentTypeLookup>> paymentTypes();
+
+  /// REDIRECIONAR A COBRANÇA do título (D17 — renegociação no financeiro):
+  /// 409 = quitado ou com boleto vigente; 400 = forma não habilitada.
+  Future<SettlementChargeResult> retargetCharge(
+      int orderId, int parcel, int paymentTypeId);
+
   /// Extrato banco/caixa do filtro — totais e saldo VÊM da API.
   Future<SettlementStatementReport> statements(
       int bankAccountId, String? dtFrom, String? dtTo);
@@ -86,6 +94,26 @@ class SettlementDatasourceImpl implements SettlementDatasource {
     });
     return SettlementReversalResult.fromJson(
         json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<SettlementPaymentTypeLookup>> paymentTypes() async {
+    final json = await client.get('/api/payment-types');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) =>
+            SettlementPaymentTypeLookup.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<SettlementChargeResult> retargetCharge(
+      int orderId, int parcel, int paymentTypeId) async {
+    final json = await client.put(
+        '/api/settlements/bills/$orderId/$parcel/charge',
+        {'paymentTypeId': paymentTypeId});
+    return SettlementChargeResult.fromJson(
+        json['data'] as Map<String, dynamic>? ?? const {});
   }
 
   @override

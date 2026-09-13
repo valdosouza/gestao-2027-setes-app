@@ -244,7 +244,8 @@ class ServiceOrderInvoiceInput extends Equatable {
     this.parcels = 1,
   });
 
-  /// ISO 'yyyy-MM-dd'.
+  /// ISO 'yyyy-MM-dd'. VAZIO só é válido no LOTE (D13): significa "cada ordem
+  /// vence no dia do seu contrato" — a API deriva por ordem.
   final String dtExpiration;
   final int    paymentTypeId;
 
@@ -252,8 +253,12 @@ class ServiceOrderInvoiceInput extends Equatable {
   final int    parcels;
 
   Map<String, dynamic> toJson() => {
-        'dtExpiration':  dtExpiration,
-        'paymentTypeId': paymentTypeId,
+        // D13: vencimento vazio NÃO viaja — a ausência é que diz à API para
+        // usar o dia do contrato de cada ordem.
+        if (dtExpiration.isNotEmpty) 'dtExpiration': dtExpiration,
+        // D14: forma 0 também NÃO viaja — a ausência é que diz à API para usar
+        // a forma combinada no contrato de cada ordem.
+        if (paymentTypeId > 0) 'paymentTypeId': paymentTypeId,
         'parcels':       parcels,
       };
 
@@ -282,6 +287,89 @@ class ServiceOrderInvoiceResult extends Equatable {
 
   @override
   List<Object?> get props => [invoiceNumber, parcels, totalValue];
+}
+
+/// Uma linha do relatório do LOTE (D6/D7 da fase Primeiro Cliente): o
+/// resultado REAL de cada ordem — a que falhou traz o motivo legível da API.
+class BatchInvoiceEntry extends Equatable {
+  const BatchInvoiceEntry({
+    required this.orderId,
+    required this.ok,
+    this.dtExpiration = '',
+    this.invoiceNumber = '',
+    this.totalValue = 0,
+    this.autoSettled = 0,
+    this.bankSlipsIssued = 0,
+    this.error = '',
+    this.code = '',
+  });
+
+  final int    orderId;
+  final bool   ok;
+
+  /// Vencimento REALMENTE usado nesta ordem — com a D13 ele varia por cliente.
+  final String dtExpiration;
+  final String invoiceNumber;
+  final double totalValue;
+
+  /// O que a automação fez nesta ordem (baixa por contrato × boleto).
+  final int    autoSettled;
+  final int    bankSlipsIssued;
+  final String error;
+  final String code;
+
+  factory BatchInvoiceEntry.fromJson(Map<String, dynamic> json) =>
+      BatchInvoiceEntry(
+        orderId:       jsonInt(json['orderId']) ?? 0,
+        ok:            json['ok'] == true,
+        dtExpiration:  json['dtExpiration'] as String? ?? '',
+        invoiceNumber: json['invoiceNumber']?.toString() ?? '',
+        totalValue:    jsonDouble(json['totalValue']) ?? 0,
+        autoSettled:     jsonInt(json['autoSettled']) ?? 0,
+        bankSlipsIssued: jsonInt(json['bankSlipsIssued']) ?? 0,
+        error:         json['error'] as String? ?? '',
+        code:          json['code'] as String? ?? '',
+      );
+
+  @override
+  List<Object?> get props =>
+      [orderId, ok, dtExpiration, invoiceNumber, totalValue, autoSettled,
+       bankSlipsIssued, error, code];
+}
+
+/// Relatório do lote (POST /batch-invoice). A API responde 200 mesmo com
+/// falhas parciais — quem diz o que aconteceu é [failed] e [results].
+class BatchInvoiceReport extends Equatable {
+  const BatchInvoiceReport({
+    this.requested = 0,
+    this.invoiced = 0,
+    this.failed = 0,
+    this.uncharged = 0,
+    this.results = const [],
+  });
+
+  final int requested;
+  final int invoiced;
+  final int failed;
+
+  /// Faturadas que NÃO geraram baixa nem boleto — "faturada" não quer dizer
+  /// "cobrada" (gate adversarial da Onda 1).
+  final int uncharged;
+  final List<BatchInvoiceEntry> results;
+
+  factory BatchInvoiceReport.fromJson(Map<String, dynamic> json) =>
+      BatchInvoiceReport(
+        requested: jsonInt(json['requested']) ?? 0,
+        invoiced:  jsonInt(json['invoiced']) ?? 0,
+        failed:    jsonInt(json['failed']) ?? 0,
+        uncharged: jsonInt(json['uncharged']) ?? 0,
+        results: (json['results'] as List<dynamic>? ?? [])
+            .map((e) => BatchInvoiceEntry.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  @override
+  List<Object?> get props => [requested, invoiced, failed, uncharged, results];
 }
 
 /// Cliente para o lookup do Abrir OS (GET /api/customers — projeção

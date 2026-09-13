@@ -417,3 +417,55 @@ class SettlementBankAccountLookup extends Equatable {
   List<Object?> get props =>
       [id, bankNumber, bankDescription, agency, agencyDv, number, numberDv];
 }
+
+/// Forma de pagamento para o lookup da renegociação (GET /api/payment-types —
+/// projeção local: módulo nunca importa módulo).
+class SettlementPaymentTypeLookup extends Equatable {
+  const SettlementPaymentTypeLookup({required this.id, this.description});
+
+  final int     id;
+  final String? description;
+
+  factory SettlementPaymentTypeLookup.fromJson(Map<String, dynamic> json) =>
+      SettlementPaymentTypeLookup(
+        id:          jsonInt(json['id']) ?? 0,
+        description: json['description'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [id, description];
+}
+
+/// Resultado de REDIRECIONAR A COBRANÇA de um título (D17 — renegociação).
+/// `changed` false = o operador escolheu a forma que já valia.
+class SettlementChargeResult extends Equatable {
+  const SettlementChargeResult({
+    this.orderId = 0,
+    this.parcel = 0,
+    this.previousPaymentTypeId = 0,
+    this.paymentTypeId = 0,
+    this.dtExpiration = '',
+    this.changed = false,
+  });
+
+  final int    orderId;
+  final int    parcel;
+  final int    previousPaymentTypeId;
+  final int    paymentTypeId;
+  final String dtExpiration;
+  final bool   changed;
+
+  factory SettlementChargeResult.fromJson(Map<String, dynamic> json) =>
+      SettlementChargeResult(
+        orderId:  jsonInt(json['orderId']) ?? 0,
+        parcel:   jsonInt(json['parcel']) ?? 0,
+        previousPaymentTypeId: jsonInt(json['previousPaymentTypeId']) ?? 0,
+        paymentTypeId: jsonInt(json['paymentTypeId']) ?? 0,
+        dtExpiration: json['dtExpiration'] as String? ?? '',
+        changed: json['changed'] == true,
+      );
+
+  @override
+  List<Object?> get props =>
+      [orderId, parcel, previousPaymentTypeId, paymentTypeId, dtExpiration, changed];
+}

@@ -116,6 +116,21 @@ class ServiceOrderMonthlyRunRequested extends ServiceOrderEvent {
 
 /// Gerar Faturamento da OS aberta — sucesso mostra o nº da fatura e volta
 /// para a lista na aba Faturadas.
+/// LOTE da cobrança mensal (D6/D7): as ordens SELECIONADAS na aba Abertas,
+/// com as MESMAS condições. Quem precisa de forma diferente faz dois lotes.
+class ServiceOrderBatchInvoiceRequested extends ServiceOrderEvent {
+  const ServiceOrderBatchInvoiceRequested({
+    required this.orderIds,
+    required this.input,
+  });
+
+  final List<int> orderIds;
+  final ServiceOrderInvoiceInput input;
+
+  @override
+  List<Object?> get props => [orderIds, input];
+}
+
 /// "Cancelar nota" da OS faturada (Q-G16) — motivo já confirmado no dialog.
 class ServiceOrderInvoiceCancelRequested extends ServiceOrderEvent {
   const ServiceOrderInvoiceCancelRequested({

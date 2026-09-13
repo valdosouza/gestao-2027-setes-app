@@ -1,17 +1,17 @@
-part of 'financial_contract_bloc.dart';
+part of 'settlement_rule_bloc.dart';
 
-sealed class FinancialContractState extends Equatable {
-  const FinancialContractState();
+sealed class SettlementRuleState extends Equatable {
+  const SettlementRuleState();
 
   @override
   List<Object?> get props => [];
 }
 
-/// Modo lista (buildável) — contratos financeiros da institution. Além dos
+/// Modo lista (buildável) — regras de recebimento da institution. Além dos
 /// itens da página, o estado carrega filtro aplicado + metadados — a
 /// página monta a barra de paginação da fábrica e reenvia [filter].
-class FinancialContractListState extends FinancialContractState {
-  const FinancialContractListState({
+class SettlementRuleListState extends SettlementRuleState {
+  const SettlementRuleListState({
     this.items = const [],
     this.loading = false,
     this.filter = '',
@@ -20,7 +20,7 @@ class FinancialContractListState extends FinancialContractState {
     this.total,
   });
 
-  final List<FinancialContractListItem> items;
+  final List<SettlementRuleListItem> items;
   final bool loading;
 
   /// Filtro APLICADO (o mesmo usado na recarga pós-salvar/excluir).
@@ -36,9 +36,9 @@ class FinancialContractListState extends FinancialContractState {
 }
 
 /// Modo formulário (buildável). [editing] null = contrato novo.
-class FinancialContractFormState extends FinancialContractState {
-  const FinancialContractFormState({this.editing, this.saving = false});
-  final FinancialContractFull? editing;
+class SettlementRuleFormState extends SettlementRuleState {
+  const SettlementRuleFormState({this.editing, this.saving = false});
+  final SettlementRuleFull? editing;
   final bool saving;
 
   @override
@@ -47,8 +47,8 @@ class FinancialContractFormState extends FinancialContractState {
 
 /// Efeito one-shot de sucesso (listener-only) — a página entrega à ponte
 /// (showSuccessFeedback → SnackBar, R1).
-class FinancialContractActionSuccess extends FinancialContractState {
-  const FinancialContractActionSuccess(this.messageKey);
+class SettlementRuleActionSuccess extends SettlementRuleState {
+  const SettlementRuleActionSuccess(this.messageKey);
 
   /// Chave i18n ('register.saved' / 'register.deleted') — a ponte traduz.
   final String messageKey;
@@ -60,8 +60,8 @@ class FinancialContractActionSuccess extends FinancialContractState {
 /// Efeito one-shot de falha (listener-only). Carrega o [Failure] INTEIRO:
 /// a ponte deriva a natureza (validation × erro técnico — R7) e o fields[]
 /// ancora no campo do formulário.
-class FinancialContractActionFailure extends FinancialContractState {
-  const FinancialContractActionFailure(this.failure);
+class SettlementRuleActionFailure extends SettlementRuleState {
+  const SettlementRuleActionFailure(this.failure);
   final Failure failure;
 
   @override

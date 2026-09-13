@@ -24,4 +24,8 @@ abstract class ServiceOrderRepository {
 
   Future<Either<Failure, ServiceOrderInvoiceResult>> invoice(
       int orderId, ServiceOrderInvoiceInput input);
+
+  /// LOTE da cobrança mensal (D6/D7) — ordens selecionadas, mesmas condições.
+  Future<Either<Failure, BatchInvoiceReport>> batchInvoice(
+      List<int> orderIds, ServiceOrderInvoiceInput input);
 }
