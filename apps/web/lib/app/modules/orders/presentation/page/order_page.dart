@@ -769,11 +769,14 @@ class _OrderDetailView extends StatelessWidget {
             if (order.isOpen) ...[
               const SizedBox(height: 24),
               // Botão primário do processo: validate → (cheques) → invoice.
-              SetesButton(
-                label: 'forms.order.validateAndInvoice'.tr(),
-                icon: Icons.receipt_long_outlined,
-                onPressed: busy ? null : onValidate,
-              ),
+              // Q-G29: só com FATURAR na interface (seed 51) — a API aplica
+              // de novo na rota, pelo RAMO do pedido.
+              if (CurrentInterface.can('FATURAR'))
+                SetesButton(
+                  label: 'forms.order.validateAndInvoice'.tr(),
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: busy ? null : onValidate,
+                ),
             ] else ...[
               const SizedBox(height: 24),
               // Pedido FATURADO: abre a devolução de mercadoria (ajuste de

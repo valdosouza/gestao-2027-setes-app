@@ -9,6 +9,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/session/current_interface.dart';
 import '../../data/datasource/order_return_datasource.dart';
 import '../../domain/entity/order_return_entity.dart';
 import '../bloc/order_return_bloc.dart';
@@ -501,12 +502,14 @@ class _OrderReturnDetailView extends StatelessWidget {
             if (orderReturn.isOpen) ...[
               const SizedBox(height: 24),
               // Botão primário do processo: dialog do CFOP → validate →
-              // invoice em cadeia.
-              SetesButton(
-                label: 'forms.orderReturn.validateAndInvoice'.tr(),
-                icon: Icons.receipt_long_outlined,
-                onPressed: busy ? null : () => _openInvoiceDialog(context),
-              ),
+              // invoice em cadeia. Q-G29: só com FATURAR nesta interface
+              // (seed 54) — a API aplica de novo pelo RAMO do pedido.
+              if (CurrentInterface.can('FATURAR'))
+                SetesButton(
+                  label: 'forms.orderReturn.validateAndInvoice'.tr(),
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: busy ? null : () => _openInvoiceDialog(context),
+                ),
             ],
           ],
         ),

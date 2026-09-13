@@ -7,9 +7,12 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
+import '../../../../shared/interface_config/interface_config_loader.dart';
+import '../../../../shared/session/current_interface.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
 import '../../data/datasource/settlement_datasource.dart';
+import '../../domain/settlement_discount_rules.dart';
 import '../../domain/entity/settlement_entity.dart';
 import '../bloc/settlement_bloc.dart';
 
@@ -91,8 +94,6 @@ double? _parseDecimal(String text) {
 String _decimalText(double value) =>
     value.toStringAsFixed(2).replaceAll('.', ',');
 
-double _round2(double value) => (value * 100).roundToDouble() / 100;
-
 /// Checagem de UM campo de dialog de ação: [validate] devolve a chave i18n
 /// (ou texto pronto) da pendência; [focusNode]/[fieldKey] ancoram o retorno
 /// do foco e a marca inline SÓ nele.
@@ -126,7 +127,7 @@ Future<bool> _firstPendingCheck(
 }
 
 class _SettlementPageState extends State<SettlementPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, InterfaceConfigLoader {
   late final SettlementBloc _bloc;
   late final SettlementDatasource _datasource;
   late final TabController _tabs;
@@ -149,6 +150,7 @@ class _SettlementPageState extends State<SettlementPage>
   @override
   void initState() {
     super.initState();
+    loadInterfaceConfig('settlements'); // D-G32: teto do desconto
     _bloc = Modular.get<SettlementBloc>()
       ..add(const SettlementBillsRequested(filter: ''));
     _datasource = Modular.get<SettlementDatasource>();
@@ -193,11 +195,26 @@ class _SettlementPageState extends State<SettlementPage>
   // Aba 1 — Em aberto (seleção múltipla + dialog de baixa)
   // -------------------------------------------------------------------
 
+  /// D-G32 (2026-09-13): teto do desconto vindo do Framework de Configurações
+  /// (interface `settlements`, scope I) — a API aplica a mesma regra na rota.
+  /// Teto vindo do `expected` do último 403 da API (a empresa mudou a config
+  /// depois que a tela carregou — mesmo padrão do `expected` da negociação).
+  double? _maxDiscountFromApi;
+
+  double get _maxDiscount =>
+      _maxDiscountFromApi ??
+      double.tryParse(configContent('max_discount_aliquot', fallback: '0')
+          .replaceAll(',', '.')) ??
+      0;
+
   Future<void> _openSettleDialog(List<SettlementBill> selectedBills) async {
     final input = await showDialog<SettlementBatchInput>(
       context: context,
       builder: (_) =>
-          _SettleDialog(bills: selectedBills, datasource: _datasource),
+          _SettleDialog(
+              bills: selectedBills,
+              datasource: _datasource,
+              maxDiscount: _maxDiscount),
     );
     if (input != null) {
       // A seleção é limpa pelo BLOC na ação de baixa.
@@ -589,6 +606,16 @@ class _SettlementPageState extends State<SettlementPage>
             return;
           }
           final failure = (state as SettlementActionFailure).failure;
+          // D-G32: a API recusou o desconto e disse o teto vigente (`expected`) —
+          // a tela adota esse teto para já recusar localmente na próxima baixa.
+          if (failure.code == 'DISCOUNT_REQUIRES_PRIVILEGE') {
+            final expected = failure.fields.isEmpty
+                ? null
+                : failure.fields.first.expected;
+            if (expected != null && expected != _maxDiscountFromApi) {
+              setState(() => _maxDiscountFromApi = expected);
+            }
+          }
           if (failure.fields.isNotEmpty) {
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
@@ -653,13 +680,20 @@ class _SettlementPageState extends State<SettlementPage>
 /// desconto % e valor pago (default = líquido; editar juros/multa/desconto
 /// RECALCULA o pago; o usuário pode reduzir para baixa PARCIAL).
 class _TitleFields {
-  _TitleFields(this.bill)
+  _TitleFields(this.bill, {this.maxDiscount = 0, this.canDiscount = true})
       : interest = TextEditingController(),
         late = TextEditingController(),
         discount = TextEditingController(),
         paid = TextEditingController(text: _decimalText(bill.balance));
 
   final SettlementBill bill;
+
+  /// D-G32 (2026-09-13): teto do desconto (%) da institution (config
+  /// `max_discount_aliquot` da interface) para quem NÃO tem o privilégio
+  /// DESCONTO; [canDiscount] = privilégio presente (bypassa o teto). A API
+  /// aplica a mesma política na rota (403 DISCOUNT_REQUIRES_PRIVILEGE).
+  final double maxDiscount;
+  final bool canDiscount;
   final TextEditingController interest;
   final TextEditingController late;
   final TextEditingController discount;
@@ -680,11 +714,14 @@ class _TitleFields {
   double get discountAliquot => _parseDecimal(discount.text) ?? 0;
   double? get paidValue => _parseDecimal(paid.text);
 
-  /// Líquido sugerido: saldo + juros + multa − desconto% sobre o TAG.
-  double get liquid => _round2(bill.balance +
-      interestValue +
-      lateValue -
-      _round2(bill.tagValue * discountAliquot / 100));
+  /// Líquido sugerido pela regra da casa (peça `settlement_discount_rules`):
+  /// desconto % sobre o SALDO (D-G28), nunca cobrindo o saldo inteiro (D-G35).
+  double get liquid => suggestedLiquid(
+        balance: bill.balance,
+        interestValue: interestValue,
+        lateValue: lateValue,
+        discountAliquot: discountAliquot,
+      );
 
   /// Juros/multa opcionais — válidos SE preenchidos (>= 0).
   String? validateInterest() => _validateOptionalMin(interest.text,
@@ -693,13 +730,16 @@ class _TitleFields {
   String? validateLate() =>
       _validateOptionalMin(late.text, 'forms.settlement.lateInvalid');
 
-  /// Desconto opcional — SE preenchido, percentual entre 0 e 100.
+  /// Desconto opcional — regra em `settlement_discount_rules` (D-G28/D-G32/D-G35).
   String? validateDiscount() {
     if (discount.text.trim().isEmpty) return null;
-    final value = _parseDecimal(discount.text);
-    return (value == null || value < 0 || value > 100)
-        ? 'forms.settlement.discountInvalid'
-        : null;
+    final pendency = discountPendency(_parseDecimal(discount.text),
+        maxDiscount: maxDiscount, canDiscount: canDiscount);
+    if (pendency == null) return null;
+    return pendency == 'aboveLimit'
+        ? 'forms.settlement.discountAboveLimit'
+            .tr(args: [_decimalText(maxDiscount)])
+        : pendency;
   }
 
   /// Valor pago é OBRIGATÓRIO e maior que zero (baixa parcial permitida).
@@ -733,10 +773,13 @@ class _TitleFields {
 /// da baixa default hoje, compensação opcional) + total ao vivo. Devolve o
 /// [SettlementBatchInput] via Navigator.pop.
 class _SettleDialog extends StatefulWidget {
-  const _SettleDialog({required this.bills, required this.datasource});
+  const _SettleDialog({required this.bills, required this.datasource, this.maxDiscount = 0});
 
   final List<SettlementBill> bills;
   final SettlementDatasource datasource;
+
+  /// D-G32: teto do desconto (%) da institution (config `max_discount_aliquot`).
+  final double maxDiscount;
 
   @override
   State<_SettleDialog> createState() => _SettleDialogState();
@@ -757,7 +800,12 @@ class _SettleDialogState extends State<_SettleDialog> {
   @override
   void initState() {
     super.initState();
-    _titles = [for (final bill in widget.bills) _TitleFields(bill)];
+    _titles = [
+      for (final bill in widget.bills)
+        _TitleFields(bill,
+            maxDiscount: widget.maxDiscount,
+            canDiscount: CurrentInterface.can('DESCONTO')),
+    ];
     _dtPayment = TextEditingController(text: isoDateToDisplay(_todayIso()));
   }
 
