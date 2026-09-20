@@ -16,4 +16,10 @@ abstract class BankSlipRepository {
       int id, double paidValue, String dtPayment);
   Future<Either<Failure, int>> cancel(int id, String? note);
   Future<Either<Failure, BankSlipReverseResult>> reverse(int id, String reason);
+
+  /// Onda 2 — apresentação ao banco, consulta, PDF oficial e consulta ativa.
+  Future<Either<Failure, BankSlipRegisterResult>> register(int id);
+  Future<Either<Failure, BankSlipRefreshResult>> refresh(int id);
+  Future<Either<Failure, String>> pdf(int id);
+  Future<Either<Failure, BankSlipBankSyncReport>> bankSync();
 }

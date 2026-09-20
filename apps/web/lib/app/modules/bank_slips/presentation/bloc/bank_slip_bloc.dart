@@ -4,8 +4,12 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entity/bank_slip_entity.dart';
+import '../../domain/usecase/bank_slip_bank_sync.dart';
 import '../../domain/usecase/bank_slip_cancel.dart';
 import '../../domain/usecase/bank_slip_get.dart';
+import '../../domain/usecase/bank_slip_pdf.dart';
+import '../../domain/usecase/bank_slip_refresh.dart';
+import '../../domain/usecase/bank_slip_register.dart';
 import '../../domain/usecase/bank_slip_getlist.dart';
 import '../../domain/usecase/bank_slip_issue.dart';
 import '../../domain/usecase/bank_slip_reverse.dart';
@@ -30,6 +34,10 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     required this.settle,
     required this.cancel,
     required this.reverse,
+    required this.register,
+    required this.refresh,
+    required this.pdf,
+    required this.bankSync,
   }) : super(const BankSlipListState(loading: true)) {
     on<BankSlipListRequested>(_onListRequested);
     on<BankSlipViewRequested>(_onViewRequested);
@@ -38,6 +46,10 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     on<BankSlipSettleRequested>(_onSettleRequested);
     on<BankSlipCancelRequested>(_onCancelRequested);
     on<BankSlipReverseRequested>(_onReverseRequested);
+    on<BankSlipRegisterRequested>(_onRegisterRequested);
+    on<BankSlipRefreshRequested>(_onRefreshRequested);
+    on<BankSlipPdfRequested>(_onPdfRequested);
+    on<BankSlipBankSyncRequested>(_onBankSyncRequested);
   }
 
   final BankSlipGetlist getlist;
@@ -46,6 +58,10 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
   final BankSlipSettle  settle;
   final BankSlipCancel  cancel;
   final BankSlipReverse reverse;
+  final BankSlipRegister register;
+  final BankSlipRefresh  refresh;
+  final BankSlipPdf      pdf;
+  final BankSlipBankSync bankSync;
 
   /// Aba/filtro/página vigentes (eventos com campo null os mantêm) — a
   /// volta do detalhe devolve o usuário exatamente onde estava.
@@ -190,4 +206,58 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
             'forms.bankSlip.reversedDone',
             args: ['${rev.reversed}']));
       });
+
+  // ---------------------------------------------------------------------
+  // Onda 2 — o boleto no BANCO (D-I5…D-I10)
+  // ---------------------------------------------------------------------
+
+  /// Apresenta ao banco; sucesso mostra o codigoSolicitacao e recarrega (a
+  /// linha digitável chega na consulta seguinte — emissão assíncrona).
+  Future<void> _onRegisterRequested(
+          BankSlipRegisterRequested event, Emitter<BankSlipState> emit) =>
+      _runDetailAction(event.slip, emit, () async {
+        final result = await register(event.slip.id);
+        return result.map((r) => BankSlipActionSuccess(
+            'forms.bankSlip.registeredDone', args: [r.requestCode]));
+      });
+
+  /// Consulta o banco: mudou → diz a situação; igual → "sem novidade".
+  Future<void> _onRefreshRequested(
+          BankSlipRefreshRequested event, Emitter<BankSlipState> emit) =>
+      _runDetailAction(event.slip, emit, () async {
+        final result = await refresh(event.slip.id);
+        return result.map((r) => r.changed
+            ? BankSlipActionSuccess('forms.bankSlip.refreshedChanged', args: [r.bankStatus])
+            : BankSlipActionSuccess('forms.bankSlip.refreshedSame', args: [r.bankStatus]));
+      });
+
+  /// PDF oficial: one-shot [BankSlipPdfReady] — a página abre em nova aba.
+  Future<void> _onPdfRequested(
+      BankSlipPdfRequested event, Emitter<BankSlipState> emit) async {
+    emit(BankSlipDetailState(slip: event.slip, saving: true));
+    final result = await pdf(event.slip.id);
+    emit(result.fold((failure) => BankSlipActionFailure(failure),
+        (base64) => BankSlipPdfReady(base64)));
+    emit(BankSlipDetailState(slip: event.slip));
+  }
+
+  /// Consulta ativa THROTTLED (gatilho da Onda 2): roda silenciosa ao abrir a
+  /// tela e com resumo quando o operador pede; depois recarrega a lista.
+  Future<void> _onBankSyncRequested(
+      BankSlipBankSyncRequested event, Emitter<BankSlipState> emit) async {
+    final result = await bankSync();
+    result.fold(
+      (failure) {
+        // banco fora/limite ao abrir a tela não pode virar dialog — só quando pedido
+        if (event.announce) emit(BankSlipActionFailure(failure));
+      },
+      (report) {
+        if (event.announce || report.changed > 0) {
+          emit(BankSlipActionSuccess('forms.bankSlip.bankSyncDone',
+              args: ['${report.checked}', '${report.changed}']));
+        }
+      },
+    );
+    await _reloadList(emit);
+  }
 }

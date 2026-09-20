@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import 'data/datasource/bank_account_channel_datasource.dart';
 import 'data/datasource/bank_account_datasource.dart';
 import 'data/repository/bank_account_repository_impl.dart';
 import 'domain/repository/bank_account_repository.dart';
@@ -21,6 +22,9 @@ class BankAccountsModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<BankAccountDatasource>(
             (i) => BankAccountDatasourceImpl(client: i.get<ApiClient>())),
+        // Onda 2 — sub-recurso Canal API da conta (seção autônoma do form)
+        Bind.lazySingleton<BankAccountChannelDatasource>(
+            (i) => BankAccountChannelDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<BankAccountRepository>((i) => BankAccountRepositoryImpl(
             datasource: i.get<BankAccountDatasource>())),
         Bind.factory<BankAccountGetlist>((i) =>

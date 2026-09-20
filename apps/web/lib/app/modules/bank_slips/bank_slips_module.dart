@@ -5,8 +5,12 @@ import 'data/datasource/bank_slip_datasource.dart';
 import 'data/datasource/bank_slip_lookup_datasource.dart';
 import 'data/repository/bank_slip_repository_impl.dart';
 import 'domain/repository/bank_slip_repository.dart';
+import 'domain/usecase/bank_slip_bank_sync.dart';
 import 'domain/usecase/bank_slip_cancel.dart';
 import 'domain/usecase/bank_slip_get.dart';
+import 'domain/usecase/bank_slip_pdf.dart';
+import 'domain/usecase/bank_slip_refresh.dart';
+import 'domain/usecase/bank_slip_register.dart';
 import 'domain/usecase/bank_slip_getlist.dart';
 import 'domain/usecase/bank_slip_issue.dart';
 import 'domain/usecase/bank_slip_reverse.dart';
@@ -42,6 +46,15 @@ class BankSlipsModule extends Module {
             (i) => BankSlipCancel(repository: i.get<BankSlipRepository>())),
         Bind.factory<BankSlipReverse>(
             (i) => BankSlipReverse(repository: i.get<BankSlipRepository>())),
+        // Onda 2 — o boleto no banco (registro, consulta, PDF, consulta ativa)
+        Bind.factory<BankSlipRegister>(
+            (i) => BankSlipRegister(repository: i.get<BankSlipRepository>())),
+        Bind.factory<BankSlipRefresh>(
+            (i) => BankSlipRefresh(repository: i.get<BankSlipRepository>())),
+        Bind.factory<BankSlipPdf>(
+            (i) => BankSlipPdf(repository: i.get<BankSlipRepository>())),
+        Bind.factory<BankSlipBankSync>(
+            (i) => BankSlipBankSync(repository: i.get<BankSlipRepository>())),
         Bind.singleton<BankSlipBloc>((i) => BankSlipBloc(
               getlist: i.get<BankSlipGetlist>(),
               get:     i.get<BankSlipGet>(),
@@ -49,6 +62,10 @@ class BankSlipsModule extends Module {
               settle:  i.get<BankSlipSettle>(),
               cancel:  i.get<BankSlipCancel>(),
               reverse: i.get<BankSlipReverse>(),
+              register: i.get<BankSlipRegister>(),
+              refresh:  i.get<BankSlipRefresh>(),
+              pdf:      i.get<BankSlipPdf>(),
+              bankSync: i.get<BankSlipBankSync>(),
             )),
       ];
 

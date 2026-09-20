@@ -237,21 +237,75 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// [ServiceOrderBatchInvoiceDone] e a lista recarrega. Falha do LOTE
   /// INTEIRO (sem privilégio, corpo inválido) é [Failure] como qualquer
   /// outra; ordem recusada NÃO é falha — é linha do relatório.
+  ///
+  /// D27 (Q-P6, Valdo 2026-09-19): a API aceita até [batchInvoiceChunkSize]
+  /// ordens por requisição. A seleção é fatiada aqui, em SEQUÊNCIA (um bloco
+  /// por vez — dois em paralelo dobrariam a contenção na mesma institution), e
+  /// os relatórios são agregados num só. Bloco que falha INTEIRO depois de
+  /// outro já ter faturado não pode virar [Failure] — o relatório do que já
+  /// foi cobrado se perderia; suas ordens (e as dos blocos seguintes, que não
+  /// são tentados) entram como recusadas "tente de novo" com o motivo. Só
+  /// quando o PRIMEIRO bloco falha e nada foi faturado a falha sobe como
+  /// [Failure], para a ponte tratar 403/400 como sempre.
   Future<void> _onBatchInvoiceRequested(
       ServiceOrderBatchInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
+    // H1 do gate socrático da Rodada 5: o lote leva minutos sob contenção e a
+    // AppBar continua viva — um 2º clique disparava um lote IGUAL em paralelo
+    // (contenção auto-infligida + dois relatórios se sobrescrevendo). Um lote
+    // por vez, como o cancelamento de nota; o botão também é desabilitado no
+    // loading pela página.
+    if (_batchRunning) return;
+    _batchRunning = true;
+    try {
+      await _runBatch(event, emit);
+    } finally {
+      _batchRunning = false;
+    }
+  }
+
+  bool _batchRunning = false;
+
+  Future<void> _runBatch(ServiceOrderBatchInvoiceRequested event,
+      Emitter<ServiceOrderState> emit) async {
     emit(ServiceOrderListState(loading: true, status: _status));
-    final result = await batchInvoice(event.orderIds, event.input);
-    await result.fold(
-      (failure) async {
-        emit(ServiceOrderActionFailure(failure));
-        await _reloadList(emit);
-      },
-      (report) async {
-        emit(ServiceOrderBatchInvoiceDone(report));
-        await _reloadList(emit);
-      },
-    );
+    final ids = event.orderIds.toSet().toList();
+    final parts = <BatchInvoiceReport>[];
+    Failure? aborted;
+    for (var start = 0; start < ids.length; start += batchInvoiceChunkSize) {
+      // M4 do gate: bloc fechado (módulo desmontado) = PARAR de enviar blocos —
+      // o que já rodou está na aba Faturadas; o resto continua aberto. A
+      // política para "fechou a aba do navegador" é a Q-R5.2 (Valdo).
+      if (isClosed) return;
+      final chunk = ids.sublist(
+          start, (start + batchInvoiceChunkSize).clamp(0, ids.length));
+      final result = await batchInvoice(chunk, event.input);
+      final stop = result.fold<bool>(
+        (failure) {
+          aborted = failure;
+          parts.add(BatchInvoiceReport.fromEntries([
+            for (final id in ids.sublist(start))
+              BatchInvoiceEntry.aborted(orderId: id, error: failure.message),
+          ]));
+          return true;
+        },
+        (report) {
+          parts.add(report);
+          return false;
+        },
+      );
+      if (stop) break;
+    }
+    if (isClosed) return;
+    final failure = aborted;
+    if (failure != null && parts.length == 1) {
+      // 1º bloco falhou: nada faturado, comportamento de sempre
+      emit(ServiceOrderActionFailure(failure));
+      await _reloadList(emit);
+      return;
+    }
+    emit(ServiceOrderBatchInvoiceDone(BatchInvoiceReport.merge(parts)));
+    await _reloadList(emit);
   }
 
   /// "Cancelar nota" (Q-G16): a nota some e a OS volta a ABERTA — a lista

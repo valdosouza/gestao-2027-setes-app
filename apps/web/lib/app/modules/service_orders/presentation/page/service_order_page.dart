@@ -53,9 +53,6 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// Assinatura da lista exibida — muda ⇒ a seleção não vale mais.
   String _selectionScope = '';
 
-  /// Teto do lote na API (o servidor recusa acima disso).
-  static const _batchLimit = 200;
-
   /// Aba refletida na tela — evita reload redundante quando o BLoC muda a
   /// aba sozinho (ex.: pós-faturamento cai em Faturadas).
   String _status = 'A';
@@ -196,7 +193,10 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
           // Faturar em LOTE (D6) — só na aba Abertas e só para quem tem o
-          // privilégio FATURAR; desabilitado enquanto nada está marcado.
+          // privilégio FATURAR; desabilitado enquanto nada está marcado E
+          // enquanto a lista está em loading (H1 do gate da Rodada 5: o lote em
+          // andamento mantém a seleção — para repetir só as recusadas — e um 2º
+          // clique disparava outro lote igual em paralelo).
           if (state.status == 'A' && CurrentInterface.can('FATURAR'))
             IconButton(
               icon: Badge(
@@ -205,7 +205,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 child: const Icon(Icons.receipt_long_outlined),
               ),
               tooltip: 'forms.serviceOrder.batchInvoice'.tr(),
-              onPressed: _selected.isEmpty ? null : _invoiceSelected,
+              onPressed: _selected.isEmpty || state.loading
+                  ? null
+                  : _invoiceSelected,
             ),
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
@@ -280,14 +282,11 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// LOTE (D6/D7): as condições são as MESMAS para todas as marcadas — o
   /// dialog é o do faturamento avulso, porque a decisão é a mesma (forma,
   /// parcelas, vencimento). Quem precisa de forma diferente faz dois lotes.
+  /// D27: não há teto na tela — o bloc fatia a seleção em blocos do tamanho
+  /// que a API aceita e agrega os relatórios.
   Future<void> _invoiceSelected() async {
     final ids = _selected.toList()..sort();
     if (ids.isEmpty) return;
-    if (ids.length > _batchLimit) {
-      showValidationFeedback(context,
-          'forms.serviceOrder.batchTooMany'.tr(args: ['$_batchLimit']));
-      return;
-    }
     final input = await showDialog<ServiceOrderInvoiceInput>(
       context: context,
       builder: (_) =>
@@ -321,10 +320,23 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                     .tr(args: ['${report.failed}'])),
                 // "faturada" não quer dizer "cobrada": contenção, carteira
                 // ausente ou duplicada deixam a nota sem baixa e sem boleto.
+                // D26: a cobrança PARCIAL (1 de 3 parcelas) também conta.
                 if (report.uncharged > 0) ...[
                   const SizedBox(height: 4),
                   SetesText('forms.serviceOrder.batchUncharged'
                       .tr(args: ['${report.uncharged}'])),
+                ],
+                if (report.partiallyCharged > 0) ...[
+                  const SizedBox(height: 4),
+                  SetesText('forms.serviceOrder.batchPartiallyCharged'
+                      .tr(args: ['${report.partiallyCharged}'])),
+                ],
+                // D25/D27: recusadas que valem repetir — a API já tentou de
+                // novo a contenção uma vez; daqui em diante é o operador.
+                if (report.retryable > 0) ...[
+                  const SizedBox(height: 4),
+                  SetesText('forms.serviceOrder.batchRetryable'
+                      .tr(args: ['${report.retryable}'])),
                 ],
                 // D13: com o vencimento vindo do contrato de cada ordem, as
                 // datas DIVERGEM — o operador precisa ver qual ordem ficou
@@ -337,12 +349,22 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                   for (final linha in faturadas)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: SetesText('forms.serviceOrder.batchInvoicedRow'
-                          .tr(args: [
-                        '${linha.orderId}',
-                        isoDateToDisplay(linha.dtExpiration),
-                        linha.invoiceNumber,
-                      ])),
+                      // D26: linha cobrada por inteiro fica como sempre; a
+                      // parcial (ou não cobrada) mostra "cobradas x/n".
+                      child: SetesText(linha.uncharged
+                          ? 'forms.serviceOrder.batchInvoicedRowCharged'
+                              .tr(args: [
+                              '${linha.orderId}',
+                              isoDateToDisplay(linha.dtExpiration),
+                              linha.invoiceNumber,
+                              '${linha.chargedParcels}',
+                              '${linha.chargeableParcels}',
+                            ])
+                          : 'forms.serviceOrder.batchInvoicedRow'.tr(args: [
+                              '${linha.orderId}',
+                              isoDateToDisplay(linha.dtExpiration),
+                              linha.invoiceNumber,
+                            ])),
                     ),
                 ],
                 if (recusadas.isNotEmpty) ...[
@@ -352,8 +374,11 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                   for (final linha in recusadas)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: SetesText('forms.serviceOrder.batchRefusedRow'
-                          .tr(args: ['${linha.orderId}', linha.error])),
+                      child: SetesText(linha.retryable
+                          ? 'forms.serviceOrder.batchRefusedRowRetry'
+                              .tr(args: ['${linha.orderId}', linha.error])
+                          : 'forms.serviceOrder.batchRefusedRow'
+                              .tr(args: ['${linha.orderId}', linha.error])),
                     ),
                 ],
               ],
@@ -1196,11 +1221,13 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
                   .tr(args: ['forms.serviceOrder.paymentType'.tr()])
               : null,
         ),
-      _DialogCheck(
-        validate: () => _validateParcels(_parcels.text),
-        focusNode: _parcelsFocus,
-        fieldKey: _parcelsKey,
-      ),
+      // D30: no LOTE não há parcelas (cobrança recorrente = 1 parcela).
+      if (!_isBatch)
+        _DialogCheck(
+          validate: () => _validateParcels(_parcels.text),
+          focusNode: _parcelsFocus,
+          fieldKey: _parcelsKey,
+        ),
       if (!_useContractDue)
         _DialogCheck(
           validate: () => _validateDtExpiration(_dtExpiration.text),
@@ -1214,7 +1241,9 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
       dtExpiration:  _useContractDue ? '' : displayDateToIso(_dtExpiration.text)!,
       // D14: 0 = "cada ordem com a forma do seu contrato" (não viaja no JSON).
       paymentTypeId: _useContractDue ? 0 : _paymentTypeId!,
-      parcels:       int.parse(_parcels.text.trim()),
+      // D30 (Valdo 2026-09-19): cobrança recorrente é sempre 1 parcela; o
+      // parcelamento é do faturamento individual da ordem.
+      parcels:       _isBatch ? 1 : int.parse(_parcels.text.trim()),
     ));
   }
 
@@ -1237,15 +1266,18 @@ class _InvoiceDialogState extends State<_InvoiceDialog> {
                 ),
                 const SizedBox(height: 16),
               ],
-              SetesTextField(
-                label: 'forms.serviceOrder.parcels'.tr(),
-                controller: _parcels,
-                focusNode: _parcelsFocus,
-                fieldKey: _parcelsKey,
-                keyboardType: TextInputType.number,
-                validator: (value) => _validateParcels(value)?.tr(),
-              ),
-              const SizedBox(height: 16),
+              // D30: o campo de parcelas só existe no faturamento individual.
+              if (!_isBatch) ...[
+                SetesTextField(
+                  label: 'forms.serviceOrder.parcels'.tr(),
+                  controller: _parcels,
+                  focusNode: _parcelsFocus,
+                  fieldKey: _parcelsKey,
+                  keyboardType: TextInputType.number,
+                  validator: (value) => _validateParcels(value)?.tr(),
+                ),
+                const SizedBox(height: 16),
+              ],
               // D13: no LOTE o padrão é cada ordem vencer no dia do SEU
               // contrato; informar data é sobrepor isso para todas.
               if (_isBatch)

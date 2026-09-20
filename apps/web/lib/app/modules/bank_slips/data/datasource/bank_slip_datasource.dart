@@ -28,6 +28,12 @@ abstract class BankSlipDatasource {
 
   /// Estorna a liquidação (evento X) — 409 BANK_SLIP_NOT_SETTLED.
   Future<BankSlipReverseResult> reverse(int id, String reason);
+
+  /// Onda 2 — registro no banco, consulta, PDF oficial e consulta ativa.
+  Future<BankSlipRegisterResult> register(int id);
+  Future<BankSlipRefreshResult> refresh(int id);
+  Future<String> pdf(int id);
+  Future<BankSlipBankSyncReport> bankSync();
 }
 
 class BankSlipDatasourceImpl implements BankSlipDatasource {
@@ -87,5 +93,29 @@ class BankSlipDatasourceImpl implements BankSlipDatasource {
     });
     return BankSlipReverseResult.fromJson(
         json['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<BankSlipRegisterResult> register(int id) async {
+    final json = await client.post('/api/bank-slips/$id/register', const {});
+    return BankSlipRegisterResult.fromJson(json['data'] as Map<String, dynamic>? ?? const {});
+  }
+
+  @override
+  Future<BankSlipRefreshResult> refresh(int id) async {
+    final json = await client.post('/api/bank-slips/$id/refresh', const {});
+    return BankSlipRefreshResult.fromJson(json['data'] as Map<String, dynamic>? ?? const {});
+  }
+
+  @override
+  Future<String> pdf(int id) async {
+    final json = await client.get('/api/bank-slips/$id/pdf');
+    return (json['data'] as Map<String, dynamic>? ?? const {})['pdfBase64']?.toString() ?? '';
+  }
+
+  @override
+  Future<BankSlipBankSyncReport> bankSync() async {
+    final json = await client.post('/api/bank-slips/refresh', const {});
+    return BankSlipBankSyncReport.fromJson(json['data'] as Map<String, dynamic>? ?? const {});
   }
 }

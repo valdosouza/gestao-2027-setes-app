@@ -48,3 +48,27 @@ String bankSlipEventSourceLabel(String? source) => switch (source) {
       'A' => 'forms.bankSlip.sourceApi'.tr(),
       _ => source ?? '',
     };
+
+/// Onda 2 — kind da VOZ DO BANCO → rótulo i18n (null = enviado, sem resposta).
+String bankSlipRegistrationKindLabel(String? kind) => switch (kind) {
+      BankSlipRegistrationKind.sent => 'forms.bankSlip.regSent'.tr(),
+      BankSlipRegistrationKind.registered => 'forms.bankSlip.regRegistered'.tr(),
+      BankSlipRegistrationKind.received => 'forms.bankSlip.regReceived'.tr(),
+      BankSlipRegistrationKind.markedReceived => 'forms.bankSlip.regMarkedReceived'.tr(),
+      BankSlipRegistrationKind.overdue => 'forms.bankSlip.regOverdue'.tr(),
+      BankSlipRegistrationKind.protest => 'forms.bankSlip.regProtest'.tr(),
+      BankSlipRegistrationKind.cancelled => 'forms.bankSlip.regCancelled'.tr(),
+      BankSlipRegistrationKind.expired => 'forms.bankSlip.regExpired'.tr(),
+      BankSlipRegistrationKind.failed => 'forms.bankSlip.regFailed'.tr(),
+      BankSlipRegistrationKind.cancelRequested => 'forms.bankSlip.regCancelRequested'.tr(),
+      null => 'forms.bankSlip.regInFlight'.tr(),
+      _ => kind,
+    };
+
+/// Origem da fala do banco (W webhook · Q consulta · P resposta direta).
+String bankSlipRegistrationSourceLabel(String? source) => switch (source) {
+      'W' => 'forms.bankSlip.srcWebhook'.tr(),
+      'Q' => 'forms.bankSlip.srcQuery'.tr(),
+      'P' => 'forms.bankSlip.srcDirect'.tr(),
+      _ => source ?? '',
+    };

@@ -1,6 +1,9 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:setes_widgets/setes_widgets.dart';
+
+import '../../../../shared/feedback/feedback.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/form_pendency.dart';
@@ -24,6 +27,9 @@ class BankSlipDetailView extends StatelessWidget {
     required this.onSettle,
     required this.onCancel,
     required this.onReverse,
+    required this.onRegister,
+    required this.onRefresh,
+    required this.onPdf,
     super.key,
   });
 
@@ -34,6 +40,11 @@ class BankSlipDetailView extends StatelessWidget {
   final void Function(double paidValue, String dtPayment) onSettle;
   final void Function(String? note) onCancel;
   final void Function(String reason) onReverse;
+
+  /// Onda 2 — o boleto no BANCO: apresentar, consultar e PDF oficial.
+  final VoidCallback onRegister;
+  final VoidCallback onRefresh;
+  final VoidCallback onPdf;
 
   Future<void> _openSettleDialog(BuildContext context) async {
     final result = await showDialog<(double, String)>(
@@ -194,6 +205,141 @@ class BankSlipDetailView extends StatelessWidget {
     );
   }
 
+  Future<void> _copy(BuildContext context, String text, String doneKey) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (context.mounted) await showSuccessFeedback(context, doneKey);
+  }
+
+  /// Onda 2 — seção "No banco": apresentação vigente (situação, código,
+  /// linha digitável/Pix com copiar), PENDÊNCIAS (recebido no banco sem
+  /// liquidar aqui — D-I10), ações e a voz do banco em linha do tempo.
+  Widget _buildBankSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final reg = slip.lastRegistration;
+    final refused = slip.refusedEffects;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        SetesText.title('forms.bankSlip.bankSection'.tr()),
+        const SizedBox(height: 8),
+        SetesCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (reg == null)
+                _row('forms.bankSlip.bankNotRegistered'.tr())
+              else ...[
+                _row('forms.bankSlip.bankAttemptRow'.tr(args: [
+                  '${reg.attempt}',
+                  reg.environment == 'P'
+                      ? 'forms.bankSlip.envProduction'.tr()
+                      : 'forms.bankSlip.envSandbox'.tr(),
+                ])),
+                _row('forms.bankSlip.bankStatusRow'.tr(args: [
+                  bankSlipRegistrationKindLabel(reg.lastKind),
+                  reg.lastBankStatus ?? '',
+                ])),
+                if (reg.requestCode != null)
+                  _row('forms.bankSlip.bankRequestCodeRow'.tr(args: [reg.requestCode!])),
+                if (reg.bankOurNumber != null)
+                  _row('forms.bankSlip.bankOurNumberRow'.tr(args: [reg.bankOurNumber!])),
+                if (reg.digitableLine != null)
+                  SetesTextField(
+                    label: 'forms.bankSlip.digitableLine'.tr(),
+                    controller: TextEditingController(text: reg.digitableLine),
+                    readOnly: true,
+                    suffixIcon: Icons.copy,
+                    onSuffixPressed: () =>
+                        _copy(context, reg.digitableLine!, 'forms.bankSlip.copied'),
+                  ),
+                if (reg.pixCopyPaste != null) ...[
+                  const SizedBox(height: 8),
+                  SetesTextField(
+                    label: 'forms.bankSlip.pixCopyPaste'.tr(),
+                    controller: TextEditingController(text: reg.pixCopyPaste),
+                    readOnly: true,
+                    suffixIcon: Icons.copy,
+                    onSuffixPressed: () =>
+                        _copy(context, reg.pixCopyPaste!, 'forms.bankSlip.copied'),
+                  ),
+                ],
+              ],
+              for (final p in refused)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SetesText(
+                    'forms.bankSlip.bankPendingRow'.tr(args: [
+                      isoDateToDisplay(p.dtBankStatus?.substring(0, 10)),
+                      p.paidValue == null ? '' : setesMoney(p.paidValue!),
+                      p.message ?? '',
+                    ]),
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (slip.isOpen && !slip.hasLiveRegistration)
+                    SetesButton(
+                      label: 'forms.bankSlip.register'.tr(),
+                      icon: Icons.cloud_upload_outlined,
+                      loading: saving,
+                      onPressed: saving ? null : onRegister,
+                    ),
+                  if (reg != null && reg.requestCode != null)
+                    SetesButton(
+                      label: 'forms.bankSlip.refresh'.tr(),
+                      icon: Icons.sync,
+                      kind: SetesButtonKind.secondary,
+                      loading: saving,
+                      onPressed: saving ? null : onRefresh,
+                    ),
+                  if (reg != null && reg.requestCode != null)
+                    SetesButton(
+                      label: 'forms.bankSlip.pdf'.tr(),
+                      icon: Icons.picture_as_pdf_outlined,
+                      kind: SetesButtonKind.secondary,
+                      loading: saving,
+                      onPressed: saving ? null : onPdf,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (slip.registrationEvents.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          SetesText.title('forms.bankSlip.bankEvents'.tr()),
+          const SizedBox(height: 8),
+          for (final e in slip.registrationEvents) ...[
+            _buildRegistrationEventTile(e),
+            const Divider(height: 1),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRegistrationEventTile(BankSlipRegistrationEvent e) {
+    final cells = [
+      'forms.bankSlip.bankAttemptShort'.tr(args: ['${e.attempt}']),
+      if (e.dtBankStatus != null) isoDateToDisplay(e.dtBankStatus!.substring(0, 10)),
+      bankSlipRegistrationSourceLabel(e.source),
+      if (e.bankStatus != null && e.bankStatus!.isNotEmpty) e.bankStatus!,
+      if (e.paidValue != null) 'forms.bankSlip.paidRow'.tr(args: [setesMoney(e.paidValue!)]),
+      if (e.slipEvent != null) 'forms.bankSlip.bankEffectRow'.tr(args: ['${e.slipEvent}']),
+      if (e.message != null && e.message!.isNotEmpty) e.message!,
+    ].where((c) => c.isNotEmpty);
+    return SetesListTile(
+      leading: CircleAvatar(child: SetesText('${e.event}')),
+      title: SetesText(bankSlipRegistrationKindLabel(e.kind)),
+      subtitle: SetesText(cells.join(' · ')),
+    );
+  }
+
   /// Linha do tempo: kind traduzido + data/origem + detalhes do evento
   /// (código da baixa, valor pago, evento de origem do estorno, nota).
   Widget _buildEventTile(BankSlipEventRow event) {
@@ -260,6 +406,7 @@ class BankSlipDetailView extends StatelessWidget {
               _buildEventTile(event),
               const Divider(height: 1),
             ],
+            _buildBankSection(context),
             const SizedBox(height: 24),
             // Ações por ESTADO: aberto = Baixar; liquidado = Estornar;
             // cancelado = nada (somente leitura).

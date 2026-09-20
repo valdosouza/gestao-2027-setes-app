@@ -9,6 +9,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/web/open_data_url.dart';
 import '../../data/datasource/bank_slip_lookup_datasource.dart';
 import '../../domain/entity/bank_slip_entity.dart';
 import '../bloc/bank_slip_bloc.dart';
@@ -53,8 +54,11 @@ class _BankSlipPageState extends State<BankSlipPage>
   @override
   void initState() {
     super.initState();
+    // Onda 2 (D-I9): ao abrir a tela, consulta ativa THROTTLED das apresentações
+    // vivas (o webhook só liga na Onda 4) — silenciosa; o evento recarrega a lista.
     _bloc = Modular.get<BankSlipBloc>()
-      ..add(const BankSlipListRequested(status: BankSlipStatus.open, filter: ''));
+      ..add(const BankSlipListRequested(status: BankSlipStatus.open, filter: ''))
+      ..add(const BankSlipBankSyncRequested());
     _lookup = Modular.get<BankSlipLookupDatasource>();
     _tabs = TabController(length: _statuses.length, vsync: this);
     _tabs.addListener(() {
@@ -137,8 +141,14 @@ class _BankSlipPageState extends State<BankSlipPage>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
-        actions: const [
-          RegisterConfigButton(moduleKey: 'bank-slips'),
+        actions: [
+          // Onda 2: "Atualizar com o banco" — consulta ativa com resumo
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'forms.bankSlip.bankSync'.tr(),
+            onPressed: () => _bloc.add(const BankSlipBankSyncRequested(announce: true)),
+          ),
+          const RegisterConfigButton(moduleKey: 'bank-slips'),
         ],
       ),
       // FAB = Emitir boleto (padrão Icons.add da tela de pesquisa)
@@ -216,7 +226,19 @@ class _BankSlipPageState extends State<BankSlipPage>
             _bloc.add(BankSlipCancelRequested(slip: state.slip, note: note)),
         onReverse: (reason) => _bloc
             .add(BankSlipReverseRequested(slip: state.slip, reason: reason)),
+        onRegister: () => _bloc.add(BankSlipRegisterRequested(state.slip)),
+        onRefresh: () => _bloc.add(BankSlipRefreshRequested(state.slip)),
+        onPdf: () => _bloc.add(BankSlipPdfRequested(state.slip)),
       );
+
+  /// PDF oficial do banco → nova aba (Flutter Web). Sem navegador, avisa.
+  Future<void> _openPdf(String base64) async {
+    if (base64.isEmpty || !await openBase64InNewTab(base64)) {
+      if (mounted) {
+        showValidationFeedback(context, 'forms.bankSlip.pdfUnavailable'.tr());
+      }
+    }
+  }
 
   Widget _buildDetailLoading() => Scaffold(
         appBar: AppBar(
@@ -235,7 +257,8 @@ class _BankSlipPageState extends State<BankSlipPage>
         bloc: _bloc,
         listenWhen: (_, current) =>
             current is BankSlipActionSuccess ||
-            current is BankSlipActionFailure,
+            current is BankSlipActionFailure ||
+            current is BankSlipPdfReady,
         // PONTE de feedback (Framework de Mensagens): a tela nunca chama
         // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
         // via ponte (R1); falha = dialog (os 409 de negócio — título já
@@ -244,6 +267,10 @@ class _BankSlipPageState extends State<BankSlipPage>
         // name do payload (dtExpiration/agreementId/titles — o dialog de
         // emissão já fechou, sem campo montado para focar).
         listener: (context, state) {
+          if (state is BankSlipPdfReady) {
+            _openPdf(state.pdfBase64);
+            return;
+          }
           if (state is BankSlipActionSuccess) {
             showSuccessFeedback(context, state.messageKey,
                 args: state.args.isEmpty ? null : state.args);

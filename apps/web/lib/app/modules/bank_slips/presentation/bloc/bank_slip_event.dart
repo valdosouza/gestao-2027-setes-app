@@ -93,3 +93,41 @@ class BankSlipReverseRequested extends BankSlipEvent {
   @override
   List<Object?> get props => [slip, reason];
 }
+
+/// Onda 2: apresentar o boleto do detalhe ao BANCO (POST /:id/register).
+class BankSlipRegisterRequested extends BankSlipEvent {
+  const BankSlipRegisterRequested(this.slip);
+  final BankSlipFull slip;
+
+  @override
+  List<Object?> get props => [slip];
+}
+
+/// Onda 2: consultar o banco sobre a apresentação vigente (POST /:id/refresh).
+class BankSlipRefreshRequested extends BankSlipEvent {
+  const BankSlipRefreshRequested(this.slip);
+  final BankSlipFull slip;
+
+  @override
+  List<Object?> get props => [slip];
+}
+
+/// Onda 2: PDF oficial do banco (GET /:id/pdf) — abre em nova aba.
+class BankSlipPdfRequested extends BankSlipEvent {
+  const BankSlipPdfRequested(this.slip);
+  final BankSlipFull slip;
+
+  @override
+  List<Object?> get props => [slip];
+}
+
+/// Onda 2: consulta ativa THROTTLED de todas as apresentações vivas
+/// (POST /refresh). [announce] = pedido do operador (resumo na ponte);
+/// false = ao abrir a tela (silenciosa, só avisa se algo mudou).
+class BankSlipBankSyncRequested extends BankSlipEvent {
+  const BankSlipBankSyncRequested({this.announce = false});
+  final bool announce;
+
+  @override
+  List<Object?> get props => [announce];
+}

@@ -296,46 +296,99 @@ class BatchInvoiceEntry extends Equatable {
     required this.orderId,
     required this.ok,
     this.dtExpiration = '',
+    this.paymentTypeId = 0,
     this.invoiceNumber = '',
     this.totalValue = 0,
     this.autoSettled = 0,
     this.bankSlipsIssued = 0,
+    this.chargedParcels = 0,
+    this.chargeableParcels = 0,
     this.error = '',
     this.code = '',
+    this.retryable = false,
   });
+
+  /// Linha que a TELA fabrica quando um bloco do lote nem chegou à API (D27:
+  /// a seleção é fatiada em blocos e um bloco pode falhar inteiro — sem
+  /// privilégio, sem rede). As ordens dele entram no relatório como recusadas
+  /// com o motivo da falha, para o relatório continuar sendo a prova completa.
+  const BatchInvoiceEntry.aborted({required this.orderId, required this.error})
+      : ok = false,
+        dtExpiration = '',
+        paymentTypeId = 0,
+        invoiceNumber = '',
+        totalValue = 0,
+        autoSettled = 0,
+        bankSlipsIssued = 0,
+        chargedParcels = 0,
+        chargeableParcels = 0,
+        code = abortedCode,
+        retryable = true;
+
+  /// Código local (não vem da API) da linha de bloco interrompido.
+  static const abortedCode = 'BATCH_ABORTED';
 
   final int    orderId;
   final bool   ok;
 
   /// Vencimento REALMENTE usado nesta ordem — com a D13 ele varia por cliente.
   final String dtExpiration;
+
+  /// Forma REALMENTE usada nesta ordem (D14 — varia por cliente; 0 = não veio).
+  final int    paymentTypeId;
   final String invoiceNumber;
   final double totalValue;
 
   /// O que a automação fez nesta ordem (baixa por contrato × boleto).
   final int    autoSettled;
   final int    bankSlipsIssued;
+
+  /// D26 (Q-P5): cobrança POR PARCELA — `chargedParcels` de `chargeableParcels`.
+  /// Menor que o total = cobrança PARCIAL (nota de 3 parcelas com 1 boleto).
+  final int    chargedParcels;
+  final int    chargeableParcels;
   final String error;
   final String code;
+
+  /// D25 (Q-P3): recusada por contenção que a passada extra da API não
+  /// resolveu — "tente de novo" é do operador (a linha fica marcada).
+  final bool   retryable;
+
+  /// Faturada mas com alguma parcela sem baixa e sem boleto (D26).
+  bool get uncharged => ok && chargedParcels < chargeableParcels;
+
+  /// Cobrança parcial: alguma parcela cobrada, alguma não (D26).
+  bool get partiallyCharged =>
+      ok && chargedParcels > 0 && chargedParcels < chargeableParcels;
 
   factory BatchInvoiceEntry.fromJson(Map<String, dynamic> json) =>
       BatchInvoiceEntry(
         orderId:       jsonInt(json['orderId']) ?? 0,
         ok:            json['ok'] == true,
         dtExpiration:  json['dtExpiration'] as String? ?? '',
+        paymentTypeId: jsonInt(json['paymentTypeId']) ?? 0,
         invoiceNumber: json['invoiceNumber']?.toString() ?? '',
         totalValue:    jsonDouble(json['totalValue']) ?? 0,
         autoSettled:     jsonInt(json['autoSettled']) ?? 0,
         bankSlipsIssued: jsonInt(json['bankSlipsIssued']) ?? 0,
+        chargedParcels:    jsonInt(json['chargedParcels']) ?? 0,
+        chargeableParcels: jsonInt(json['chargeableParcels']) ?? 0,
         error:         json['error'] as String? ?? '',
         code:          json['code'] as String? ?? '',
+        retryable:     json['retryable'] == true,
       );
 
   @override
   List<Object?> get props =>
-      [orderId, ok, dtExpiration, invoiceNumber, totalValue, autoSettled,
-       bankSlipsIssued, error, code];
+      [orderId, ok, dtExpiration, paymentTypeId, invoiceNumber, totalValue,
+       autoSettled, bankSlipsIssued, chargedParcels, chargeableParcels, error,
+       code, retryable];
 }
+
+/// D27 (Q-P6, Valdo 2026-09-19): teto de ordens por REQUISIÇÃO na API. A
+/// tela não recusa seleção maior — fatia em blocos deste tamanho, chama a API
+/// bloco a bloco e AGREGA os relatórios ([BatchInvoiceReport.merge]).
+const int batchInvoiceChunkSize = 50;
 
 /// Relatório do lote (POST /batch-invoice). A API responde 200 mesmo com
 /// falhas parciais — quem diz o que aconteceu é [failed] e [results].
@@ -345,6 +398,8 @@ class BatchInvoiceReport extends Equatable {
     this.invoiced = 0,
     this.failed = 0,
     this.uncharged = 0,
+    this.partiallyCharged = 0,
+    this.retryable = 0,
     this.results = const [],
   });
 
@@ -352,9 +407,16 @@ class BatchInvoiceReport extends Equatable {
   final int invoiced;
   final int failed;
 
-  /// Faturadas que NÃO geraram baixa nem boleto — "faturada" não quer dizer
-  /// "cobrada" (gate adversarial da Onda 1).
+  /// Faturadas com QUALQUER parcela sem baixa e sem boleto — "faturada" não
+  /// quer dizer "cobrada" (gate adversarial da Onda 1); D26: a parcial conta.
   final int uncharged;
+
+  /// Subconjunto de [uncharged] com cobrança PARCIAL (D26).
+  final int partiallyCharged;
+
+  /// Recusadas que valem repetir (D25: contenção que a passada extra não
+  /// resolveu; D27: bloco que nem chegou à API).
+  final int retryable;
   final List<BatchInvoiceEntry> results;
 
   factory BatchInvoiceReport.fromJson(Map<String, dynamic> json) =>
@@ -363,13 +425,36 @@ class BatchInvoiceReport extends Equatable {
         invoiced:  jsonInt(json['invoiced']) ?? 0,
         failed:    jsonInt(json['failed']) ?? 0,
         uncharged: jsonInt(json['uncharged']) ?? 0,
+        partiallyCharged: jsonInt(json['partiallyCharged']) ?? 0,
+        retryable: jsonInt(json['retryable']) ?? 0,
         results: (json['results'] as List<dynamic>? ?? [])
             .map((e) => BatchInvoiceEntry.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 
+  /// Relatório derivado só das LINHAS — é como a tela agrega os blocos (D27)
+  /// e como fabrica o relatório de um bloco interrompido. Os contadores são
+  /// sempre recontados das linhas, nunca somados dos parciais: a fonte é uma.
+  factory BatchInvoiceReport.fromEntries(List<BatchInvoiceEntry> entries) =>
+      BatchInvoiceReport(
+        requested: entries.length,
+        invoiced:  entries.where((e) => e.ok).length,
+        failed:    entries.where((e) => !e.ok).length,
+        uncharged: entries.where((e) => e.uncharged).length,
+        partiallyCharged: entries.where((e) => e.partiallyCharged).length,
+        retryable: entries.where((e) => !e.ok && e.retryable).length,
+        results:   List.unmodifiable(entries),
+      );
+
+  /// Agrega os relatórios dos blocos na ORDEM em que rodaram (D27).
+  static BatchInvoiceReport merge(Iterable<BatchInvoiceReport> parts) =>
+      BatchInvoiceReport.fromEntries(
+          [for (final p in parts) ...p.results]);
+
   @override
-  List<Object?> get props => [requested, invoiced, failed, uncharged, results];
+  List<Object?> get props =>
+      [requested, invoiced, failed, uncharged, partiallyCharged, retryable,
+       results];
 }
 
 /// Cliente para o lookup do Abrir OS (GET /api/customers — projeção

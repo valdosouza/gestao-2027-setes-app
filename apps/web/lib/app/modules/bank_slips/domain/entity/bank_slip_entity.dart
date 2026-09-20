@@ -15,13 +15,229 @@ abstract final class BankSlipStatus {
   static const cancelled = 'cancelled';
 }
 
-/// Kinds dos eventos desta onda (D4): E emitido · L liquidado ·
-/// C cancelado · X estornado (S/G reservados ao canal CNAB).
+/// Kinds dos eventos do boleto: E emitido · L liquidado · C cancelado ·
+/// X estornado. A reserva S/G/A da D4 foi LIBERADA na Onda 2 (D-I5): a voz do
+/// banco vive em tabela própria ([BankSlipRegistrationEvent]); o boleto só
+/// recebe L/C com source 'A'.
 abstract final class BankSlipEventKind {
   static const issued = 'E';
   static const settled = 'L';
   static const cancelled = 'C';
   static const reversed = 'X';
+}
+
+/// Kinds da VOZ DO BANCO sobre uma apresentação (Onda 2 — migration 055):
+/// S enviado · G registrado · R recebido · M marcado recebido · A atrasado ·
+/// P protesto · C cancelado no banco · V expirado · F falha · K cancelamento
+/// solicitado por nós.
+abstract final class BankSlipRegistrationKind {
+  static const sent = 'S';
+  static const registered = 'G';
+  static const received = 'R';
+  static const markedReceived = 'M';
+  static const overdue = 'A';
+  static const protest = 'P';
+  static const cancelled = 'C';
+  static const expired = 'V';
+  static const failed = 'F';
+  static const cancelRequested = 'K';
+
+  /// Apresentação encerrada — o banco não dirá mais nada útil sobre ela.
+  static const finals = {received, cancelled, expired, failed};
+}
+
+/// Apresentação do boleto ao banco (1 boleto × N tentativas — D16/D-I12):
+/// espelho de tb_bank_slip_registration. Linha digitável/Pix são write-once
+/// (chegam na consulta, nunca mudam).
+class BankSlipRegistration extends Equatable {
+  const BankSlipRegistration({
+    required this.attempt,
+    this.environment = 'S',
+    this.requestCode,
+    this.bankOurNumber,
+    this.digitableLine,
+    this.barcode,
+    this.pixCopyPaste,
+    this.pixTxid,
+    this.createdAt,
+    this.lastKind,
+    this.lastBankStatus,
+    this.lastDtBankStatus,
+  });
+
+  final int     attempt;
+  final String  environment;
+  final String? requestCode;
+  final String? bankOurNumber;
+  final String? digitableLine;
+  final String? barcode;
+  final String? pixCopyPaste;
+  final String? pixTxid;
+  final String? createdAt;
+  final String? lastKind;
+  final String? lastBankStatus;
+  final String? lastDtBankStatus;
+
+  /// Vigente = último evento NÃO final (ou envio em andamento).
+  bool get isLive => !BankSlipRegistrationKind.finals.contains(lastKind ?? '');
+
+  /// Enviado mas ainda sem código nem resposta (envio em andamento/interrompido).
+  bool get inFlight => requestCode == null && lastKind == null;
+
+  factory BankSlipRegistration.fromJson(Map<String, dynamic> json) =>
+      BankSlipRegistration(
+        attempt:          jsonInt(json['attempt']) ?? 0,
+        environment:      json['environment'] as String? ?? 'S',
+        requestCode:      json['requestCode'] as String?,
+        bankOurNumber:    json['bankOurNumber'] as String?,
+        digitableLine:    json['digitableLine'] as String?,
+        barcode:          json['barcode'] as String?,
+        pixCopyPaste:     json['pixCopyPaste'] as String?,
+        pixTxid:          json['pixTxid'] as String?,
+        createdAt:        json['createdAt'] as String?,
+        lastKind:         json['lastKind'] as String?,
+        lastBankStatus:   json['lastBankStatus'] as String?,
+        lastDtBankStatus: json['lastDtBankStatus'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [
+        attempt, environment, requestCode, bankOurNumber, digitableLine, barcode,
+        pixCopyPaste, pixTxid, createdAt, lastKind, lastBankStatus, lastDtBankStatus,
+      ];
+}
+
+/// Uma fala do banco sobre uma apresentação (append-only). [slipEvent] liga a
+/// causa ao efeito no boleto (L/C); R sem slipEvent = efeito RECUSADO pelas
+/// nossas regras — pendência que a tela precisa mostrar (D-I10).
+class BankSlipRegistrationEvent extends Equatable {
+  const BankSlipRegistrationEvent({
+    required this.attempt,
+    required this.event,
+    required this.kind,
+    this.bankStatus,
+    this.dtBankStatus,
+    this.source,
+    this.paidValue,
+    this.paidBy,
+    this.slipEvent,
+    this.message,
+    this.createdAt,
+  });
+
+  final int     attempt;
+  final int     event;
+  final String  kind;
+  final String? bankStatus;
+  final String? dtBankStatus;
+
+  /// 'W' webhook · 'Q' consulta · 'P' resposta direta ao nosso pedido.
+  final String? source;
+  final double? paidValue;
+
+  /// 'B' boleto · 'X' pix.
+  final String? paidBy;
+  final int?    slipEvent;
+  final String? message;
+  final String? createdAt;
+
+  /// RECEBIDO no banco sem liquidação aqui — a nossa regra recusou (D-I10).
+  bool get effectRefused =>
+      kind == BankSlipRegistrationKind.received && slipEvent == null;
+
+  factory BankSlipRegistrationEvent.fromJson(Map<String, dynamic> json) =>
+      BankSlipRegistrationEvent(
+        attempt:      jsonInt(json['attempt']) ?? 0,
+        event:        jsonInt(json['event']) ?? 0,
+        kind:         json['kind'] as String? ?? '',
+        bankStatus:   json['bankStatus'] as String?,
+        dtBankStatus: json['dtBankStatus'] as String?,
+        source:       json['source'] as String?,
+        paidValue:    jsonDouble(json['paidValue']),
+        paidBy:       json['paidBy'] as String?,
+        slipEvent:    jsonInt(json['slipEvent']),
+        message:      json['message'] as String?,
+        createdAt:    json['createdAt'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [
+        attempt, event, kind, bankStatus, dtBankStatus, source, paidValue, paidBy,
+        slipEvent, message, createdAt,
+      ];
+}
+
+/// Resultado do registro no banco (POST /:id/register).
+class BankSlipRegisterResult extends Equatable {
+  const BankSlipRegisterResult({required this.attempt, this.requestCode = '', this.environment = 'S'});
+
+  final int    attempt;
+  final String requestCode;
+  final String environment;
+
+  factory BankSlipRegisterResult.fromJson(Map<String, dynamic> json) =>
+      BankSlipRegisterResult(
+        attempt:     jsonInt(json['attempt']) ?? 0,
+        requestCode: json['requestCode']?.toString() ?? '',
+        environment: json['environment'] as String? ?? 'S',
+      );
+
+  @override
+  List<Object?> get props => [attempt, requestCode, environment];
+}
+
+/// Resultado da consulta (POST /:id/refresh).
+class BankSlipRefreshResult extends Equatable {
+  const BankSlipRefreshResult({
+    this.changed = false,
+    this.kind,
+    this.bankStatus = '',
+    this.slipEvent,
+    this.effectRefused,
+  });
+
+  final bool    changed;
+  final String? kind;
+  final String  bankStatus;
+  final int?    slipEvent;
+  final String? effectRefused;
+
+  factory BankSlipRefreshResult.fromJson(Map<String, dynamic> json) =>
+      BankSlipRefreshResult(
+        changed:       json['changed'] == true,
+        kind:          json['kind'] as String?,
+        bankStatus:    json['bankStatus'] as String? ?? '',
+        slipEvent:     jsonInt(json['slipEvent']),
+        effectRefused: json['effectRefused'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [changed, kind, bankStatus, slipEvent, effectRefused];
+}
+
+/// Relatório da consulta ativa (POST /refresh).
+class BankSlipBankSyncReport extends Equatable {
+  const BankSlipBankSyncReport({
+    this.checked = 0, this.changed = 0, this.reconciled = 0, this.errors = 0, this.stoppedEarly = false,
+  });
+
+  final int checked;
+  final int changed;
+  final int reconciled;
+  final int errors;
+  final bool stoppedEarly;
+
+  factory BankSlipBankSyncReport.fromJson(Map<String, dynamic> json) =>
+      BankSlipBankSyncReport(
+        checked:      jsonInt(json['checked']) ?? 0,
+        changed:      jsonInt(json['changed']) ?? 0,
+        reconciled:   jsonInt(json['reconciled']) ?? 0,
+        errors:       (json['errors'] as List<dynamic>?)?.length ?? 0,
+        stoppedEarly: json['stoppedEarly'] == true,
+      );
+
+  @override
+  List<Object?> get props => [checked, changed, reconciled, errors, stoppedEarly];
 }
 
 /// Linha da lista (GET /api/bank-slips) — cabeçalho resumido + estado.
@@ -201,6 +417,8 @@ class BankSlipFull extends BankSlipListRow {
     this.protestDays,
     this.titleRows = const [],
     this.events = const [],
+    this.registrations = const [],
+    this.registrationEvents = const [],
   });
 
   final int     agreementId;
@@ -219,6 +437,21 @@ class BankSlipFull extends BankSlipListRow {
   final int?    protestDays;
   final List<BankSlipTitleRow> titleRows;
   final List<BankSlipEventRow>    events;
+
+  /// Onda 2: apresentações ao banco e a voz dele (vazias = nunca registrado).
+  final List<BankSlipRegistration>      registrations;
+  final List<BankSlipRegistrationEvent> registrationEvents;
+
+  /// Última apresentação (a que a tela mostra); null = nunca registrado.
+  BankSlipRegistration? get lastRegistration =>
+      registrations.isEmpty ? null : registrations.last;
+
+  /// Há apresentação VIGENTE no banco (bloqueia novo registro).
+  bool get hasLiveRegistration => lastRegistration?.isLive ?? false;
+
+  /// Pendências: falas do banco cujo efeito aqui foi recusado (D-I10).
+  List<BankSlipRegistrationEvent> get refusedEffects =>
+      registrationEvents.where((e) => e.effectRefused).toList();
 
   factory BankSlipFull.fromJson(Map<String, dynamic> json) {
     final row = BankSlipListRow.fromJson(json);
@@ -253,6 +486,12 @@ class BankSlipFull extends BankSlipListRow {
       events: (json['events'] as List<dynamic>? ?? [])
           .map((e) => BankSlipEventRow.fromJson(e as Map<String, dynamic>))
           .toList(),
+      registrations: (json['registrations'] as List<dynamic>? ?? [])
+          .map((e) => BankSlipRegistration.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      registrationEvents: (json['registrationEvents'] as List<dynamic>? ?? [])
+          .map((e) => BankSlipRegistrationEvent.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -262,6 +501,7 @@ class BankSlipFull extends BankSlipListRow {
         agreementId, bankAccountId, accept, aliqDiscount, discountValue,
         dtDiscountUntil, aliqInterest, aliqLate, valueLateMin, aliqFine,
         valueFine, valueRate, instruction, protestDays, titleRows, events,
+        registrations, registrationEvents,
       ];
 }
 

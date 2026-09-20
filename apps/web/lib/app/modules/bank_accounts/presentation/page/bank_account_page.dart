@@ -14,9 +14,11 @@ import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../data/datasource/bank_account_channel_datasource.dart';
 import '../../data/datasource/bank_account_datasource.dart';
 import '../../domain/entity/bank_account_entity.dart';
 import '../bloc/bank_account_bloc.dart';
+import '../widget/bank_account_channel_section.dart';
 
 /// Tela de Contas Bancárias — interface 'bank-accounts', grupo Financeiro
 /// (Módulo Software House, seção 5.6 do prompt fechado).
@@ -44,6 +46,7 @@ class _BankAccountPageState extends State<BankAccountPage>
     with FieldConfigLoader {
   late final BankAccountBloc _bloc;
   late final BankAccountDatasource _datasource;
+  late final BankAccountChannelDatasource _channelDatasource;
 
   /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
   /// campo (equivalente local do showServerFieldError da fábrica). O form
@@ -56,6 +59,7 @@ class _BankAccountPageState extends State<BankAccountPage>
     _bloc = Modular.get<BankAccountBloc>()
       ..add(const BankAccountListRequested(''));
     _datasource = Modular.get<BankAccountDatasource>();
+    _channelDatasource = Modular.get<BankAccountChannelDatasource>();
     loadFieldConfig('bank-accounts'); // engine de campos configuráveis (dec. 7)
   }
 
@@ -97,6 +101,7 @@ class _BankAccountPageState extends State<BankAccountPage>
         title: widget.title,
         state: state,
         datasource: _datasource,
+        channelDatasource: _channelDatasource,
         fieldConfig: fieldConfig,
         onSave: (event) => _bloc.add(event),
         onBack: () => _bloc.add(const BankAccountBackToListPressed()),
@@ -147,6 +152,7 @@ class _BankAccountFormView extends StatefulWidget {
     required this.title,
     required this.state,
     required this.datasource,
+    required this.channelDatasource,
     required this.fieldConfig,
     required this.onSave,
     required this.onBack,
@@ -157,6 +163,9 @@ class _BankAccountFormView extends StatefulWidget {
   final String title;
   final BankAccountFormState state;
   final BankAccountDatasource datasource;
+
+  /// Onda 2 — datasource dedicado do sub-recurso Canal API (seção autônoma).
+  final BankAccountChannelDatasource channelDatasource;
 
   /// Catálogo resolvido da interface (tb_interface_has_field × cliente).
   final List<FieldConfigEntity> fieldConfig;
@@ -584,6 +593,17 @@ class _BankAccountFormViewState extends State<_BankAccountFormView> {
               validator: (v) => _validateOptionalDateCfg(
                   'dt_contract', 'forms.bankAccount.dtContract', v),
             )),
+            // Onda 2 (D-I3/D-I4): CANAL API da conta — só na edição (a conta
+            // precisa existir); seção autônoma com datasource próprio, como a
+            // Chave de Sincronização do Institution.
+            if (_editing != null) ...[
+              const SizedBox(height: 24),
+              BankAccountChannelSection(
+                key: ValueKey('channel-${_editing!.id}'),
+                bankAccountId: _editing!.id,
+                datasource: widget.channelDatasource,
+              ),
+            ],
           ],
         ),
       ),

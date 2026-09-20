@@ -49,4 +49,19 @@ class BankSlipRepositoryImpl implements BankSlipRepository {
   Future<Either<Failure, BankSlipReverseResult>> reverse(
           int id, String reason) =>
       _guard(() => datasource.reverse(id, reason));
+
+  @override
+  Future<Either<Failure, BankSlipRegisterResult>> register(int id) =>
+      _guard(() => datasource.register(id));
+
+  @override
+  Future<Either<Failure, BankSlipRefreshResult>> refresh(int id) =>
+      _guard(() => datasource.refresh(id));
+
+  @override
+  Future<Either<Failure, String>> pdf(int id) => _guard(() => datasource.pdf(id));
+
+  @override
+  Future<Either<Failure, BankSlipBankSyncReport>> bankSync() =>
+      _guard(() => datasource.bankSync());
 }

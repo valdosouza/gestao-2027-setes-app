@@ -80,3 +80,13 @@ class BankSlipActionFailure extends BankSlipState {
   @override
   List<Object?> get props => [failure];
 }
+
+/// One-shot (listener-only): PDF oficial do banco em base64 — a página abre
+/// em nova aba (Onda 2).
+class BankSlipPdfReady extends BankSlipState {
+  const BankSlipPdfReady(this.pdfBase64);
+  final String pdfBase64;
+
+  @override
+  List<Object?> get props => [pdfBase64];
+}

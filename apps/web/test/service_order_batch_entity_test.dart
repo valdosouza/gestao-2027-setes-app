@@ -148,4 +148,94 @@ void main() {
       expect(report.results.single.dtExpiration, isEmpty);
     });
   });
+
+  rodada5();
+}
+
+// Rodada 5 da fase Primeiro Cliente (Valdo 2026-09-19): D25 (retryable), D26
+// (cobrança por parcela) e D27 (a tela fatia a seleção e AGREGA os blocos).
+void rodada5() {
+  group('D26 — cobrança por parcela', () {
+    test('lê chargedParcels/chargeableParcels e deriva parcial × não cobrada × inteira', () {
+      final report = BatchInvoiceReport.fromJson({
+        'requested': 3, 'invoiced': 3, 'failed': 0,
+        'uncharged': 2, 'partiallyCharged': 1, 'retryable': 0,
+        'results': [
+          {'orderId': 10, 'ok': true, 'chargedParcels': 1, 'chargeableParcels': 3},
+          {'orderId': 11, 'ok': true, 'chargedParcels': 0, 'chargeableParcels': 2},
+          {'orderId': 12, 'ok': true, 'chargedParcels': 2, 'chargeableParcels': 2},
+        ],
+      });
+
+      expect(report.uncharged, 2);
+      expect(report.partiallyCharged, 1);
+      expect(report.results[0].partiallyCharged, isTrue);
+      expect(report.results[0].uncharged, isTrue);
+      expect(report.results[1].partiallyCharged, isFalse);
+      expect(report.results[1].uncharged, isTrue);
+      expect(report.results[2].uncharged, isFalse);
+    });
+
+    test('linha recusada nunca é "não cobrada" (não há o que cobrar)', () {
+      const recusada = BatchInvoiceEntry(orderId: 1, ok: false, chargeableParcels: 2);
+      expect(recusada.uncharged, isFalse);
+      expect(recusada.partiallyCharged, isFalse);
+    });
+  });
+
+  group('D25 — recusada por contenção que vale repetir', () {
+    test('retryable vem da API e some quando a linha faturou', () {
+      final report = BatchInvoiceReport.fromJson({
+        'requested': 2, 'invoiced': 1, 'failed': 1, 'retryable': 1,
+        'results': [
+          {'orderId': 10, 'ok': false, 'code': 'RESOURCE_BUSY', 'error': 'Registro em uso', 'retryable': true},
+          {'orderId': 11, 'ok': true, 'invoiceNumber': '7'},
+        ],
+      });
+
+      expect(report.retryable, 1);
+      expect(report.results[0].retryable, isTrue);
+      expect(report.results[1].retryable, isFalse);
+    });
+  });
+
+  group('D27 — agregação dos blocos', () {
+    test('merge reconta TUDO das linhas, na ordem dos blocos', () {
+      const a = BatchInvoiceReport(requested: 2, invoiced: 1, failed: 1, results: [
+        BatchInvoiceEntry(orderId: 1, ok: true, chargedParcels: 1, chargeableParcels: 1),
+        BatchInvoiceEntry(orderId: 2, ok: false, code: 'RESOURCE_BUSY', retryable: true),
+      ]);
+      const b = BatchInvoiceReport(requested: 1, invoiced: 1, failed: 0, results: [
+        BatchInvoiceEntry(orderId: 3, ok: true, chargedParcels: 1, chargeableParcels: 3),
+      ]);
+
+      final all = BatchInvoiceReport.merge([a, b]);
+
+      expect(all.requested, 3);
+      expect(all.invoiced, 2);
+      expect(all.failed, 1);
+      expect(all.uncharged, 1);
+      expect(all.partiallyCharged, 1);
+      expect(all.retryable, 1);
+      expect(all.results.map((e) => e.orderId), [1, 2, 3]);
+    });
+
+    test('bloco interrompido vira linhas recusadas "tente de novo" com o motivo', () {
+      final part = BatchInvoiceReport.fromEntries([
+        for (final id in [7, 8])
+          BatchInvoiceEntry.aborted(orderId: id, error: 'Sem privilégio'),
+      ]);
+
+      expect(part.requested, 2);
+      expect(part.failed, 2);
+      expect(part.retryable, 2);
+      expect(part.results.first.code, BatchInvoiceEntry.abortedCode);
+      expect(part.results.first.error, 'Sem privilégio');
+      expect(part.results.first.ok, isFalse);
+    });
+
+    test('o tamanho do bloco é o teto da API (D27)', () {
+      expect(batchInvoiceChunkSize, 50);
+    });
+  });
 }
