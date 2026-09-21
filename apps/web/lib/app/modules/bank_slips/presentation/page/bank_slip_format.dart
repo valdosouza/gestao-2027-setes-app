@@ -61,6 +61,7 @@ String bankSlipRegistrationKindLabel(String? kind) => switch (kind) {
       BankSlipRegistrationKind.expired => 'forms.bankSlip.regExpired'.tr(),
       BankSlipRegistrationKind.failed => 'forms.bankSlip.regFailed'.tr(),
       BankSlipRegistrationKind.cancelRequested => 'forms.bankSlip.regCancelRequested'.tr(),
+      BankSlipRegistrationKind.reapplied => 'forms.bankSlip.regReapplied'.tr(),
       null => 'forms.bankSlip.regInFlight'.tr(),
       _ => kind,
     };

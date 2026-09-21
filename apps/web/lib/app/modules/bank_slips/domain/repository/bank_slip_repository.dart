@@ -9,7 +9,7 @@ import '../entity/bank_slip_entity.dart';
 abstract class BankSlipRepository {
   Future<Either<Failure, PagedResult<BankSlipListRow>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1, int? pageSize, bool pendingOnly = false});
   Future<Either<Failure, BankSlipFull>> getOne(int id);
   Future<Either<Failure, BankSlipIssueResult>> issue(BankSlipIssueInput input);
   Future<Either<Failure, BankSlipSettleResult>> settle(
@@ -22,4 +22,7 @@ abstract class BankSlipRepository {
   Future<Either<Failure, BankSlipRefreshResult>> refresh(int id);
   Future<Either<Failure, String>> pdf(int id);
   Future<Either<Failure, BankSlipBankSyncReport>> bankSync();
+
+  /// D-I25: reaplicação manual do efeito recusado.
+  Future<Either<Failure, BankSlipReapplyResult>> reapply(int id, int attempt, int event);
 }

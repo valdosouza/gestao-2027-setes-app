@@ -29,7 +29,7 @@ abstract final class BankSlipEventKind {
 /// Kinds da VOZ DO BANCO sobre uma apresentação (Onda 2 — migration 055):
 /// S enviado · G registrado · R recebido · M marcado recebido · A atrasado ·
 /// P protesto · C cancelado no banco · V expirado · F falha · K cancelamento
-/// solicitado por nós.
+/// solicitado por nós · E efeito reaplicado (ato manual — D-I25, migration 057).
 abstract final class BankSlipRegistrationKind {
   static const sent = 'S';
   static const registered = 'G';
@@ -41,9 +41,15 @@ abstract final class BankSlipRegistrationKind {
   static const expired = 'V';
   static const failed = 'F';
   static const cancelRequested = 'K';
+  static const reapplied = 'E';
 
   /// Apresentação encerrada — o banco não dirá mais nada útil sobre ela.
-  static const finals = {received, cancelled, expired, failed};
+  /// E só nasce depois de um R/C/V: encerra como a voz que reaplica.
+  static const finals = {received, cancelled, expired, failed, reapplied};
+
+  /// Vozes que produzem EFEITO no boleto (L/C) — só elas ficam pendentes
+  /// quando a nossa regra recusa (mesma regra da API: PENDING_EFFECT_WHERE).
+  static const effects = {received, cancelled, expired};
 }
 
 /// Apresentação do boleto ao banco (1 boleto × N tentativas — D16/D-I12):
@@ -141,9 +147,10 @@ class BankSlipRegistrationEvent extends Equatable {
   final String? message;
   final String? createdAt;
 
-  /// RECEBIDO no banco sem liquidação aqui — a nossa regra recusou (D-I10).
+  /// Voz com efeito (R/C/V) sem efeito aqui — a nossa regra recusou (D-I10);
+  /// some quando o operador REAPLICA (D-I25: o original recebe o slipEvent).
   bool get effectRefused =>
-      kind == BankSlipRegistrationKind.received && slipEvent == null;
+      BankSlipRegistrationKind.effects.contains(kind) && slipEvent == null;
 
   factory BankSlipRegistrationEvent.fromJson(Map<String, dynamic> json) =>
       BankSlipRegistrationEvent(
@@ -215,6 +222,36 @@ class BankSlipRefreshResult extends Equatable {
   List<Object?> get props => [changed, kind, bankStatus, slipEvent, effectRefused];
 }
 
+/// Resultado da reaplicação manual do efeito (POST /:id/reapply — D-I25).
+class BankSlipReapplyResult extends Equatable {
+  const BankSlipReapplyResult({
+    required this.attempt,
+    required this.event,
+    this.reapplyEvent = 0,
+    this.slipEvent = 0,
+  });
+
+  final int attempt;
+  final int event;
+
+  /// Evento E gravado na apresentação (o ato).
+  final int reapplyEvent;
+
+  /// Evento L/C produzido no boleto.
+  final int slipEvent;
+
+  factory BankSlipReapplyResult.fromJson(Map<String, dynamic> json) =>
+      BankSlipReapplyResult(
+        attempt:      jsonInt(json['attempt']) ?? 0,
+        event:        jsonInt(json['event']) ?? 0,
+        reapplyEvent: jsonInt(json['reapplyEvent']) ?? 0,
+        slipEvent:    jsonInt(json['slipEvent']) ?? 0,
+      );
+
+  @override
+  List<Object?> get props => [attempt, event, reapplyEvent, slipEvent];
+}
+
 /// Relatório da consulta ativa (POST /refresh).
 class BankSlipBankSyncReport extends Equatable {
   const BankSlipBankSyncReport({
@@ -253,6 +290,7 @@ class BankSlipListRow extends Equatable {
     this.bankAccountLabel,
     this.customerName,
     this.titles = 0,
+    this.pendingBankEffects = 0,
   });
 
   final int     id;
@@ -272,6 +310,13 @@ class BankSlipListRow extends Equatable {
   /// Quantidade de títulos vinculados.
   final int     titles;
 
+  /// Vozes do banco (R/C/V) com efeito RECUSADO e ainda não reaplicado —
+  /// sinal na lista (D-I28): dinheiro na conta sem título baixado aparece
+  /// sem abrir boleto por boleto.
+  final int     pendingBankEffects;
+
+  bool get hasPendingBankEffects => pendingBankEffects > 0;
+
   bool get isOpen => state == BankSlipStatus.open;
   bool get isSettled => state == BankSlipStatus.settled;
   bool get isCancelled => state == BankSlipStatus.cancelled;
@@ -288,12 +333,13 @@ class BankSlipListRow extends Equatable {
         bankAccountLabel: json['bankAccountLabel'] as String?,
         customerName:     json['customerName'] as String?,
         titles:           jsonInt(json['titles']) ?? 0,
+        pendingBankEffects: jsonInt(json['pendingBankEffects']) ?? 0,
       );
 
   @override
   List<Object?> get props => [
         id, ourNumber, documentNumber, dtEmission, dtExpiration, value,
-        state, bankAccountLabel, customerName, titles,
+        state, bankAccountLabel, customerName, titles, pendingBankEffects,
       ];
 }
 
@@ -401,6 +447,7 @@ class BankSlipFull extends BankSlipListRow {
     super.bankAccountLabel,
     super.customerName,
     super.titles,
+    super.pendingBankEffects,
     this.agreementId = 0,
     this.bankAccountId = 0,
     this.accept,
@@ -466,6 +513,7 @@ class BankSlipFull extends BankSlipListRow {
       bankAccountLabel: row.bankAccountLabel,
       customerName:     row.customerName,
       titles:           row.titles,
+      pendingBankEffects: row.pendingBankEffects,
       agreementId:      jsonInt(json['agreementId']) ?? 0,
       bankAccountId:    jsonInt(json['bankAccountId']) ?? 0,
       accept:           json['accept'] as String?,

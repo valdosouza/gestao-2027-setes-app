@@ -18,6 +18,7 @@ class BankSlipListRequested extends BankSlipEvent {
     this.filter,
     this.page = 1,
     this.pageSize,
+    this.pendingOnly,
   });
 
   final String? status;
@@ -25,8 +26,11 @@ class BankSlipListRequested extends BankSlipEvent {
   final int page;
   final int? pageSize;
 
+  /// D-I28: só boletos com voz do banco pendente (null = mantém o vigente).
+  final bool? pendingOnly;
+
   @override
-  List<Object?> get props => [status, filter, page, pageSize];
+  List<Object?> get props => [status, filter, page, pageSize, pendingOnly];
 }
 
 /// Tap na linha → carrega o DETALHE do boleto.
@@ -110,6 +114,16 @@ class BankSlipRefreshRequested extends BankSlipEvent {
 
   @override
   List<Object?> get props => [slip];
+}
+
+/// D-I25: reaplicar o efeito de uma voz do banco recusada (ato manual).
+class BankSlipReapplyRequested extends BankSlipEvent {
+  const BankSlipReapplyRequested(this.slip, this.registrationEvent);
+  final BankSlipFull slip;
+  final BankSlipRegistrationEvent registrationEvent;
+
+  @override
+  List<Object?> get props => [slip, registrationEvent];
 }
 
 /// Onda 2: PDF oficial do banco (GET /:id/pdf) — abre em nova aba.

@@ -105,14 +105,19 @@ class _BankSlipPageState extends State<BankSlipPage>
       'forms.bankSlip.valueRow'.tr(args: [setesMoney(slip.value)]),
       'forms.bankSlip.titlesCountRow'.tr(args: ['${slip.titles}']),
       if (overdue) 'forms.bankSlip.overdue'.tr(),
+      // D-I28: o banco disse (R/C/V) e o efeito foi recusado aqui — o
+      // operador descobre na LISTA, sem abrir boleto por boleto.
+      if (slip.hasPendingBankEffects)
+        'forms.bankSlip.bankPendingBadge'.tr(args: ['${slip.pendingBankEffects}']),
     ];
+    final highlight = overdue || slip.hasPendingBankEffects;
     return SetesListTile(
       leading: CircleAvatar(child: SetesText('${slip.id}')),
       title: SetesText(slip.customerName ?? ''),
       subtitle: SetesText(
         cells.join(' · '),
-        // Vencido em aberto: destaque discreto com a cor de erro do tema.
-        style: overdue ? TextStyle(color: theme.colorScheme.error) : null,
+        // Vencido em aberto ou voz do banco pendente: cor de erro do tema.
+        style: highlight ? TextStyle(color: theme.colorScheme.error) : null,
       ),
       onTap: () => _bloc.add(BankSlipViewRequested(slip.id)),
     );
@@ -183,7 +188,15 @@ class _BankSlipPageState extends State<BankSlipPage>
                     onSuffixPressed: _search,
                     onSubmitted: (_) => _search(),
                   ),
-                  const SizedBox(height: 16),
+                  // D-I28: filtro "só pendências do banco" (o estado do bloc
+                  // é a fonte — a volta do detalhe preserva a escolha).
+                  SetesCheckbox(
+                    label: 'forms.bankSlip.pendingOnly'.tr(),
+                    value: state.pendingOnly,
+                    onChanged: (checked) => _bloc.add(
+                        BankSlipListRequested(pendingOnly: checked ?? false)),
+                  ),
+                  const SizedBox(height: 8),
                   Expanded(child: _buildListBody(state)),
                   // Barra de paginação compartilhada no rodapé — só com
                   // os metadados da API no estado.
@@ -229,6 +242,7 @@ class _BankSlipPageState extends State<BankSlipPage>
         onRegister: () => _bloc.add(BankSlipRegisterRequested(state.slip)),
         onRefresh: () => _bloc.add(BankSlipRefreshRequested(state.slip)),
         onPdf: () => _bloc.add(BankSlipPdfRequested(state.slip)),
+        onReapply: (e) => _bloc.add(BankSlipReapplyRequested(state.slip, e)),
       );
 
   /// PDF oficial do banco → nova aba (Flutter Web). Sem navegador, avisa.

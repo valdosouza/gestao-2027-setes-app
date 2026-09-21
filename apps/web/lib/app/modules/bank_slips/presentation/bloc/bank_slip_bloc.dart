@@ -8,6 +8,7 @@ import '../../domain/usecase/bank_slip_bank_sync.dart';
 import '../../domain/usecase/bank_slip_cancel.dart';
 import '../../domain/usecase/bank_slip_get.dart';
 import '../../domain/usecase/bank_slip_pdf.dart';
+import '../../domain/usecase/bank_slip_reapply.dart';
 import '../../domain/usecase/bank_slip_refresh.dart';
 import '../../domain/usecase/bank_slip_register.dart';
 import '../../domain/usecase/bank_slip_getlist.dart';
@@ -38,6 +39,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     required this.refresh,
     required this.pdf,
     required this.bankSync,
+    required this.reapply,
   }) : super(const BankSlipListState(loading: true)) {
     on<BankSlipListRequested>(_onListRequested);
     on<BankSlipViewRequested>(_onViewRequested);
@@ -49,6 +51,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     on<BankSlipRegisterRequested>(_onRegisterRequested);
     on<BankSlipRefreshRequested>(_onRefreshRequested);
     on<BankSlipPdfRequested>(_onPdfRequested);
+    on<BankSlipReapplyRequested>(_onReapplyRequested);
     on<BankSlipBankSyncRequested>(_onBankSyncRequested);
   }
 
@@ -62,6 +65,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
   final BankSlipRefresh  refresh;
   final BankSlipPdf      pdf;
   final BankSlipBankSync bankSync;
+  final BankSlipReapply  reapply;
 
   /// Aba/filtro/página vigentes (eventos com campo null os mantêm) — a
   /// volta do detalhe devolve o usuário exatamente onde estava.
@@ -69,16 +73,19 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
   String _filter   = '';
   int    _page     = 1;
   int?   _pageSize;
+  bool   _pendingOnly = false;
 
   Future<void> _reloadList(Emitter<BankSlipState> emit) async {
     emit(BankSlipListState(
-        loading: true, status: _status, filter: _filter, page: _page));
-    final result =
-        await getlist(_status, _filter, page: _page, pageSize: _pageSize);
+        loading: true, status: _status, filter: _filter, page: _page,
+        pendingOnly: _pendingOnly));
+    final result = await getlist(_status, _filter,
+        page: _page, pageSize: _pageSize, pendingOnly: _pendingOnly);
     await result.fold(
       (failure) async {
         emit(BankSlipActionFailure(failure));
-        emit(BankSlipListState(status: _status, filter: _filter));
+        emit(BankSlipListState(
+            status: _status, filter: _filter, pendingOnly: _pendingOnly));
       },
       (paged) async {
         // Página esvaziou (ex.: último boleto da página mudou de estado)
@@ -97,6 +104,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
+          pendingOnly: _pendingOnly,
         ));
       },
     );
@@ -129,6 +137,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     // a navegação da barra manda outra página.
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _pendingOnly = event.pendingOnly ?? _pendingOnly;
     await _reloadList(emit);
   }
 
@@ -229,6 +238,17 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
         return result.map((r) => r.changed
             ? BankSlipActionSuccess('forms.bankSlip.refreshedChanged', args: [r.bankStatus])
             : BankSlipActionSuccess('forms.bankSlip.refreshedSame', args: [r.bankStatus]));
+      });
+
+  /// D-I25: reaplica o efeito recusado; sucesso diz o evento do boleto
+  /// produzido; recusa de novo chega como Left com o motivo da regra.
+  Future<void> _onReapplyRequested(
+          BankSlipReapplyRequested event, Emitter<BankSlipState> emit) =>
+      _runDetailAction(event.slip, emit, () async {
+        final result = await reapply(event.slip.id,
+            event.registrationEvent.attempt, event.registrationEvent.event);
+        return result.map((r) => BankSlipActionSuccess(
+            'forms.bankSlip.reappliedDone', args: ['${r.slipEvent}']));
       });
 
   /// PDF oficial: one-shot [BankSlipPdfReady] — a página abre em nova aba.

@@ -11,7 +11,7 @@ abstract class BankSlipDatasource {
   /// todos) e [filter] (nosso número / nº do documento). Paginação D3:
   /// [pageSize] null deixa a API resolver a config page_size do usuário.
   Future<PagedResult<BankSlipListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1, int? pageSize, bool pendingOnly = false});
 
   /// Detalhe: cabeçalho congelado + títulos + eventos.
   Future<BankSlipFull> getOne(int id);
@@ -34,6 +34,9 @@ abstract class BankSlipDatasource {
   Future<BankSlipRefreshResult> refresh(int id);
   Future<String> pdf(int id);
   Future<BankSlipBankSyncReport> bankSync();
+
+  /// D-I25: reaplica o efeito de uma voz R/C/V recusada (POST /:id/reapply).
+  Future<BankSlipReapplyResult> reapply(int id, int attempt, int event);
 }
 
 class BankSlipDatasourceImpl implements BankSlipDatasource {
@@ -43,10 +46,11 @@ class BankSlipDatasourceImpl implements BankSlipDatasource {
 
   @override
   Future<PagedResult<BankSlipListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1, int? pageSize, bool pendingOnly = false}) async {
     final params = <String>[
       if (status.isNotEmpty) 'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
+      if (pendingOnly) 'pending=true',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
     ];
@@ -111,6 +115,13 @@ class BankSlipDatasourceImpl implements BankSlipDatasource {
   Future<String> pdf(int id) async {
     final json = await client.get('/api/bank-slips/$id/pdf');
     return (json['data'] as Map<String, dynamic>? ?? const {})['pdfBase64']?.toString() ?? '';
+  }
+
+  @override
+  Future<BankSlipReapplyResult> reapply(int id, int attempt, int event) async {
+    final json = await client.post(
+        '/api/bank-slips/$id/reapply', {'attempt': attempt, 'event': event});
+    return BankSlipReapplyResult.fromJson(json['data'] as Map<String, dynamic>);
   }
 
   @override

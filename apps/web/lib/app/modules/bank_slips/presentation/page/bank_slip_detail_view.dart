@@ -30,6 +30,7 @@ class BankSlipDetailView extends StatelessWidget {
     required this.onRegister,
     required this.onRefresh,
     required this.onPdf,
+    required this.onReapply,
     super.key,
   });
 
@@ -45,6 +46,9 @@ class BankSlipDetailView extends StatelessWidget {
   final VoidCallback onRegister;
   final VoidCallback onRefresh;
   final VoidCallback onPdf;
+
+  /// D-I25: reaplicar o efeito de UMA voz recusada (ato manual).
+  final void Function(BankSlipRegistrationEvent event) onReapply;
 
   Future<void> _openSettleDialog(BuildContext context) async {
     final result = await showDialog<(double, String)>(
@@ -265,24 +269,41 @@ class BankSlipDetailView extends StatelessWidget {
                   ),
                 ],
               ],
-              for (final p in refused)
+              // Pendências (D-I10): voz R/C/V sem efeito aqui. Cada uma tem o
+              // seu "Reaplicar" (D-I25) — nunca automático; a recusa da regra
+              // volta pela ponte com o motivo.
+              for (final p in refused) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: SetesText(
                     'forms.bankSlip.bankPendingRow'.tr(args: [
+                      bankSlipRegistrationKindLabel(p.kind),
                       isoDateToDisplay(p.dtBankStatus?.substring(0, 10)),
-                      p.paidValue == null ? '' : setesMoney(p.paidValue!),
+                      p.paidValue == null ? '' : '(${setesMoney(p.paidValue!)})',
                       p.message ?? '',
                     ]),
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: SetesButton(
+                    label: 'forms.bankSlip.reapply'.tr(args: ['${p.event}']),
+                    icon: Icons.replay,
+                    kind: SetesButtonKind.secondary,
+                    loading: saving,
+                    onPressed: saving ? null : () => onReapply(p),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  if (slip.isOpen && !slip.hasLiveRegistration)
+                  // Pendência aberta esconde "Registrar" (a API devolve 409
+                  // BANK_SLIP_EFFECT_PENDING): resolve-se pelo Reaplicar.
+                  if (slip.isOpen && !slip.hasLiveRegistration && refused.isEmpty)
                     SetesButton(
                       label: 'forms.bankSlip.register'.tr(),
                       icon: Icons.cloud_upload_outlined,

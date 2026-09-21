@@ -19,6 +19,7 @@ class BankSlipListState extends BankSlipState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.pendingOnly = false,
   });
 
   final List<BankSlipListRow> items;
@@ -33,9 +34,12 @@ class BankSlipListState extends BankSlipState {
   final int? pageSize;
   final int? total;
 
+  /// D-I28: filtro "só pendências do banco" aplicado.
+  final bool pendingOnly;
+
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total];
+      [items, loading, status, filter, page, pageSize, total, pendingOnly];
 }
 
 /// Detalhe em carga inicial (buildável) — antes do 1º GET :id.

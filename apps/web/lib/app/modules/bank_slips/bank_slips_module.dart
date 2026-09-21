@@ -9,6 +9,7 @@ import 'domain/usecase/bank_slip_bank_sync.dart';
 import 'domain/usecase/bank_slip_cancel.dart';
 import 'domain/usecase/bank_slip_get.dart';
 import 'domain/usecase/bank_slip_pdf.dart';
+import 'domain/usecase/bank_slip_reapply.dart';
 import 'domain/usecase/bank_slip_refresh.dart';
 import 'domain/usecase/bank_slip_register.dart';
 import 'domain/usecase/bank_slip_getlist.dart';
@@ -51,6 +52,8 @@ class BankSlipsModule extends Module {
             (i) => BankSlipRegister(repository: i.get<BankSlipRepository>())),
         Bind.factory<BankSlipRefresh>(
             (i) => BankSlipRefresh(repository: i.get<BankSlipRepository>())),
+        Bind.factory<BankSlipReapply>(
+            (i) => BankSlipReapply(repository: i.get<BankSlipRepository>())),
         Bind.factory<BankSlipPdf>(
             (i) => BankSlipPdf(repository: i.get<BankSlipRepository>())),
         Bind.factory<BankSlipBankSync>(
@@ -64,6 +67,7 @@ class BankSlipsModule extends Module {
               reverse: i.get<BankSlipReverse>(),
               register: i.get<BankSlipRegister>(),
               refresh:  i.get<BankSlipRefresh>(),
+              reapply:  i.get<BankSlipReapply>(),
               pdf:      i.get<BankSlipPdf>(),
               bankSync: i.get<BankSlipBankSync>(),
             )),

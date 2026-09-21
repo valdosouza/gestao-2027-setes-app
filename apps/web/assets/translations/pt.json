@@ -1037,7 +1037,7 @@
       "digitableLine": "Linha digitável",
       "pixCopyPaste": "Pix copia e cola",
       "copied": "Copiado",
-      "bankPendingRow": "Recebido no banco em {} ({}) sem liquidação aqui — {}",
+      "bankPendingRow": "{} em {} {} sem efeito aqui — {}",
       "bankEvents": "Voz do banco",
       "bankEffectRow": "Efeito no boleto: evento {}",
       "envSandbox": "sandbox",
@@ -1064,7 +1064,12 @@
       "regCancelRequested": "Cancelamento solicitado ao banco",
       "srcWebhook": "Webhook",
       "srcQuery": "Consulta",
-      "srcDirect": "Resposta direta"
+      "srcDirect": "Resposta direta",
+      "bankPendingBadge": "Voz do banco pendente ({})",
+      "pendingOnly": "Só boletos com voz do banco pendente",
+      "reapply": "Reaplicar efeito do evento {}",
+      "reappliedDone": "Efeito reaplicado — evento {} do boleto",
+      "regReapplied": "Efeito reaplicado"
     },
     "checks": {
       "tabCustody": "Em Custódia",

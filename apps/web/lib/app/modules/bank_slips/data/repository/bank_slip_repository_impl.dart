@@ -23,9 +23,9 @@ class BankSlipRepositoryImpl implements BankSlipRepository {
   @override
   Future<Either<Failure, PagedResult<BankSlipListRow>>> getList(
           String status, String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() =>
-          datasource.getList(status, filter, page: page, pageSize: pageSize));
+          {int page = 1, int? pageSize, bool pendingOnly = false}) =>
+      _guard(() => datasource.getList(status, filter,
+          page: page, pageSize: pageSize, pendingOnly: pendingOnly));
 
   @override
   Future<Either<Failure, BankSlipFull>> getOne(int id) =>
@@ -57,6 +57,11 @@ class BankSlipRepositoryImpl implements BankSlipRepository {
   @override
   Future<Either<Failure, BankSlipRefreshResult>> refresh(int id) =>
       _guard(() => datasource.refresh(id));
+
+  @override
+  Future<Either<Failure, BankSlipReapplyResult>> reapply(
+          int id, int attempt, int event) =>
+      _guard(() => datasource.reapply(id, attempt, event));
 
   @override
   Future<Either<Failure, String>> pdf(int id) => _guard(() => datasource.pdf(id));

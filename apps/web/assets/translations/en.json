@@ -1037,7 +1037,7 @@
       "digitableLine": "Digitable line",
       "pixCopyPaste": "Pix copy & paste",
       "copied": "Copied",
-      "bankPendingRow": "Received by the bank on {} ({}) without settlement here — {}",
+      "bankPendingRow": "{} on {} {} without effect here — {}",
       "bankEvents": "Bank's voice",
       "bankEffectRow": "Effect on slip: event {}",
       "envSandbox": "sandbox",
@@ -1064,7 +1064,12 @@
       "regCancelRequested": "Cancellation requested to bank",
       "srcWebhook": "Webhook",
       "srcQuery": "Query",
-      "srcDirect": "Direct reply"
+      "srcDirect": "Direct reply",
+      "bankPendingBadge": "Bank voice pending ({})",
+      "pendingOnly": "Only slips with a pending bank voice",
+      "reapply": "Reapply effect of event {}",
+      "reappliedDone": "Effect reapplied — slip event {}",
+      "regReapplied": "Effect reapplied"
     },
     "checks": {
       "tabCustody": "In Custody",
