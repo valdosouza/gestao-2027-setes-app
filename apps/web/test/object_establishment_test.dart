@@ -15,10 +15,15 @@ void main() {
         'document': '12345678000199',
         'taxRegime': '1 - Simples Nacional',
         'simplesRegime': 3,
+        'simplesAssessment': 2,
         'specialTaxRegime': '0',
         'cnae': '6201501',
       });
       expect(e.simplesRegime, '3');
+      expect(e.simplesAssessment, '2');
+      expect(e.toJson()['simplesAssessment'], '2');
+      // D-N19a: fora do ME/EPP a apuração não viaja (null limpa)
+      expect(e.copyWith(simplesRegime: '1').toJson()['simplesAssessment'], isNull);
       expect(e.specialTaxRegime, '0');
       expect(e.cnae, '6201501');
       expect(e.taxRegime, '1 - Simples Nacional');

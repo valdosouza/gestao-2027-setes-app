@@ -334,6 +334,11 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
         validate: () => null,
       ),
       PendencyField(
+        name: 'simplesAssessment',
+        beforeFocus: toMainTab,
+        validate: () => null,
+      ),
+      PendencyField(
         name: 'specialTaxRegime',
         beforeFocus: toMainTab,
         validate: () => null,
@@ -483,6 +488,26 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                             draft.copyWith(simplesRegime: v ?? _notSet)),
                       ),
                       const SizedBox(height: 16),
+                      // D-N19a: só o ME/EPP (3) que ultrapassou sublimite
+                      // informa em que regime apura (regApTribSN); "não
+                      // informado" = dentro do sublimite (omitido no DPS).
+                      if (draft.simplesRegime == '3') ...[
+                        SetesDropdown<String>(
+                          label: 'forms.establishment.simplesAssessment'.tr(),
+                          value: _dropdownValue(draft.simplesAssessment,
+                              ObjectEstablishment.simplesAssessments),
+                          items: const [
+                            _notSet,
+                            ...ObjectEstablishment.simplesAssessments,
+                          ],
+                          itemLabel: (v) => v == _notSet
+                              ? 'forms.establishment.simplesAssessment0'.tr()
+                              : 'forms.establishment.simplesAssessment$v'.tr(),
+                          onChanged: (v) => widget.onDraftChanged(
+                              draft.copyWith(simplesAssessment: v ?? _notSet)),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       SetesDropdown<String>(
                         label: 'forms.establishment.specialTaxRegime'.tr(),
                         value: _dropdownValue(draft.specialTaxRegime,

@@ -25,6 +25,7 @@ class ObjectEstablishment extends Equatable {
     this.im,
     this.taxRegime,
     this.simplesRegime,
+    this.simplesAssessment,
     this.specialTaxRegime,
     this.cnae,
     this.addresses = const [],
@@ -36,6 +37,12 @@ class ObjectEstablishment extends Equatable {
   /// 1 não optante · 2 MEI · 3 ME/EPP (Simples Nacional). Rótulos = i18n
   /// `forms.establishment.simplesRegime<N>`.
   static const simplesRegimes = ['1', '2', '3'];
+
+  /// Valores canônicos da API para [simplesAssessment] (regApTribSN do DPS —
+  /// D-N19a, só para ME/EPP que ultrapassou sublimite): 1 tudo pelo SN ·
+  /// 2 ISSQN por fora · 3 tudo por fora. Rótulos = i18n
+  /// `forms.establishment.simplesAssessment<N>`.
+  static const simplesAssessments = ['1', '2', '3'];
 
   /// Valores canônicos da API para [specialTaxRegime] (regEspTrib do DPS):
   /// 0 nenhum · 1 ato cooperado · 2 estimativa · 3 microempresa municipal ·
@@ -62,6 +69,10 @@ class ObjectEstablishment extends Equatable {
   /// Situação perante o Simples Nacional ('1' | '2' | '3' | null).
   final String? simplesRegime;
 
+  /// Regime de apuração do ME/EPP que ultrapassou sublimite ('1'..'3' | null
+  /// = dentro do sublimite). Só faz sentido com [simplesRegime] == '3'.
+  final String? simplesAssessment;
+
   /// Regime especial de tributação ('0'..'6' | null).
   final String? specialTaxRegime;
 
@@ -83,6 +94,7 @@ class ObjectEstablishment extends Equatable {
         taxRegime:   json['taxRegime'] as String?,
         // Códigos de 1 dígito: a API pode devolver int ou string — normaliza.
         simplesRegime:    _codeOrNull(json['simplesRegime']),
+        simplesAssessment: _codeOrNull(json['simplesAssessment']),
         specialTaxRegime: _codeOrNull(json['specialTaxRegime']),
         cnae:             _codeOrNull(json['cnae']),
         addresses: ObjectEntity.listFromJson(
@@ -115,6 +127,9 @@ class ObjectEstablishment extends Equatable {
         // reenviar o valor corrente é idempotente.
         'taxRegime':        taxRegime,
         'simplesRegime':    _nullIfEmpty(simplesRegime),
+        // D-N19a: a apuração só existe para ME/EPP — fora dele viaja null (limpa)
+        'simplesAssessment': _nullIfEmpty(simplesRegime) == '3'
+            ? _nullIfEmpty(simplesAssessment) : null,
         'specialTaxRegime': _nullIfEmpty(specialTaxRegime),
         'cnae':             _nullIfEmpty(cnae),
         'addresses':   addresses.map((a) => a.toJson()).toList(),
@@ -131,6 +146,7 @@ class ObjectEstablishment extends Equatable {
     String? im,
     String? taxRegime,
     String? simplesRegime,
+    String? simplesAssessment,
     String? specialTaxRegime,
     String? cnae,
     List<EntityAddress>? addresses,
@@ -146,6 +162,7 @@ class ObjectEstablishment extends Equatable {
         im:          im ?? this.im,
         taxRegime:   taxRegime ?? this.taxRegime,
         simplesRegime:    simplesRegime ?? this.simplesRegime,
+        simplesAssessment: simplesAssessment ?? this.simplesAssessment,
         specialTaxRegime: specialTaxRegime ?? this.specialTaxRegime,
         cnae:             cnae ?? this.cnae,
         addresses:   addresses ?? this.addresses,
@@ -156,7 +173,7 @@ class ObjectEstablishment extends Equatable {
   @override
   List<Object?> get props => [
         nameCompany, nickTrade, document, personType, ie, im, taxRegime,
-        simplesRegime, specialTaxRegime, cnae,
+        simplesRegime, simplesAssessment, specialTaxRegime, cnae,
         addresses, phones, socialMedia,
       ];
 }
