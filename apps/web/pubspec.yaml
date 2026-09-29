@@ -31,6 +31,9 @@ dependencies:
   # i18n (decisão 13): traduções em JSON, troca em runtime
   easy_localization: ^3.0.7
   intl: ^0.20.2
+  # Seletor de arquivo do sistema (upload do certificado A1 .pfx — Onda 3);
+  # mesma versão já resolvida pelo packages/core (logomarca do tema).
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:

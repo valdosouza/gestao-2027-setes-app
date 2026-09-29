@@ -2,9 +2,20 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import 'data/datasource/service_order_datasource.dart';
+import 'data/datasource/service_order_fiscal_datasource.dart';
+import 'data/repository/service_order_fiscal_repository_impl.dart';
 import 'data/repository/service_order_repository_impl.dart';
+import 'domain/repository/service_order_fiscal_repository.dart';
 import 'domain/repository/service_order_repository.dart';
 import 'domain/usecase/service_order_delete.dart';
+import 'domain/usecase/service_order_fiscal_cancel.dart';
+import 'domain/usecase/service_order_fiscal_danfse.dart';
+import 'domain/usecase/service_order_fiscal_get.dart';
+import 'domain/usecase/service_order_fiscal_pending.dart';
+import 'domain/usecase/service_order_fiscal_refresh.dart';
+import 'domain/usecase/service_order_fiscal_transmit_batch.dart';
+import 'domain/usecase/service_order_fiscal_xml.dart';
+import 'domain/usecase/service_order_transmit.dart';
 import 'domain/usecase/service_order_get.dart';
 import 'domain/usecase/service_order_getlist.dart';
 import 'domain/usecase/service_order_batch_invoice.dart';
@@ -50,6 +61,30 @@ class ServiceOrdersModule extends Module {
             repository: i.get<ServiceOrderRepository>())),
         Bind.factory<ServiceOrderBatchInvoice>((i) => ServiceOrderBatchInvoice(
             repository: i.get<ServiceOrderRepository>())),
+        // Onda 3 — NFS-e pelo ADN: datasource dedicado (/api/billing/fiscal*)
+        Bind.lazySingleton<ServiceOrderFiscalDatasource>((i) =>
+            ServiceOrderFiscalDatasourceImpl(client: i.get<ApiClient>())),
+        Bind.lazySingleton<ServiceOrderFiscalRepository>((i) =>
+            ServiceOrderFiscalRepositoryImpl(
+                datasource: i.get<ServiceOrderFiscalDatasource>())),
+        Bind.factory<ServiceOrderFiscalGet>((i) => ServiceOrderFiscalGet(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderTransmit>((i) => ServiceOrderTransmit(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalRefresh>((i) => ServiceOrderFiscalRefresh(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalXml>((i) => ServiceOrderFiscalXml(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalDanfse>((i) => ServiceOrderFiscalDanfse(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalCancel>((i) => ServiceOrderFiscalCancel(
+            repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalPendingList>((i) =>
+            ServiceOrderFiscalPendingList(
+                repository: i.get<ServiceOrderFiscalRepository>())),
+        Bind.factory<ServiceOrderFiscalTransmitBatch>((i) =>
+            ServiceOrderFiscalTransmitBatch(
+                repository: i.get<ServiceOrderFiscalRepository>())),
         Bind.singleton<ServiceOrderBloc>((i) => ServiceOrderBloc(
               getlist:    i.get<ServiceOrderGetlist>(),
               get:        i.get<ServiceOrderGet>(),
@@ -61,6 +96,14 @@ class ServiceOrdersModule extends Module {
               invoice:    i.get<ServiceOrderInvoice>(),
               cancelInvoice: i.get<ServiceOrderCancelInvoice>(),
               batchInvoice:  i.get<ServiceOrderBatchInvoice>(),
+              fiscalGet:     i.get<ServiceOrderFiscalGet>(),
+              transmit:      i.get<ServiceOrderTransmit>(),
+              fiscalRefresh: i.get<ServiceOrderFiscalRefresh>(),
+              fiscalXml:     i.get<ServiceOrderFiscalXml>(),
+              fiscalDanfse:  i.get<ServiceOrderFiscalDanfse>(),
+              fiscalCancel:  i.get<ServiceOrderFiscalCancel>(),
+              fiscalPending: i.get<ServiceOrderFiscalPendingList>(),
+              fiscalTransmitBatch: i.get<ServiceOrderFiscalTransmitBatch>(),
             )),
       ];
 

@@ -156,3 +156,79 @@ class ServiceOrderInvoiceRequested extends ServiceOrderEvent {
   @override
   List<Object?> get props => [orderId, input];
 }
+
+// ---------------------------------------------------------------------
+// Onda 3 — NFS-e pelo ADN (seção "No fisco" do documento faturado)
+// ---------------------------------------------------------------------
+
+/// "Transmitir": POST /api/billing/transmit — o detalhe recarrega depois
+/// (a voz do fisco S/A entra na linha do tempo). 422 FISCAL_DPS_REJECTED,
+/// 409 e 503 chegam como [ServiceOrderActionFailure] legível pela ponte.
+class ServiceOrderTransmitRequested extends ServiceOrderEvent {
+  const ServiceOrderTransmitRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// "Consultar": POST /fiscal/:orderId/refresh — reconciliação por chave.
+class ServiceOrderFiscalRefreshRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalRefreshRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// "XML": GET /fiscal/:orderId/xml → one-shot [ServiceOrderFiscalXmlReady].
+class ServiceOrderFiscalXmlRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalXmlRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// "DANFSe": GET /fiscal/:orderId/danfse → one-shot
+/// [ServiceOrderFiscalDanfseReady].
+class ServiceOrderFiscalDanfseRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalDanfseRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// "Cancelar NFS-e" (motivo já confirmado no MESMO dialog do "Cancelar
+/// nota"): POST /api/billing/fiscal/cancel. 'C' = nota cancelada no fisco
+/// e aqui (a OS volta a aberta); 'K' = pedido em voo (detalhe recarrega e
+/// fica bloqueado até a consulta reconciliar).
+class ServiceOrderFiscalCancelRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalCancelRequested({
+    required this.orderId,
+    required this.reason,
+  });
+  final int orderId;
+  final String reason;
+
+  @override
+  List<Object?> get props => [orderId, reason];
+}
+
+/// "Transmitir pendentes" (aba Faturadas), 1º passo: GET /fiscal/pending →
+/// one-shot [ServiceOrderFiscalPendingLoaded] para a página confirmar.
+class ServiceOrderFiscalPendingRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalPendingRequested();
+}
+
+/// "Transmitir pendentes", 2º passo (confirmado): fatia em blocos de
+/// [fiscalTransmitChunkSize], chama /transmit-batch em SEQUÊNCIA e agrega
+/// → one-shot [ServiceOrderFiscalBatchDone]. Um lote por vez (H1).
+class ServiceOrderFiscalTransmitBatchRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalTransmitBatchRequested(this.orderIds);
+  final List<int> orderIds;
+
+  @override
+  List<Object?> get props => [orderIds];
+}

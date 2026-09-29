@@ -24,11 +24,13 @@ import '../bloc/service_tax_rule_bloc.dart';
 /// Tela de Regras de Tributação de Serviço — interface 'service-tax-rules'
 /// (prompt_regra_tributacao_servico.md, D1–D14).
 ///
-/// Lista = "item - descrição" + "cidade/UF" + alíquota + situação. Form em
-/// coluna única: Estado (lookup shared) → Cidade de Incidência (lookup
-/// DEPENDENTE do estado — campo-lookup-fk.md item 5) → Item da Lista de
-/// Serviços (lookup do próprio módulo) → Alíquota do ISS → Código de
-/// Tributação Municipal → Ativo.
+/// Lista = "item - descrição" + "cidade/UF" + código nacional efetivo +
+/// alíquota + situação. Form em coluna única: Estado (lookup shared) →
+/// Cidade de Incidência (lookup DEPENDENTE do estado — campo-lookup-fk.md
+/// item 5) → Item da Lista de Serviços (lookup do próprio módulo) → Código
+/// de Tributação Nacional (lookup DEPENDENTE do item — Onda 3 NFS-e: 1
+/// desdobro = derivado e somente leitura; N = escolha obrigatória) →
+/// Alíquota do ISS → Código de Tributação Municipal → Ativo.
 ///
 /// Feedback 100% via PONTE (Framework de Mensagens): validação
 /// uma-pendência-por-vez (R3), fields[] do servidor ancorado no campo,
@@ -77,6 +79,9 @@ class _ServiceTaxRulePageState extends State<ServiceTaxRulePage>
         rowBuilder: (r) => [
           r.serviceListDisplay,
           r.cityDisplay,
+          if (r.effectiveNationalCode != null)
+            'forms.serviceTaxRules.nationalCodeRow'
+                .tr(args: [r.effectiveNationalCode!]),
           'forms.serviceTaxRules.aliqRow'.tr(args: [_formatDecimal(r.aliq)]),
           r.active == 'S'
               ? 'forms.serviceTaxRules.activeRow'.tr()
@@ -216,6 +221,20 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
   String? _serviceListId;
   String _serviceListDisplay = '';
 
+  /// Código de tributação nacional — lookup DEPENDENTE do item (Onda 3):
+  /// [_nationalCodes] são os desdobros do item (null = ainda não buscados);
+  /// [_nationalCode] é o código efetivo na tela; [_nationalCodeDerived] =
+  /// o item tem UM desdobro (somente leitura, viaja null no payload);
+  /// [_nationalCodeOptions] = quantos desdobros (>1 exige escolha).
+  List<NationalCodeLookup>? _nationalCodes;
+  String? _nationalCode;
+  bool _nationalCodeDerived = false;
+  int _nationalCodeOptions = 0;
+  bool _nationalCodeLoading = false;
+
+  /// Exibição do código derivado (campo somente leitura).
+  final _nationalCodeText = TextEditingController();
+
   String _active = 'S';
 
   ServiceTaxRuleEntity? get _editing => widget.state.editing;
@@ -235,12 +254,22 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
         text: editing == null ? '' : _formatDecimal(editing.aliq));
     _municipalCode =
         TextEditingController(text: editing?.municipalCode ?? '');
+    if (editing != null) {
+      _nationalCode        = editing.nationalCode ?? editing.effectiveNationalCode;
+      _nationalCodeDerived = editing.nationalCodeDerived;
+      _nationalCodeOptions = editing.nationalCodeOptions;
+      _nationalCodeText.text = _nationalCodeDisplay;
+      // Descrição do desdobro vem do catálogo — busca em segundo plano
+      // preservando a escolha gravada.
+      _loadNationalCodes(editing.serviceListId, keepChoice: true);
+    }
   }
 
   @override
   void dispose() {
     _aliq.dispose();
     _municipalCode.dispose();
+    _nationalCodeText.dispose();
     for (final node in _focus.values) {
       node.dispose();
     }
@@ -336,6 +365,95 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
       setState(() {
         _serviceListId = picked.id;
         _serviceListDisplay = picked.display;
+        // Item trocado: os desdobros anteriores deixam de valer.
+        _nationalCodes = null;
+        _nationalCode = null;
+        _nationalCodeDerived = false;
+        _nationalCodeOptions = 0;
+        _nationalCodeText.clear();
+      });
+      await _loadNationalCodes(picked.id, keepChoice: false);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Código de tributação nacional (lookup dependente do item — Onda 3).
+  // ------------------------------------------------------------------
+
+  /// "010201 - Descrição" quando o desdobro está carregado; senão só o código.
+  String get _nationalCodeDisplay {
+    final code = _nationalCode;
+    if (code == null) return '';
+    for (final o in _nationalCodes ?? const <NationalCodeLookup>[]) {
+      if (o.id == code) return o.display;
+    }
+    return code;
+  }
+
+  /// Busca os desdobros do item: 1 → preenche sozinho (derivado); N →
+  /// exige a escolha ([keepChoice] preserva a gravada se ainda existir);
+  /// 0 → item sem código nacional.
+  Future<void> _loadNationalCodes(String serviceListId,
+      {required bool keepChoice}) async {
+    setState(() => _nationalCodeLoading = true);
+    try {
+      final options = await widget.lookup.nationalCodes(serviceListId);
+      if (!mounted || _serviceListId != serviceListId) return;
+      setState(() {
+        _nationalCodes = options;
+        _nationalCodeOptions = options.length;
+        if (options.length == 1) {
+          _nationalCode = options.first.id;
+          _nationalCodeDerived = true;
+        } else {
+          _nationalCodeDerived = false;
+          final keep = keepChoice &&
+              options.any((o) => o.id == _nationalCode);
+          if (!keep) _nationalCode = null;
+        }
+        _nationalCodeText.text = _nationalCodeDisplay;
+      });
+    } on Failure catch (failure) {
+      if (mounted) await showFailureFeedback(context, failure);
+    } finally {
+      if (mounted) setState(() => _nationalCodeLoading = false);
+    }
+  }
+
+  Future<void> _pickNationalCode() async {
+    // Lookup dependente (campo-lookup-fk.md, item 5): exige o item primeiro.
+    final serviceListId = _serviceListId;
+    if (serviceListId == null) {
+      await showValidationFeedback(
+          context, 'forms.serviceTaxRules.nationalCodeChooseServiceFirst'.tr());
+      return;
+    }
+    if (_nationalCodes == null) {
+      await _loadNationalCodes(serviceListId, keepChoice: true);
+      if (!mounted || _nationalCodeDerived) return;
+    }
+    final options = _nationalCodes ?? const <NationalCodeLookup>[];
+    final picked = await showSetesLookup<NationalCodeLookup>(
+      context: context,
+      title: 'forms.serviceTaxRules.nationalCodeLookupTitle'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      // Lista já carregada: filtro LOCAL por código/descrição.
+      onSearch: (filter) async {
+        final f = filter.trim().toLowerCase();
+        return f.isEmpty
+            ? options
+            : options
+                .where((o) => o.display.toLowerCase().contains(f))
+                .toList();
+      },
+      itemId: (o) => o.sequence,
+      itemLabel: (o) => o.display,
+    );
+    if (picked != null) {
+      setState(() {
+        _nationalCode = picked.id;
+        _nationalCodeText.text = _nationalCodeDisplay;
       });
     }
   }
@@ -429,6 +547,16 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
                 ])
               : null,
         ),
+        // Obrigatório SÓ quando o item tem mais de um desdobro (validação
+        // local espelhando a regra da API); derivado nunca pende.
+        PendencyField(
+          name: 'nationalCode',
+          validate: () => _nationalCodeOptions > 1 &&
+                  !_nationalCodeDerived &&
+                  _nationalCode == null
+              ? 'forms.serviceTaxRules.nationalCodeRequired'.tr()
+              : null,
+        ),
         _text('aliq', () => _validateAliq(_aliq.text)),
         _text('municipalCode',
             () => _validateMunicipalCode(_municipalCode.text)),
@@ -457,6 +585,8 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
         serviceListId: _serviceListId!,
         aliq:          _parseDecimal(_aliq.text)!,
         municipalCode: _optionalUnmasked('municipal_code', _municipalCode),
+        // Derivado viaja null — a API deriva do item; só a ESCOLHA é gravada.
+        nationalCode:  _nationalCodeDerived ? null : _nationalCode,
         active:        _active,
       ),
     ));
@@ -470,6 +600,53 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
       yesLabel: 'register.delete'.tr(),
     );
     if (decision == SetesDecision.yes) widget.onDelete?.call();
+  }
+
+  /// Campo "Código de Tributação Nacional": derivado → somente leitura com
+  /// o texto "derivado do item"; N desdobros → lookup com escolha
+  /// obrigatória; 0 → aviso de item sem código nacional.
+  List<Widget> _nationalCodeField(BuildContext context) {
+    final label = 'forms.serviceTaxRules.nationalCode'.tr();
+    final helperStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        );
+    if (_nationalCodeDerived) {
+      return [
+        SetesTextField(
+          label: label,
+          controller: _nationalCodeText,
+          readOnly: true,
+        ),
+        const SizedBox(height: 4),
+        SetesText('forms.serviceTaxRules.nationalCodeDerived'.tr(),
+            style: helperStyle),
+      ];
+    }
+    final loaded = _nationalCodes != null && !_nationalCodeLoading;
+    return [
+      SetesLookupField(
+        label: label,
+        display: _nationalCodeDisplay,
+        onSearch: _pickNationalCode,
+        onClear: _nationalCode == null
+            ? null
+            : () => setState(() {
+                  _nationalCode = null;
+                  _nationalCodeText.clear();
+                }),
+      ),
+      if (loaded && _nationalCodeOptions == 0 && _serviceListId != null) ...[
+        const SizedBox(height: 4),
+        SetesText('forms.serviceTaxRules.nationalCodeNone'.tr(),
+            style: helperStyle),
+      ] else if (loaded && _nationalCodeOptions > 1) ...[
+        const SizedBox(height: 4),
+        SetesText(
+            'forms.serviceTaxRules.nationalCodeChoose'
+                .tr(args: ['$_nationalCodeOptions']),
+            style: helperStyle),
+      ],
+    ];
   }
 
   @override
@@ -509,6 +686,8 @@ class _ServiceTaxRuleFormViewState extends State<_ServiceTaxRuleFormView> {
               display: _serviceListDisplay,
               onSearch: _pickServiceList,
             ),
+            const SizedBox(height: 16),
+            ..._nationalCodeField(context),
             const SizedBox(height: 16),
             field(SetesTextField(
               label: _label('aliq', 'forms.serviceTaxRules.aliq'),

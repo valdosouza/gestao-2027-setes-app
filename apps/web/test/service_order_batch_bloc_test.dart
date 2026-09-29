@@ -12,10 +12,18 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_entity.dart';
+import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_fiscal_repository.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_repository.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_batch_invoice.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_cancel_invoice.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_delete.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_cancel.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_danfse.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_get.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_pending.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_refresh.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_transmit_batch.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_xml.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_get.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_getlist.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_invoice.dart';
@@ -23,13 +31,18 @@ import 'package:setes_web/app/modules/service_orders/domain/usecase/service_orde
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_item_save.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_monthly_run.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_post.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_transmit.dart';
 import 'package:setes_web/app/modules/service_orders/presentation/bloc/service_order_bloc.dart';
 
 class _RepoMock extends Mock implements ServiceOrderRepository {}
 
+class _FiscalRepoMock extends Mock implements ServiceOrderFiscalRepository {}
+
 const _input = ServiceOrderInvoiceInput(dtExpiration: '', paymentTypeId: 0);
 
-ServiceOrderBloc _bloc(ServiceOrderRepository repo) => ServiceOrderBloc(
+ServiceOrderBloc _bloc(ServiceOrderRepository repo,
+        [ServiceOrderFiscalRepository? fiscalRepo]) =>
+    ServiceOrderBloc(
       getlist: ServiceOrderGetlist(repository: repo),
       get: ServiceOrderGet(repository: repo),
       post: ServiceOrderPost(repository: repo),
@@ -40,6 +53,14 @@ ServiceOrderBloc _bloc(ServiceOrderRepository repo) => ServiceOrderBloc(
       invoice: ServiceOrderInvoice(repository: repo),
       cancelInvoice: ServiceOrderCancelInvoice(repository: repo),
       batchInvoice: ServiceOrderBatchInvoice(repository: repo),
+      fiscalGet: ServiceOrderFiscalGet(repository: fiscalRepo ?? _FiscalRepoMock()),
+      transmit: ServiceOrderTransmit(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalRefresh: ServiceOrderFiscalRefresh(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalXml: ServiceOrderFiscalXml(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalDanfse: ServiceOrderFiscalDanfse(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalCancel: ServiceOrderFiscalCancel(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalPending: ServiceOrderFiscalPendingList(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalTransmitBatch: ServiceOrderFiscalTransmitBatch(repository: fiscalRepo ?? _FiscalRepoMock()),
     );
 
 BatchInvoiceReport _reportFor(List<int> ids) => BatchInvoiceReport.fromEntries([

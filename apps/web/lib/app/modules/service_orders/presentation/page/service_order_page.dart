@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
@@ -9,11 +12,14 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/web/open_data_url.dart';
 import '../../data/datasource/service_order_datasource.dart';
 import '../../domain/entity/service_order_entity.dart';
+import '../../domain/entity/service_order_fiscal_entity.dart';
 import '../../../../shared/billing/cancel_invoice_dialog.dart';
 import '../../../../shared/session/current_interface.dart';
 import '../bloc/service_order_bloc.dart';
+import 'service_order_fiscal_format.dart';
 
 /// Tela de Ordens de Serviço — interface 'service-orders', grupo Serviços
 /// (Módulo Software House, Onda 4). 1ª TELA DE PROCESSO do produto — FOGE
@@ -208,6 +214,18 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
               onPressed: _selected.isEmpty || state.loading
                   ? null
                   : _invoiceSelected,
+            ),
+          // Onda 3: "Transmitir pendentes" — só na aba Faturadas e só para
+          // quem tem TRANSMITIR; gated pelo loading (H1: o lote em andamento
+          // mantém a lista em loading — sem duplo disparo pela AppBar).
+          if (state.status == 'F' && CurrentInterface.can('TRANSMITIR'))
+            IconButton(
+              icon: const Icon(Icons.cloud_upload_outlined),
+              tooltip: 'forms.serviceOrder.fiscalTransmitPending'.tr(),
+              onPressed: state.loading
+                  ? null
+                  : () =>
+                      _bloc.add(const ServiceOrderFiscalPendingRequested()),
             ),
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
@@ -461,6 +479,15 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         onInvoice: (input) => _bloc.add(ServiceOrderInvoiceRequested(
             orderId: state.order.id, input: input)),
         onCancelInvoice: () => _askCancelInvoice(state.order),
+        onTransmit: () =>
+            _bloc.add(ServiceOrderTransmitRequested(state.order.id)),
+        onFiscalRefresh: () =>
+            _bloc.add(ServiceOrderFiscalRefreshRequested(state.order.id)),
+        onFiscalXml: () =>
+            _bloc.add(ServiceOrderFiscalXmlRequested(state.order.id)),
+        onFiscalDanfse: () =>
+            _bloc.add(ServiceOrderFiscalDanfseRequested(state.order.id)),
+        onCancelFiscal: () => _askCancelFiscal(state.order),
       );
 
   /// "Cancelar nota" da OS faturada (Q-G16 — vive no documento faturado):
@@ -474,6 +501,77 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         orderId: order.id, reason: reason));
   }
 
+  /// "Cancelar NFS-e" (Onda 3): o MESMO dialog de motivo do "Cancelar nota",
+  /// mas a rota fiscal — plano local → fisco → voz C → C local.
+  Future<void> _askCancelFiscal(ServiceOrderFull order) async {
+    final reason = await showCancelInvoiceDialog(
+        context, '${order.number ?? order.id}');
+    if (reason == null || !mounted) return;
+    _bloc.add(ServiceOrderFiscalCancelRequested(
+        orderId: order.id, reason: reason));
+  }
+
+  /// DANFSe → nova aba (Flutter Web), como o PDF do boleto. Sem navegador,
+  /// avisa pela ponte.
+  Future<void> _openDanfse(String base64) async {
+    if (base64.isEmpty || !await openBase64InNewTab(base64)) {
+      if (mounted) {
+        showValidationFeedback(
+            context, 'forms.serviceOrder.fiscalDocUnavailable'.tr());
+      }
+    }
+  }
+
+  /// XML autorizado → nova aba (texto vira data URL application/xml).
+  Future<void> _openXml(String xml) async {
+    final ok = xml.isNotEmpty &&
+        await openBase64InNewTab(base64Encode(utf8.encode(xml)),
+            mimeType: 'application/xml');
+    if (!ok && mounted) {
+      showValidationFeedback(
+          context, 'forms.serviceOrder.fiscalDocUnavailable'.tr());
+    }
+  }
+
+  /// Lote "Transmitir pendentes", passo 2: confirma pela decisão TIPADA da
+  /// ponte ("N notas sem NFS-e — transmitir agora?") e dispara o lote.
+  Future<void> _askTransmitPending(
+      List<ServiceOrderFiscalPending> pending) async {
+    if (pending.isEmpty) {
+      await showInfoFeedback(
+          context, 'forms.serviceOrder.fiscalNothingPending'.tr());
+      return;
+    }
+    final decision = await askDecision(
+      context,
+      message: 'forms.serviceOrder.fiscalTransmitPendingAsk'
+          .tr(args: ['${pending.length}']),
+      yesLabel: 'forms.serviceOrder.fiscalTransmit'.tr(),
+    );
+    if (decision != SetesDecision.yes || !mounted) return;
+    _bloc.add(ServiceOrderFiscalTransmitBatchRequested(
+        [for (final p in pending) p.orderId]));
+  }
+
+  /// Resumo do lote pela ponte: transmitidas/recusadas + uma linha por
+  /// recusa (código do fisco ou da nossa regra + mensagem).
+  Future<void> _showFiscalBatchSummary(FiscalTransmitBatchReport report) {
+    final summary = 'forms.serviceOrder.fiscalBatchSummary'
+        .tr(args: ['${report.transmitted}', '${report.refused}']);
+    if (report.refused == 0) {
+      return showSuccessFeedback(
+          context, 'forms.serviceOrder.fiscalBatchSummary',
+          args: ['${report.transmitted}', '${report.refused}']);
+    }
+    final lines = report.refusedRows
+        .map((r) => 'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
+              '${r.orderId}',
+              [r.code, r.message].where((s) => s.isNotEmpty).join(' — '),
+            ]))
+        .join('\n');
+    return showInfoFeedback(context, '$summary\n$lines');
+  }
+
   @override
   Widget build(BuildContext context) =>
       BlocConsumer<ServiceOrderBloc, ServiceOrderState>(
@@ -482,7 +580,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             current is ServiceOrderActionSuccess ||
             current is ServiceOrderActionFailure ||
             current is ServiceOrderMonthlyRunDone ||
-            current is ServiceOrderBatchInvoiceDone,
+            current is ServiceOrderBatchInvoiceDone ||
+            current is ServiceOrderFiscalXmlReady ||
+            current is ServiceOrderFiscalDanfseReady ||
+            current is ServiceOrderFiscalWarnings ||
+            current is ServiceOrderFiscalPendingLoaded ||
+            current is ServiceOrderFiscalBatchDone,
         // PONTE de feedback (Framework de Mensagens): a tela nunca chama
         // ScaffoldMessenger/AlertDialog para desfecho — sucesso = SnackBar
         // via ponte (R1); falha = dialog (os 409 de negócio — trava D5,
@@ -498,6 +601,27 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             _showBatchReport(state.report);
             return;
           }
+          // Onda 3 — one-shots fiscais
+          if (state is ServiceOrderFiscalXmlReady) {
+            _openXml(state.xml);
+            return;
+          }
+          if (state is ServiceOrderFiscalDanfseReady) {
+            _openDanfse(state.pdfBase64);
+            return;
+          }
+          if (state is ServiceOrderFiscalWarnings) {
+            showInfoFeedback(context, state.warnings.map((w) => '• $w').join('\n'));
+            return;
+          }
+          if (state is ServiceOrderFiscalPendingLoaded) {
+            _askTransmitPending(state.pending);
+            return;
+          }
+          if (state is ServiceOrderFiscalBatchDone) {
+            _showFiscalBatchSummary(state.report);
+            return;
+          }
           if (state is ServiceOrderActionSuccess) {
             showSuccessFeedback(context, state.messageKey,
                 args: state.args.isEmpty ? null : state.args);
@@ -511,6 +635,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 failure.fields.map((f) => '• ${f.message}').join('\n');
             showValidationFeedback(context,
                 '${'forms.serviceOrder.cancelInvoiceBlocked'.tr()}\n$lines');
+          } else if (failure.code == 'FISCAL_DPS_REJECTED' &&
+              failure.fields.isNotEmpty) {
+            // Onda 3: fields[] = códigos E0xxx do fisco, um por linha
+            final lines = failure.fields
+                .map((f) => '• ${[f.field, f.message].where((s) => s.isNotEmpty).join(': ')}')
+                .join('\n');
+            showValidationFeedback(context,
+                '${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
           } else if (failure.fields.isNotEmpty) {
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
@@ -581,6 +713,11 @@ class _ServiceOrderDetailView extends StatelessWidget {
     required this.onItemRemove,
     required this.onInvoice,
     required this.onCancelInvoice,
+    required this.onTransmit,
+    required this.onFiscalRefresh,
+    required this.onFiscalXml,
+    required this.onFiscalDanfse,
+    required this.onCancelFiscal,
     super.key,
   });
 
@@ -594,8 +731,22 @@ class _ServiceOrderDetailView extends StatelessWidget {
   final void Function(ServiceOrderInvoiceInput input) onInvoice;
   final VoidCallback onCancelInvoice;
 
+  // Onda 3 — seção "No fisco"
+  final VoidCallback onTransmit;
+  final VoidCallback onFiscalRefresh;
+  final VoidCallback onFiscalXml;
+  final VoidCallback onFiscalDanfse;
+  final VoidCallback onCancelFiscal;
+
   ServiceOrderFull get order => state.order;
   bool get busy => state.saving;
+  ServiceOrderFiscalView? get fiscal => state.fiscal;
+
+  /// "Cancelar nota" LOCAL só enquanto o fisco não tem a última palavra —
+  /// NFS-e autorizada (ou cancelamento em voo) esconde o botão (a API
+  /// recusaria com FISCAL_CANCEL_REQUIRED); o caminho passa a ser "Cancelar
+  /// NFS-e" na seção "No fisco".
+  bool get localCancelAllowed => !(fiscal?.blocksLocalCancel ?? false);
 
   /// Cancelamento confirmado via decisão TIPADA da ponte (R4): Sim =
   /// cancelar a OS; Cancelar (ou fechar) = nada. Sem ação alternativa →
@@ -683,6 +834,182 @@ class _ServiceOrderDetailView extends StatelessWidget {
     );
   }
 
+  Widget _row(String text, {TextStyle? style}) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: SetesText(text, style: style),
+      );
+
+  Future<void> _copy(BuildContext context, String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (context.mounted) {
+      await showSuccessFeedback(context, 'forms.serviceOrder.fiscalCopied');
+    }
+  }
+
+  /// Onda 3 — seção "No fisco" (molde da seção "No banco" do boleto):
+  /// apresentação vigente (tentativa, ambiente, situação, chave e nº da
+  /// NFS-e com copiar, dhProc), PENDÊNCIA em vermelho (voz do fisco com
+  /// efeito recusado — D-I10), ações gated por estado/privilégio e a voz do
+  /// fisco em linha do tempo. GET fiscal que falhou mostra o motivo e não
+  /// derruba a tela.
+  Widget _buildFiscalSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final view = fiscal;
+    final tx = view?.lastTransmission;
+    final failure = state.fiscalFailure;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        SetesText.title('forms.serviceOrder.fiscalSection'.tr()),
+        const SizedBox(height: 8),
+        SetesCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (failure != null)
+                _row(
+                  'forms.serviceOrder.fiscalUnavailable'
+                      .tr(args: [failure.message.tr()]),
+                  style: TextStyle(color: theme.colorScheme.error),
+                )
+              else if (tx == null)
+                _row('forms.serviceOrder.fiscalNotTransmitted'.tr())
+              else ...[
+                _row('forms.serviceOrder.fiscalAttemptRow'.tr(args: [
+                  '${tx.attempt}',
+                  fiscalEnvironmentLabel(tx.environment),
+                ])),
+                _row('forms.serviceOrder.fiscalStatusRow'.tr(args: [
+                  fiscalKindLabel(tx.lastKind),
+                  [tx.lastCode, tx.lastMessage]
+                      .whereType<String>()
+                      .where((s) => s.isNotEmpty)
+                      .join(' — '),
+                ])),
+                if (tx.dpsId != null)
+                  _row('forms.serviceOrder.fiscalDpsRow'.tr(args: [tx.dpsId!])),
+                if (tx.dhProc != null)
+                  _row('forms.serviceOrder.fiscalDhProcRow'
+                      .tr(args: [fiscalDateTimeToDisplay(tx.dhProc)])),
+                if (tx.lastQueriedAt != null)
+                  _row('forms.serviceOrder.fiscalQueriedRow'
+                      .tr(args: [fiscalDateTimeToDisplay(tx.lastQueriedAt)])),
+                if (tx.nfseNumber != null)
+                  SetesTextField(
+                    label: 'forms.serviceOrder.fiscalNfseNumber'.tr(),
+                    controller: TextEditingController(text: tx.nfseNumber),
+                    readOnly: true,
+                    suffixIcon: Icons.copy,
+                    onSuffixPressed: () => _copy(context, tx.nfseNumber!),
+                  ),
+                if (tx.accessKey != null) ...[
+                  const SizedBox(height: 8),
+                  SetesTextField(
+                    label: 'forms.serviceOrder.fiscalAccessKey'.tr(),
+                    controller: TextEditingController(text: tx.accessKey),
+                    readOnly: true,
+                    suffixIcon: Icons.copy,
+                    onSuffixPressed: () => _copy(context, tx.accessKey!),
+                  ),
+                ],
+              ],
+              if (view != null && view.hasPendingEffects)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SetesText(
+                    'forms.serviceOrder.fiscalPendingRow'
+                        .tr(args: ['${view.pendingEffects}']),
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
+              if (view != null) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    // Transmitir: sem transmissão vigente (a API recusaria com
+                    // 409); privilégio TRANSMITIR na interface do ramo
+                    if (!view.hasLiveTransmission &&
+                        CurrentInterface.can('TRANSMITIR'))
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalTransmit'.tr(),
+                        icon: Icons.cloud_upload_outlined,
+                        loading: busy,
+                        onPressed: busy ? null : onTransmit,
+                      ),
+                    if (tx != null && tx.dpsId != null)
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalRefresh'.tr(),
+                        icon: Icons.sync,
+                        kind: SetesButtonKind.secondary,
+                        loading: busy,
+                        onPressed: busy ? null : onFiscalRefresh,
+                      ),
+                    if (view.xmlAvailable)
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalXml'.tr(),
+                        icon: Icons.code,
+                        kind: SetesButtonKind.secondary,
+                        loading: busy,
+                        onPressed: busy ? null : onFiscalXml,
+                      ),
+                    if (view.danfseAvailable)
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalDanfse'.tr(),
+                        icon: Icons.picture_as_pdf_outlined,
+                        kind: SetesButtonKind.secondary,
+                        loading: busy,
+                        onPressed: busy ? null : onFiscalDanfse,
+                      ),
+                    if (view.isAuthorized && CurrentInterface.can('CANCELAR'))
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalCancel'.tr(),
+                        icon: Icons.cancel_outlined,
+                        kind: SetesButtonKind.secondary,
+                        loading: busy,
+                        onPressed: busy ? null : onCancelFiscal,
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (view != null && view.events.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          SetesText.title('forms.serviceOrder.fiscalEvents'.tr()),
+          const SizedBox(height: 8),
+          for (final e in view.events) ...[
+            _buildFiscalEventTile(e),
+            const Divider(height: 1),
+          ],
+        ],
+      ],
+    );
+  }
+
+  /// Linha do tempo "Voz do fisco": nº, kind traduzido, tentativa, origem
+  /// P/Q, código do fisco, mensagem e o efeito na nota quando houve.
+  Widget _buildFiscalEventTile(ServiceOrderFiscalEvent e) {
+    final cells = [
+      'forms.serviceOrder.fiscalAttemptShort'.tr(args: ['${e.attempt}']),
+      if (e.dh != null) fiscalDateTimeToDisplay(e.dh),
+      fiscalSourceLabel(e.source),
+      if (e.authorityCode != null && e.authorityCode!.isNotEmpty)
+        e.authorityCode!,
+      if (e.message != null && e.message!.isNotEmpty) e.message!,
+      if (e.invoiceEvent != null)
+        'forms.serviceOrder.fiscalEffectRow'.tr(args: ['${e.invoiceEvent}']),
+    ].where((c) => c.isNotEmpty);
+    return SetesListTile(
+      leading: CircleAvatar(child: SetesText('${e.event}')),
+      title: SetesText(fiscalKindLabel(e.kind)),
+      subtitle: SetesText(cells.join(' · ')),
+    );
+  }
+
   Widget _buildItemTile(BuildContext context, ServiceOrderItem item) {
     final discount = item.discountValue;
     final subtitle = discount > 0
@@ -737,7 +1064,9 @@ class _ServiceOrderDetailView extends StatelessWidget {
           actions: [
             // Q-G16: "Cancelar nota" vive no DOCUMENTO FATURADO (privilégio
             // CANCELAR na interface do ramo — service-orders, seed 52)
-            if (!order.isOpen && CurrentInterface.can('CANCELAR'))
+            if (!order.isOpen &&
+                localCancelAllowed &&
+                CurrentInterface.can('CANCELAR'))
               IconButton(
                 icon: const Icon(Icons.cancel_outlined),
                 tooltip: 'forms.serviceOrder.cancelInvoice'.tr(),
@@ -755,6 +1084,8 @@ class _ServiceOrderDetailView extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             _buildHeader(context),
+            // Onda 3: a nota da OS faturada tem vida no fisco
+            if (!order.isOpen) _buildFiscalSection(context),
             const SizedBox(height: 16),
             SetesText.title('forms.serviceOrder.items'.tr()),
             const SizedBox(height: 8),

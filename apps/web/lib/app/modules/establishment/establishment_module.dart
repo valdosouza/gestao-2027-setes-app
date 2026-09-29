@@ -5,6 +5,7 @@ import '../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
 import 'data/datasource/establishment_datasource.dart';
+import 'data/datasource/establishment_issuer_datasource.dart';
 import 'data/repository/establishment_repository_impl.dart';
 import 'domain/repository/establishment_repository.dart';
 import 'domain/usecase/establishment_get.dart';
@@ -23,6 +24,11 @@ class EstablishmentModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<EstablishmentDatasource>(
             (i) => EstablishmentDatasourceImpl(client: i.get<ApiClient>())),
+        // Sub-recurso EMISSOR FISCAL (Onda 3): a aba "Emissor fiscal" é uma
+        // seção autônoma que consome este datasource direto (ciclo próprio,
+        // fora do bloc do form — molde bank_account_channel_section).
+        Bind.lazySingleton<EstablishmentIssuerDatasource>((i) =>
+            EstablishmentIssuerDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<EstablishmentRepository>((i) =>
             EstablishmentRepositoryImpl(
                 datasource: i.get<EstablishmentDatasource>())),

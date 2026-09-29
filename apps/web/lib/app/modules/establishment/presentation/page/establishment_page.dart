@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
@@ -13,8 +14,10 @@ import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../data/datasource/establishment_issuer_datasource.dart';
 import '../../domain/entity/object_establishment.dart';
 import '../bloc/establishment_bloc.dart';
+import '../widget/establishment_issuer_section.dart';
 
 /// Tela "Meu Estabelecimento" — interface 'establishment', menu Sistema.
 ///
@@ -27,7 +30,9 @@ import '../bloc/establishment_bloc.dart';
 /// Abas reaproveitadas de app/shared/entity/widgets (mesmas do form de
 /// `institutions`): Endereços/Fones/Redes Sociais. A aba Principal é
 /// PRÓPRIA (subconjunto restrito de campos — decisão fechada com o
-/// usuário): documento e tipo de pessoa são SOMENTE EXIBIÇÃO.
+/// usuário): documento e tipo de pessoa são SOMENTE EXIBIÇÃO. A 5ª aba
+/// "Emissor fiscal" (Onda 3) é uma SEÇÃO AUTÔNOMA com datasource próprio —
+/// o check do shell não a salva (ela tem os próprios botões).
 class EstablishmentPage extends StatefulWidget {
   const EstablishmentPage({required this.title, super.key});
 
@@ -43,6 +48,7 @@ class _EstablishmentPageState extends State<EstablishmentPage> {
   late final CountryLookupDatasource _countryLookup;
   late final StateLookupDatasource _stateLookup;
   late final CityLookupDatasource _cityLookup;
+  late final EstablishmentIssuerDatasource _issuerDatasource;
 
   /// Ancora o fields[] do servidor no campo certo (showServerFieldError).
   final _formViewKey = GlobalKey<_EstablishmentFormViewState>();
@@ -55,6 +61,7 @@ class _EstablishmentPageState extends State<EstablishmentPage> {
     _countryLookup = Modular.get<CountryLookupDatasource>();
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cityLookup = Modular.get<CityLookupDatasource>();
+    _issuerDatasource = Modular.get<EstablishmentIssuerDatasource>();
   }
 
   /// Sem lista para voltar — "voltar" sai da tela para a Home (mesmo botão
@@ -133,6 +140,7 @@ class _EstablishmentPageState extends State<EstablishmentPage> {
             countryLookup: _countryLookup,
             stateLookup: _stateLookup,
             cityLookup: _cityLookup,
+            issuerDatasource: _issuerDatasource,
             onDraftChanged: (d) => _bloc.add(EstablishmentDraftChanged(d)),
             onSave: () => _bloc.add(EstablishmentSaveRequested(draft)),
             onBack: _back,
@@ -153,6 +161,7 @@ class _EstablishmentFormView extends StatefulWidget {
     required this.countryLookup,
     required this.stateLookup,
     required this.cityLookup,
+    required this.issuerDatasource,
     required this.onDraftChanged,
     required this.onSave,
     required this.onBack,
@@ -165,6 +174,7 @@ class _EstablishmentFormView extends StatefulWidget {
   final CountryLookupDatasource countryLookup;
   final StateLookupDatasource stateLookup;
   final CityLookupDatasource cityLookup;
+  final EstablishmentIssuerDatasource issuerDatasource;
   final ValueChanged<ObjectEstablishment> onDraftChanged;
   final VoidCallback onSave;
   final VoidCallback onBack;
@@ -176,7 +186,11 @@ class _EstablishmentFormView extends StatefulWidget {
 
 class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 4, vsync: this);
+  late final TabController _tabs = TabController(length: 5, vsync: this);
+
+  /// Opção "não informado" dos dropdowns de regime — o draft guarda '' e
+  /// o toJson manda null (limpa na API).
+  static const _notSet = '';
 
   /// Rótulos canônicos de TAX_REGIMES da API (D39) — catálogo, não se traduz.
   static const _taxRegimes = [
@@ -228,14 +242,17 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
 
   final _nameCompanyFocus = FocusNode();
   final _nickTradeFocus = FocusNode();
+  final _cnaeFocus = FocusNode();
   final _nameCompanyKey = GlobalKey<FormFieldState<String>>();
   final _nickTradeKey = GlobalKey<FormFieldState<String>>();
+  final _cnaeKey = GlobalKey<FormFieldState<String>>();
 
   late final TextEditingController _nameCompany;
   late final TextEditingController _nickTrade;
   late final TextEditingController _document;
   late final TextEditingController _ie;
   late final TextEditingController _im;
+  late final TextEditingController _cnae;
 
   @override
   void initState() {
@@ -246,6 +263,7 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     _document    = TextEditingController(text: widget.draft.document);
     _ie          = TextEditingController(text: widget.draft.ie ?? '');
     _im          = TextEditingController(text: widget.draft.im ?? '');
+    _cnae        = TextEditingController(text: widget.draft.cnae ?? '');
   }
 
   @override
@@ -253,13 +271,28 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     _tabs.dispose();
     _nameCompanyFocus.dispose();
     _nickTradeFocus.dispose();
-    for (final c in [_nameCompany, _nickTrade, _document, _ie, _im]) {
+    _cnaeFocus.dispose();
+    for (final c in [_nameCompany, _nickTrade, _document, _ie, _im, _cnae]) {
       c.dispose();
     }
     super.dispose();
   }
 
   ObjectEstablishment get _draft => widget.draft;
+
+  /// CNAE: opcional; quando informado, exatamente 7 dígitos (DTO da API).
+  String? _validateCnae(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    return RegExp(r'^\d{7}$').hasMatch(text)
+        ? null
+        : 'forms.establishment.cnaeInvalid'.tr();
+  }
+
+  /// Valor do dropdown: código fora do catálogo (dado legado) cai em
+  /// "não informado".
+  String _dropdownValue(String? code, List<String> catalog) =>
+      code != null && catalog.contains(code) ? code : _notSet;
 
   /// Campos NA ORDEM da tela (R3) — uma pendência por vez, foco na aba
   /// Principal (a única com campos obrigatórios). Names casam com o
@@ -286,6 +319,24 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
             ? 'register.requiredField'
                 .tr(args: ['forms.establishment.nickTrade'.tr()])
             : null,
+      ),
+      PendencyField(
+        name: 'cnae',
+        beforeFocus: toMainTab,
+        focusNode: _cnaeFocus,
+        fieldKey: _cnaeKey,
+        validate: () => _validateCnae(_draft.cnae),
+      ),
+      // Só âncora do fields[] do servidor (dropdowns não têm foco de texto).
+      PendencyField(
+        name: 'simplesRegime',
+        beforeFocus: toMainTab,
+        validate: () => null,
+      ),
+      PendencyField(
+        name: 'specialTaxRegime',
+        beforeFocus: toMainTab,
+        validate: () => null,
       ),
     ];
   }
@@ -318,6 +369,7 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
               Tab(text: 'register.tabAddresses'.tr()),
               Tab(text: 'register.tabPhones'.tr()),
               Tab(text: 'register.tabSocialMedia'.tr()),
+              Tab(text: 'forms.establishment.issuerTab'.tr()),
             ],
           ),
           Expanded(
@@ -391,7 +443,7 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                         child: SetesTextField(
                           label: 'forms.establishment.im'.tr(),
                           controller: _im,
-                          textInputAction: TextInputAction.done,
+                          textInputAction: TextInputAction.next,
                           onChanged: (t) => widget.onDraftChanged(
                               draft.copyWith(im: t)),
                         ),
@@ -411,6 +463,58 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                             : null,
                         items: _taxRegimes,
                         onChanged: _onRegimeSelected,
+                      ),
+                      const SizedBox(height: 16),
+                      // Fatos do EMITENTE da NFS-e (Onda 3 — §9.3 da
+                      // prompt_onda_nfe_sefaz.md): opSimpNac, regEspTrib e
+                      // CNAE viajam no PUT como o taxRegime (null = limpa).
+                      SetesDropdown<String>(
+                        label: 'forms.establishment.simplesRegime'.tr(),
+                        value: _dropdownValue(draft.simplesRegime,
+                            ObjectEstablishment.simplesRegimes),
+                        items: const [
+                          _notSet,
+                          ...ObjectEstablishment.simplesRegimes,
+                        ],
+                        itemLabel: (v) => v == _notSet
+                            ? 'forms.establishment.regimeNotSet'.tr()
+                            : 'forms.establishment.simplesRegime$v'.tr(),
+                        onChanged: (v) => widget.onDraftChanged(
+                            draft.copyWith(simplesRegime: v ?? _notSet)),
+                      ),
+                      const SizedBox(height: 16),
+                      SetesDropdown<String>(
+                        label: 'forms.establishment.specialTaxRegime'.tr(),
+                        value: _dropdownValue(draft.specialTaxRegime,
+                            ObjectEstablishment.specialTaxRegimes),
+                        items: const [
+                          _notSet,
+                          ...ObjectEstablishment.specialTaxRegimes,
+                        ],
+                        itemLabel: (v) => v == _notSet
+                            ? 'forms.establishment.regimeNotSet'.tr()
+                            : 'forms.establishment.specialTaxRegime$v'.tr(),
+                        onChanged: (v) => widget.onDraftChanged(
+                            draft.copyWith(specialTaxRegime: v ?? _notSet)),
+                      ),
+                      const SizedBox(height: 16),
+                      FocusTraversalOrder(
+                        order: const NumericFocusOrder(4),
+                        child: SetesTextField(
+                          label: 'forms.establishment.cnae'.tr(),
+                          controller: _cnae,
+                          focusNode: _cnaeFocus,
+                          fieldKey: _cnaeKey,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(7),
+                          ],
+                          validator: _validateCnae,
+                          onChanged: (t) => widget.onDraftChanged(
+                              draft.copyWith(cnae: t)),
+                        ),
                       ),
                     ],
                   ),
@@ -432,6 +536,15 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                   items: draft.socialMedia,
                   onChanged: (list) => widget
                       .onDraftChanged(draft.copyWith(socialMedia: list)),
+                ),
+                // Emissor fiscal: seção autônoma (datasource próprio, botões
+                // próprios) — não participa do draft nem do check do shell.
+                ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    EstablishmentIssuerSection(
+                        datasource: widget.issuerDatasource),
+                  ],
                 ),
               ],
             ),

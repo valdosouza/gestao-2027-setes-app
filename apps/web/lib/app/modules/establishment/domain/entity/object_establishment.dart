@@ -11,6 +11,10 @@ import '../../../../shared/entity/domain/object_entity.dart';
 /// (EntityAddress/EntityPhone/EntitySocialMedia de shared/entity) — só o
 /// subconjunto de campos é restrito (decisão fechada com o usuário):
 /// document/personType são SOMENTE EXIBIÇÃO (nunca viajam no PUT).
+///
+/// Onda 3 (NFS-e pelo ADN — prompt_onda_nfe_sefaz.md §9.3, fatos do
+/// EMITENTE): [simplesRegime] (opSimpNac), [specialTaxRegime] (regEspTrib)
+/// e [cnae] viajam no PUT ao lado do [taxRegime] — null = limpa.
 class ObjectEstablishment extends Equatable {
   const ObjectEstablishment({
     this.nameCompany = '',
@@ -20,10 +24,24 @@ class ObjectEstablishment extends Equatable {
     this.ie,
     this.im,
     this.taxRegime,
+    this.simplesRegime,
+    this.specialTaxRegime,
+    this.cnae,
     this.addresses = const [],
     this.phones = const [],
     this.socialMedia = const [],
   });
+
+  /// Valores canônicos da API para [simplesRegime] (opSimpNac do DPS):
+  /// 1 não optante · 2 MEI · 3 ME/EPP (Simples Nacional). Rótulos = i18n
+  /// `forms.establishment.simplesRegime<N>`.
+  static const simplesRegimes = ['1', '2', '3'];
+
+  /// Valores canônicos da API para [specialTaxRegime] (regEspTrib do DPS):
+  /// 0 nenhum · 1 ato cooperado · 2 estimativa · 3 microempresa municipal ·
+  /// 4 notário/registrador · 5 profissional autônomo · 6 sociedade de
+  /// profissionais. Rótulos = i18n `forms.establishment.specialTaxRegime<N>`.
+  static const specialTaxRegimes = ['0', '1', '2', '3', '4', '5', '6'];
 
   final String nameCompany;
   final String nickTrade;
@@ -41,6 +59,15 @@ class ObjectEstablishment extends Equatable {
   /// aqui): rótulo canônico da API (TAX_REGIMES) — não se traduz.
   final String? taxRegime;
 
+  /// Situação perante o Simples Nacional ('1' | '2' | '3' | null).
+  final String? simplesRegime;
+
+  /// Regime especial de tributação ('0'..'6' | null).
+  final String? specialTaxRegime;
+
+  /// CNAE principal — 7 dígitos, opcional.
+  final String? cnae;
+
   final List<EntityAddress> addresses;
   final List<EntityPhone> phones;
   final List<EntitySocialMedia> socialMedia;
@@ -54,6 +81,10 @@ class ObjectEstablishment extends Equatable {
         ie:          json['ie'] as String?,
         im:          json['im'] as String?,
         taxRegime:   json['taxRegime'] as String?,
+        // Códigos de 1 dígito: a API pode devolver int ou string — normaliza.
+        simplesRegime:    _codeOrNull(json['simplesRegime']),
+        specialTaxRegime: _codeOrNull(json['specialTaxRegime']),
+        cnae:             _codeOrNull(json['cnae']),
         addresses: ObjectEntity.listFromJson(
             json['addresses'], EntityAddress.fromJson),
         phones: ObjectEntity.listFromJson(json['phones'], EntityPhone.fromJson),
@@ -62,26 +93,46 @@ class ObjectEstablishment extends Equatable {
             json['socials'], EntitySocialMedia.fromJson),
       );
 
+  static String? _codeOrNull(dynamic v) {
+    if (v == null) return null;
+    final s = '$v'.trim();
+    return s.isEmpty ? null : s;
+  }
+
+  /// Texto vazio vira null no PUT (o usuário limpou o campo).
+  static String? _nullIfEmpty(String? v) {
+    final s = v?.trim() ?? '';
+    return s.isEmpty ? null : s;
+  }
+
   /// Body do PUT (EstablishmentUpdateDto) — SEM document/personType.
   Map<String, dynamic> toJson() => {
         'nameCompany': nameCompany.trim(),
         'nickTrade':   nickTrade.trim(),
         if (ie != null && ie!.trim().isNotEmpty) 'ie': ie!.trim(),
         if (im != null && im!.trim().isNotEmpty) 'im': im!.trim(),
-        // Sempre viaja (null = sem regime): o draft nasce do GET, então
+        // Sempre viajam (null = limpa): o draft nasce do GET, então
         // reenviar o valor corrente é idempotente.
-        'taxRegime':   taxRegime,
+        'taxRegime':        taxRegime,
+        'simplesRegime':    _nullIfEmpty(simplesRegime),
+        'specialTaxRegime': _nullIfEmpty(specialTaxRegime),
+        'cnae':             _nullIfEmpty(cnae),
         'addresses':   addresses.map((a) => a.toJson()).toList(),
         'phones':      phones.map((p) => p.toJson()).toList(),
         'socials':     socialMedia.map((s) => s.toJson()).toList(),
       };
 
+  /// [simplesRegime]/[specialTaxRegime]/[cnae] aceitam '' para LIMPAR (o
+  /// toJson converte em null) — `??` não distingue "não mexi" de "limpei".
   ObjectEstablishment copyWith({
     String? nameCompany,
     String? nickTrade,
     String? ie,
     String? im,
     String? taxRegime,
+    String? simplesRegime,
+    String? specialTaxRegime,
+    String? cnae,
     List<EntityAddress>? addresses,
     List<EntityPhone>? phones,
     List<EntitySocialMedia>? socialMedia,
@@ -94,6 +145,9 @@ class ObjectEstablishment extends Equatable {
         ie:          ie ?? this.ie,
         im:          im ?? this.im,
         taxRegime:   taxRegime ?? this.taxRegime,
+        simplesRegime:    simplesRegime ?? this.simplesRegime,
+        specialTaxRegime: specialTaxRegime ?? this.specialTaxRegime,
+        cnae:             cnae ?? this.cnae,
         addresses:   addresses ?? this.addresses,
         phones:      phones ?? this.phones,
         socialMedia: socialMedia ?? this.socialMedia,
@@ -102,6 +156,7 @@ class ObjectEstablishment extends Equatable {
   @override
   List<Object?> get props => [
         nameCompany, nickTrade, document, personType, ie, im, taxRegime,
+        simplesRegime, specialTaxRegime, cnae,
         addresses, phones, socialMedia,
       ];
 }

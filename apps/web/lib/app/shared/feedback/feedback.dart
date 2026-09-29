@@ -69,6 +69,18 @@ Future<void> showValidationFeedback(BuildContext context, String message) =>
       okLabel: 'register.ok'.tr(),
     );
 
+/// AVISO não bloqueante (dialog informativo, kind info): desfecho que deu
+/// certo mas trouxe ressalvas — ex.: `warnings[]` do cancelamento da NFS-e
+/// (Onda 3). [message] já traduzida/pronta.
+Future<void> showInfoFeedback(BuildContext context, String message) =>
+    showSetesMessage(
+      context,
+      kind: SetesMessageKind.info,
+      title: 'feedback.infoTitle'.tr(),
+      message: message,
+      okLabel: 'register.ok'.tr(),
+    );
+
 /// Pergunta com decisão 3-way tipada (R4). Labels default: register.yes /
 /// register.cancel; [noLabel] null = sem ação alternativa (só Sim/Cancelar —
 /// ex.: confirmação de exclusão); passe 'register.no'.tr() quando o Não
