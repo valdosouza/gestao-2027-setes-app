@@ -152,6 +152,10 @@ class OrderFull extends Equatable {
 
   bool get isOpen => status == 'A';
 
+  /// 'C' = cancelado COM nota fiscal (D3/D4 — Q-CA1/Q-CA7): somente leitura,
+  /// nunca refatura; sem devolução nem novo cancelamento.
+  bool get isCancelled => status == 'C';
+
   /// Conjugada (derivado) — pelo menos um item de serviço presente.
   bool get hasService => items.any((item) => item.isService);
 

@@ -651,7 +651,9 @@ class _OrderDetailView extends StatelessWidget {
           _headerRow('forms.order.salesmanRow'.tr(args: [order.salesmanName ?? ''])),
           _headerRow(order.isOpen
               ? 'forms.order.statusOpen'.tr()
-              : 'forms.order.statusInvoiced'.tr()),
+              : order.isCancelled
+                  ? 'forms.order.statusCancelled'.tr()
+                  : 'forms.order.statusInvoiced'.tr()),
           const SizedBox(height: 8),
           // Total em destaque — recalculado no servidor a cada operação.
           SetesText(
@@ -777,7 +779,7 @@ class _OrderDetailView extends StatelessWidget {
                   icon: Icons.receipt_long_outlined,
                   onPressed: busy ? null : onValidate,
                 ),
-            ] else ...[
+            ] else if (!order.isCancelled) ...[
               const SizedBox(height: 24),
               // Pedido FATURADO: abre a devolução de mercadoria (ajuste de
               // Entrada ancorado neste pedido — módulo order_returns).

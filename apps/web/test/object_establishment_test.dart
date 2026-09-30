@@ -29,6 +29,21 @@ void main() {
       expect(e.taxRegime, '1 - Simples Nacional');
     });
 
+    test('Q-N37: % do Simples chega como número, exibe com vírgula e viaja como número só no ME/EPP', () {
+      final e = ObjectEstablishment.fromJson({
+        'nameCompany': 'SETES LTDA',
+        'simplesRegime': '3',
+        'simplesAssessment': '1',
+        'simplesTotalTaxAliquot': 6,
+      });
+      expect(e.simplesTotalTaxAliquot, '6,00');
+      expect(e.toJson()['simplesTotalTaxAliquot'], 6.0);
+      expect(e.copyWith(simplesTotalTaxAliquot: '6,5').toJson()['simplesTotalTaxAliquot'], 6.5);
+      expect(e.copyWith(simplesTotalTaxAliquot: '').toJson()['simplesTotalTaxAliquot'], isNull);
+      // fora do ME/EPP não viaja (null limpa)
+      expect(e.copyWith(simplesRegime: '2').toJson()['simplesTotalTaxAliquot'], isNull);
+    });
+
     test('ausentes/vazios viram null', () {
       final e = ObjectEstablishment.fromJson({
         'nameCompany': 'X',

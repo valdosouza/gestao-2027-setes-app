@@ -435,6 +435,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         final selectable =
             state.status == 'A' && CurrentInterface.can('FATURAR');
         final cells = [
+          if (order.invoiceNumber != null)
+            'forms.serviceOrder.listInvoiceCell'.tr(args: [order.invoiceNumber!]),
           isoDateToDisplay(order.dtRecord),
           'forms.serviceOrder.itemsCountRow'.tr(args: ['${order.itemsCount}']),
           'forms.serviceOrder.totalRow'
@@ -454,9 +456,36 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           ),
           title: SetesText(order.customerName ?? ''),
           subtitle: SetesText(cells.join(' · ')),
+          trailing: order.fiscalState == null ? null : _fiscalSeal(order),
           onTap: () => _bloc.add(ServiceOrderViewRequested(order.id)),
         );
       },
+    );
+  }
+
+  /// Selo da situação da NFS-e na linha (molde do selo de status do settlements).
+  Widget _fiscalSeal(ServiceOrderListItem order) {
+    final scheme = Theme.of(context).colorScheme;
+    final (background, foreground) = switch (order.fiscalState) {
+      'authorized' => (scheme.primaryContainer, scheme.onPrimaryContainer),
+      'rejected' || 'failed' => (scheme.errorContainer, scheme.onErrorContainer),
+      'in_flight' ||
+      'cancel_in_flight' =>
+        (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      _ => (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SetesText(
+        fiscalSealLabel(order.fiscalState!,
+            nfseNumber: order.nfseNumber,
+            environment: order.fiscalEnvironment),
+        style: TextStyle(color: foreground, fontSize: 12),
+      ),
     );
   }
 
@@ -812,7 +841,9 @@ class _ServiceOrderDetailView extends StatelessWidget {
               .tr(args: [isoDateToDisplay(order.dtRecord)])),
           _headerRow(order.isOpen
               ? 'forms.serviceOrder.statusOpen'.tr()
-              : 'forms.serviceOrder.statusInvoiced'.tr()),
+              : order.isCancelled
+                  ? 'forms.serviceOrder.statusCancelled'.tr()
+                  : 'forms.serviceOrder.statusInvoiced'.tr()),
           if (!order.isOpen) ...[
             if (order.invoiceNumber != null)
               _headerRow('forms.serviceOrder.invoiceNumberRow'
@@ -931,7 +962,10 @@ class _ServiceOrderDetailView extends StatelessWidget {
                   children: [
                     // Transmitir: sem transmissão vigente (a API recusaria com
                     // 409); privilégio TRANSMITIR na interface do ramo
+                    // D3/D4: nota cancelada com registro fiscal é documento
+                    // encerrado — nada a transmitir (a API recusaria com 409)
                     if (!view.hasLiveTransmission &&
+                        !order.isCancelled &&
                         CurrentInterface.can('TRANSMITIR'))
                       SetesButton(
                         label: 'forms.serviceOrder.fiscalTransmit'.tr(),
@@ -1065,6 +1099,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
             // Q-G16: "Cancelar nota" vive no DOCUMENTO FATURADO (privilégio
             // CANCELAR na interface do ramo — service-orders, seed 52)
             if (!order.isOpen &&
+                !order.isCancelled &&
                 localCancelAllowed &&
                 CurrentInterface.can('CANCELAR'))
               IconButton(

@@ -45,3 +45,23 @@ String fiscalDateTimeToDisplay(String? iso) {
   final date = '${m.group(3)}/${m.group(2)}/${m.group(1)}';
   return m.group(4) == null ? date : '$date ${m.group(4)}:${m.group(5)}';
 }
+
+/// Selo fiscal da linha da lista (situação da transmissão VIGENTE, vinda da
+/// API — o mesmo leitor da seção "No fisco"). Autorizada com número mostra o
+/// nº da NFS-e; homologação é sempre sinalizada (não vale como documento).
+String fiscalSealLabel(String state, {String? nfseNumber, String? environment}) {
+  final base = switch (state) {
+    'none' => 'forms.serviceOrder.fiscalStateNone'.tr(),
+    'authorized' => (nfseNumber == null || nfseNumber.isEmpty)
+        ? 'forms.serviceOrder.fiscalKindAuthorized'.tr()
+        : 'forms.serviceOrder.fiscalSealAuthorized'.tr(args: [nfseNumber]),
+    'rejected' => 'forms.serviceOrder.fiscalKindRejected'.tr(),
+    'failed' => 'forms.serviceOrder.fiscalKindFailed'.tr(),
+    'cancelled' => 'forms.serviceOrder.fiscalKindCancelled'.tr(),
+    'cancel_in_flight' => 'forms.serviceOrder.fiscalKindCancelInFlight'.tr(),
+    _ => 'forms.serviceOrder.fiscalKindInFlight'.tr(),
+  };
+  return environment == 'H'
+      ? '$base · ${'forms.serviceOrder.fiscalEnvRestricted'.tr()}'
+      : base;
+}

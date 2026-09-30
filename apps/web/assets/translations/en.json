@@ -343,8 +343,7 @@
       "simplesRegime1": "Not a Simples Nacional opter",
       "simplesRegime2": "MEI",
       "simplesRegime3": "ME/EPP (Simples Nacional)",
-      "simplesAssessment": "Simples assessment (sub-limit)",
-      "simplesAssessment0": "Within the sub-limit (do not report)",
+      "simplesAssessment": "Simples assessment",
       "simplesAssessment1": "Federal taxes and ISS assessed under Simples",
       "simplesAssessment2": "Federal under Simples, ISS assessed by the municipality",
       "simplesAssessment3": "Federal taxes and ISS assessed outside Simples",
@@ -392,7 +391,10 @@
       "issuerRemove": "Remove",
       "issuerRemoveConfirm": "Remove the {} enablement?",
       "issuerSaved": "Document enablement saved",
-      "issuerRemoved": "Document enablement removed"
+      "issuerRemoved": "Document enablement removed",
+      "simplesTotalTaxAliquot": "Approximate Simples tax %",
+      "simplesTotalTaxAliquotHint": "Effective DAS rate (e.g. 6.00)",
+      "simplesTotalTaxAliquotInvalid": "Enter a percentage between 0.01 and 99.99 (up to 2 decimals)"
     },
     "user": {
       "code": "User Code",
@@ -725,6 +727,7 @@
       "canceled": "Service order canceled",
       "statusOpen": "Order Status: Open",
       "statusInvoiced": "Order Status: Invoiced",
+      "statusCancelled": "Service order status: Cancelled (tax invoice cancelled — read-only)",
       "numberRow": "Order No.: {}",
       "dateRow": "Order Date: {}",
       "itemsCountRow": "Items: {}",
@@ -824,7 +827,10 @@
       "fiscalTransmitPendingAsk": "{} invoices without NFS-e — transmit now?",
       "fiscalNothingPending": "No invoiced order without NFS-e",
       "fiscalBatchSummary": "Transmitted: {} · Refused: {}",
-      "fiscalBatchRefusedRow": "Order {}: {}"
+      "fiscalBatchRefusedRow": "Order {}: {}",
+      "listInvoiceCell": "Invoice {}",
+      "fiscalStateNone": "No NFS-e",
+      "fiscalSealAuthorized": "NFS-e {}"
     },
     "order": {
       "tabOpen": "Open",
@@ -836,6 +842,7 @@
       "canceled": "Order canceled",
       "statusOpen": "Order Status: Open",
       "statusInvoiced": "Order Status: Invoiced",
+      "statusCancelled": "Order status: Cancelled (tax invoice cancelled — read-only)",
       "numberRow": "Order No.: {}",
       "dateRow": "Order Date: {}",
       "salesmanRow": "Salesman: {}",

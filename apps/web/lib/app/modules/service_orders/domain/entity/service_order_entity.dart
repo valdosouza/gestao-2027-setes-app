@@ -20,6 +20,10 @@ class ServiceOrderListItem extends Equatable {
     this.dtRecord,
     this.itemsCount = 0,
     this.totalValue = 0,
+    this.invoiceNumber,
+    this.fiscalState,
+    this.fiscalEnvironment,
+    this.nfseNumber,
   });
 
   final int     id;
@@ -37,6 +41,18 @@ class ServiceOrderListItem extends Equatable {
   final int     itemsCount;
   final double  totalValue;
 
+  /// Nº da nota da OS faturada (null na aberta).
+  final String? invoiceNumber;
+
+  /// Selo fiscal da linha — situação da NFS-e pela transmissão vigente (mesmo
+  /// leitor da seção "No fisco"): none | in_flight | authorized | rejected |
+  /// failed | cancelled | cancel_in_flight. null = aberta ou nota da origem.
+  final String? fiscalState;
+
+  /// Ambiente da transmissão vigente ('H' | 'P').
+  final String? fiscalEnvironment;
+  final String? nfseNumber;
+
   factory ServiceOrderListItem.fromJson(Map<String, dynamic> json) =>
       ServiceOrderListItem(
         id:           jsonInt(json['id']) ?? 0,
@@ -47,12 +63,17 @@ class ServiceOrderListItem extends Equatable {
         dtRecord:     json['dtRecord'] as String?,
         itemsCount:   jsonInt(json['itemsCount']) ?? 0,
         totalValue:   jsonDouble(json['totalValue']) ?? 0,
+        invoiceNumber:     json['invoiceNumber']?.toString(),
+        fiscalState:       json['fiscalState'] as String?,
+        fiscalEnvironment: json['fiscalEnvironment'] as String?,
+        nfseNumber:        json['nfseNumber']?.toString(),
       );
 
   @override
   List<Object?> get props => [
         id, number, customerId, customerName, status,
         dtRecord, itemsCount, totalValue,
+        invoiceNumber, fiscalState, fiscalEnvironment, nfseNumber,
       ];
 }
 
@@ -131,6 +152,11 @@ class ServiceOrderFull extends Equatable {
   final String? dtEmission;
 
   bool get isOpen => status == 'A';
+
+  /// 'C' = cancelada COM nota fiscal (D3/D4 — Q-CA1): a nota autorizada e
+  /// cancelada é documento e fica; a OS é somente leitura e NUNCA refatura
+  /// (faturar de novo = OS nova; a competência mensal volta ao contrato).
+  bool get isCancelled => status == 'C';
 
   factory ServiceOrderFull.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFull(

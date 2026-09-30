@@ -243,9 +243,11 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
   final _nameCompanyFocus = FocusNode();
   final _nickTradeFocus = FocusNode();
   final _cnaeFocus = FocusNode();
+  final _aliquotFocus = FocusNode();
   final _nameCompanyKey = GlobalKey<FormFieldState<String>>();
   final _nickTradeKey = GlobalKey<FormFieldState<String>>();
   final _cnaeKey = GlobalKey<FormFieldState<String>>();
+  final _aliquotKey = GlobalKey<FormFieldState<String>>();
 
   late final TextEditingController _nameCompany;
   late final TextEditingController _nickTrade;
@@ -253,6 +255,7 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
   late final TextEditingController _ie;
   late final TextEditingController _im;
   late final TextEditingController _cnae;
+  late final TextEditingController _aliquot;
 
   @override
   void initState() {
@@ -264,6 +267,8 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     _ie          = TextEditingController(text: widget.draft.ie ?? '');
     _im          = TextEditingController(text: widget.draft.im ?? '');
     _cnae        = TextEditingController(text: widget.draft.cnae ?? '');
+    _aliquot     = TextEditingController(
+        text: widget.draft.simplesTotalTaxAliquot ?? '');
   }
 
   @override
@@ -272,7 +277,10 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     _nameCompanyFocus.dispose();
     _nickTradeFocus.dispose();
     _cnaeFocus.dispose();
-    for (final c in [_nameCompany, _nickTrade, _document, _ie, _im, _cnae]) {
+    _aliquotFocus.dispose();
+    for (final c in [
+      _nameCompany, _nickTrade, _document, _ie, _im, _cnae, _aliquot,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -287,6 +295,22 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
     return RegExp(r'^\d{7}$').hasMatch(text)
         ? null
         : 'forms.establishment.cnaeInvalid'.tr();
+  }
+
+  /// Q-N37: % aproximado da alíquota efetiva do Simples (pTotTribSN) —
+  /// obrigatório para ME/EPP; > 0, até 99,99, no máximo 2 casas (DTO da API).
+  String? _validateAliquot(String? value) {
+    if (_draft.simplesRegime != '3') return null;
+    final text = (value ?? '').trim();
+    if (text.isEmpty) {
+      return 'register.requiredField'
+          .tr(args: ['forms.establishment.simplesTotalTaxAliquot'.tr()]);
+    }
+    final v = ObjectEstablishment.parseAliquot(text);
+    final twoDecimals = RegExp(r'^\d{1,2}([.,]\d{1,2})?$').hasMatch(text);
+    return v == null || !twoDecimals || v <= 0 || v > 99.99
+        ? 'forms.establishment.simplesTotalTaxAliquotInvalid'.tr()
+        : null;
   }
 
   /// Valor do dropdown: código fora do catálogo (dado legado) cai em
@@ -333,10 +357,24 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
         beforeFocus: toMainTab,
         validate: () => null,
       ),
+      // Q-N36: ME/EPP EXIGE a apuração (o fisco recusa a ausência — E0166);
+      // espelho da mesma regra da API (422 no mesmo campo).
       PendencyField(
         name: 'simplesAssessment',
         beforeFocus: toMainTab,
-        validate: () => null,
+        validate: () => _draft.simplesRegime == '3' &&
+                !ObjectEstablishment.simplesAssessments
+                    .contains(_draft.simplesAssessment)
+            ? 'register.requiredField'
+                .tr(args: ['forms.establishment.simplesAssessment'.tr()])
+            : null,
+      ),
+      PendencyField(
+        name: 'simplesTotalTaxAliquot',
+        beforeFocus: toMainTab,
+        focusNode: _aliquotFocus,
+        fieldKey: _aliquotKey,
+        validate: () => _validateAliquot(_draft.simplesTotalTaxAliquot),
       ),
       PendencyField(
         name: 'specialTaxRegime',
@@ -488,9 +526,9 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                             draft.copyWith(simplesRegime: v ?? _notSet)),
                       ),
                       const SizedBox(height: 16),
-                      // D-N19a: só o ME/EPP (3) que ultrapassou sublimite
-                      // informa em que regime apura (regApTribSN); "não
-                      // informado" = dentro do sublimite (omitido no DPS).
+                      // D-N19a/Q-N36: o ME/EPP (3) informa SEMPRE em que regime
+                      // apura (regApTribSN) — obrigatório no DPS (E0166 do
+                      // fisco); "não informado" só como estado a corrigir.
                       if (draft.simplesRegime == '3') ...[
                         SetesDropdown<String>(
                           label: 'forms.establishment.simplesAssessment'.tr(),
@@ -501,10 +539,32 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
                             ...ObjectEstablishment.simplesAssessments,
                           ],
                           itemLabel: (v) => v == _notSet
-                              ? 'forms.establishment.simplesAssessment0'.tr()
+                              ? 'forms.establishment.regimeNotSet'.tr()
                               : 'forms.establishment.simplesAssessment$v'.tr(),
                           onChanged: (v) => widget.onDraftChanged(
                               draft.copyWith(simplesAssessment: v ?? _notSet)),
+                        ),
+                        const SizedBox(height: 16),
+                        // Q-N37: total aproximado de tributos da NFS-e do
+                        // ME/EPP = alíquota efetiva do DAS (o contador informa).
+                        SetesTextField(
+                          label:
+                              'forms.establishment.simplesTotalTaxAliquot'.tr(),
+                          hint: 'forms.establishment.simplesTotalTaxAliquotHint'
+                              .tr(),
+                          controller: _aliquot,
+                          focusNode: _aliquotFocus,
+                          fieldKey: _aliquotKey,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]')),
+                            LengthLimitingTextInputFormatter(5),
+                          ],
+                          validator: _validateAliquot,
+                          onChanged: (t) => widget.onDraftChanged(
+                              draft.copyWith(simplesTotalTaxAliquot: t)),
                         ),
                         const SizedBox(height: 16),
                       ],

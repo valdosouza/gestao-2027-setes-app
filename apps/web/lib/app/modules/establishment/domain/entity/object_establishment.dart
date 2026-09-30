@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../../shared/entity/domain/object_entity.dart';
@@ -26,6 +27,7 @@ class ObjectEstablishment extends Equatable {
     this.taxRegime,
     this.simplesRegime,
     this.simplesAssessment,
+    this.simplesTotalTaxAliquot,
     this.specialTaxRegime,
     this.cnae,
     this.addresses = const [],
@@ -69,9 +71,20 @@ class ObjectEstablishment extends Equatable {
   /// Situação perante o Simples Nacional ('1' | '2' | '3' | null).
   final String? simplesRegime;
 
-  /// Regime de apuração do ME/EPP que ultrapassou sublimite ('1'..'3' | null
-  /// = dentro do sublimite). Só faz sentido com [simplesRegime] == '3'.
+  /// Regime de apuração no Simples ('1'..'3'). Só existe com [simplesRegime]
+  /// == '3', e aí é OBRIGATÓRIO (Q-N36 — o fisco recusa a ausência, E0166).
   final String? simplesAssessment;
+
+  /// % aproximado da alíquota efetiva do Simples (DAS) — pTotTribSN do DPS.
+  /// TEXTO como digitado (vírgula ou ponto); o PUT converte. Só com
+  /// [simplesRegime] == '3', e aí OBRIGATÓRIO (Q-N37 — E0712 do fisco).
+  final String? simplesTotalTaxAliquot;
+
+  /// Converte o texto do % (vírgula ou ponto) — null se vazio/inválido.
+  static double? parseAliquot(String? text) {
+    final t = (text ?? '').trim().replaceAll(',', '.');
+    return t.isEmpty ? null : double.tryParse(t);
+  }
 
   /// Regime especial de tributação ('0'..'6' | null).
   final String? specialTaxRegime;
@@ -95,6 +108,11 @@ class ObjectEstablishment extends Equatable {
         // Códigos de 1 dígito: a API pode devolver int ou string — normaliza.
         simplesRegime:    _codeOrNull(json['simplesRegime']),
         simplesAssessment: _codeOrNull(json['simplesAssessment']),
+        simplesTotalTaxAliquot: json['simplesTotalTaxAliquot'] == null
+            ? null
+            : jsonDouble(json['simplesTotalTaxAliquot'])
+                ?.toStringAsFixed(2)
+                .replaceAll('.', ','),
         specialTaxRegime: _codeOrNull(json['specialTaxRegime']),
         cnae:             _codeOrNull(json['cnae']),
         addresses: ObjectEntity.listFromJson(
@@ -127,9 +145,11 @@ class ObjectEstablishment extends Equatable {
         // reenviar o valor corrente é idempotente.
         'taxRegime':        taxRegime,
         'simplesRegime':    _nullIfEmpty(simplesRegime),
-        // D-N19a: a apuração só existe para ME/EPP — fora dele viaja null (limpa)
+        // D-N19a: a apuração e o % só existem para ME/EPP — fora dele viajam null (limpa)
         'simplesAssessment': _nullIfEmpty(simplesRegime) == '3'
             ? _nullIfEmpty(simplesAssessment) : null,
+        'simplesTotalTaxAliquot': _nullIfEmpty(simplesRegime) == '3'
+            ? parseAliquot(simplesTotalTaxAliquot) : null,
         'specialTaxRegime': _nullIfEmpty(specialTaxRegime),
         'cnae':             _nullIfEmpty(cnae),
         'addresses':   addresses.map((a) => a.toJson()).toList(),
@@ -147,6 +167,7 @@ class ObjectEstablishment extends Equatable {
     String? taxRegime,
     String? simplesRegime,
     String? simplesAssessment,
+    String? simplesTotalTaxAliquot,
     String? specialTaxRegime,
     String? cnae,
     List<EntityAddress>? addresses,
@@ -163,6 +184,8 @@ class ObjectEstablishment extends Equatable {
         taxRegime:   taxRegime ?? this.taxRegime,
         simplesRegime:    simplesRegime ?? this.simplesRegime,
         simplesAssessment: simplesAssessment ?? this.simplesAssessment,
+        simplesTotalTaxAliquot:
+            simplesTotalTaxAliquot ?? this.simplesTotalTaxAliquot,
         specialTaxRegime: specialTaxRegime ?? this.specialTaxRegime,
         cnae:             cnae ?? this.cnae,
         addresses:   addresses ?? this.addresses,
@@ -173,7 +196,8 @@ class ObjectEstablishment extends Equatable {
   @override
   List<Object?> get props => [
         nameCompany, nickTrade, document, personType, ie, im, taxRegime,
-        simplesRegime, simplesAssessment, specialTaxRegime, cnae,
+        simplesRegime, simplesAssessment, simplesTotalTaxAliquot,
+        specialTaxRegime, cnae,
         addresses, phones, socialMedia,
       ];
 }

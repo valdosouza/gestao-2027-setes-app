@@ -343,8 +343,7 @@
       "simplesRegime1": "Não optante pelo Simples",
       "simplesRegime2": "MEI",
       "simplesRegime3": "ME/EPP (Simples Nacional)",
-      "simplesAssessment": "Apuração no Simples (sublimite)",
-      "simplesAssessment0": "Dentro do sublimite (não informar)",
+      "simplesAssessment": "Apuração no Simples",
       "simplesAssessment1": "Tributos federais e ISS apurados pelo Simples",
       "simplesAssessment2": "Federais pelo Simples, ISS apurado pelo município",
       "simplesAssessment3": "Federais e ISS apurados fora do Simples",
@@ -392,7 +391,10 @@
       "issuerRemove": "Remover",
       "issuerRemoveConfirm": "Remover a habilitação de {}?",
       "issuerSaved": "Habilitação do documento salva",
-      "issuerRemoved": "Habilitação do documento removida"
+      "issuerRemoved": "Habilitação do documento removida",
+      "simplesTotalTaxAliquot": "% aproximado de tributos do Simples",
+      "simplesTotalTaxAliquotHint": "Alíquota efetiva do DAS (ex.: 6,00)",
+      "simplesTotalTaxAliquotInvalid": "Informe um percentual entre 0,01 e 99,99 (até 2 casas)"
     },
     "user": {
       "code": "Código do Usuário",
@@ -725,6 +727,7 @@
       "canceled": "OS cancelada",
       "statusOpen": "Situação da OS: Aberta",
       "statusInvoiced": "Situação da OS: Faturada",
+      "statusCancelled": "Situação da OS: Cancelada (nota fiscal cancelada — somente leitura)",
       "numberRow": "Nº da OS: {}",
       "dateRow": "Data da OS: {}",
       "itemsCountRow": "Itens: {}",
@@ -824,7 +827,10 @@
       "fiscalTransmitPendingAsk": "{} notas sem NFS-e — transmitir agora?",
       "fiscalNothingPending": "Nenhuma nota faturada sem NFS-e",
       "fiscalBatchSummary": "Transmitidas: {} · Recusadas: {}",
-      "fiscalBatchRefusedRow": "Ordem {}: {}"
+      "fiscalBatchRefusedRow": "Ordem {}: {}",
+      "listInvoiceCell": "Nota {}",
+      "fiscalStateNone": "Sem NFS-e",
+      "fiscalSealAuthorized": "NFS-e {}"
     },
     "order": {
       "tabOpen": "Abertos",
@@ -836,6 +842,7 @@
       "canceled": "Pedido cancelado",
       "statusOpen": "Situação do pedido: Aberto",
       "statusInvoiced": "Situação do pedido: Faturado",
+      "statusCancelled": "Situação do pedido: Cancelado (nota fiscal cancelada — somente leitura)",
       "numberRow": "Nº do pedido: {}",
       "dateRow": "Data do pedido: {}",
       "salesmanRow": "Vendedor: {}",
