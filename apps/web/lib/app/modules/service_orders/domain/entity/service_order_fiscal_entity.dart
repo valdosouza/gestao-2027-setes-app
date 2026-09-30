@@ -43,7 +43,7 @@ abstract final class FiscalTransmissionKind {
 class ServiceOrderFiscalTransmission extends Equatable {
   const ServiceOrderFiscalTransmission({
     required this.attempt,
-    this.environment = 'H',
+    this.environment = 'P',
     this.dpsId,
     this.accessKey,
     this.nfseNumber,
@@ -93,7 +93,8 @@ class ServiceOrderFiscalTransmission extends Equatable {
   factory ServiceOrderFiscalTransmission.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalTransmission(
         attempt:       jsonInt(json['attempt']) ?? 0,
-        environment:   json['environment'] as String? ?? 'H',
+        // gate (LOW): sem o campo, o lado CONSERVADOR é produção (bloqueia o cancelamento local)
+        environment:   json['environment'] as String? ?? 'P',
         dpsId:         json['dpsId']?.toString(),
         accessKey:     json['accessKey']?.toString(),
         nfseNumber:    json['nfseNumber']?.toString(),
@@ -201,8 +202,10 @@ class ServiceOrderFiscalView extends Equatable {
   bool get cancelInFlight => lastTransmission?.cancelInFlight ?? false;
 
   /// O cancelamento LOCAL ("Cancelar nota") fica bloqueado enquanto o fisco
-  /// tem a última palavra: nota autorizada ou cancelamento em voo.
-  bool get blocksLocalCancel => isAuthorized || cancelInFlight;
+  /// tem a última palavra: nota autorizada ou cancelamento em voo. Q-CA5b:
+  /// autorizada em HOMOLOGAÇÃO não tem valor jurídico — o local fica liberado.
+  bool get blocksLocalCancel =>
+      (isAuthorized && lastTransmission?.environment != 'H') || cancelInFlight;
 
   bool get hasPendingEffects => pendingEffects > 0;
 

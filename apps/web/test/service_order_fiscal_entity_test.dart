@@ -34,10 +34,10 @@ void main() {
       expect(tx.cancelInFlight, isFalse);
     });
 
-    test('defaults: sem ambiente = produção restrita; sem DPS nem evento = em voo',
+    test('defaults: sem ambiente = PRODUÇÃO (conservador — gate 2026-09-30); sem DPS nem evento = em voo',
         () {
       final tx = ServiceOrderFiscalTransmission.fromJson({'attempt': 1});
-      expect(tx.environment, 'H');
+      expect(tx.environment, 'P');
       expect(tx.inFlight, isTrue);
       expect(tx.isLive, isTrue, reason: 'envio em andamento ainda é vigente');
       expect(tx.isAuthorized, isFalse);
@@ -112,15 +112,27 @@ void main() {
         () {
       final v = view([
         {'attempt': 1, 'dpsId': 'a', 'lastKind': 'R'},
-        {'attempt': 2, 'dpsId': 'b', 'lastKind': 'A', 'accessKey': 'K2'},
+        {'attempt': 2, 'dpsId': 'b', 'lastKind': 'A', 'accessKey': 'K2', 'environment': 'P'},
       ]);
       expect(v.lastTransmission!.attempt, 2);
       expect(v.hasLiveTransmission, isTrue);
       expect(v.isAuthorized, isTrue);
       expect(v.blocksLocalCancel, isTrue,
-          reason: 'autorizada esconde o "Cancelar nota" local');
+          reason: 'autorizada em PRODUÇÃO esconde o "Cancelar nota" local');
       expect(v.xmlAvailable, isTrue);
       expect(v.danfseAvailable, isFalse);
+    });
+
+    test('Q-CA5b: autorizada em HOMOLOGAÇÃO libera o cancelamento local; K continua bloqueando', () {
+      final h = view([
+        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1', 'environment': 'H'},
+      ]);
+      expect(h.isAuthorized, isTrue);
+      expect(h.blocksLocalCancel, isFalse);
+      final k = view([
+        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'K', 'accessKey': 'K1', 'environment': 'H'},
+      ]);
+      expect(k.blocksLocalCancel, isTrue);
     });
 
     test('rejeitada encerra: cabe nova transmissão e o cancel local volta',
