@@ -206,7 +206,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
         loading: state.loading,
         avatarBuilder: (i) => '${i.id}',
         rowBuilder: (i) => [
-          i.description ?? '',
+          i.displayName,
           if ((i.moduleNames ?? '').isNotEmpty) i.moduleNames!,
           i.acquired
               ? 'forms.interfaceConfigs.acquired'.tr()
@@ -239,7 +239,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
   }
 
   Widget _buildConfigs(InterfaceConfigsConfigsState state) => SetesFormShell(
-        title: '${widget.title} · ${state.iface.description ?? ''}',
+        title: '${widget.title} · ${state.iface.displayName}',
         saving: state.saving,
         onBack: _goBack,
         child: state.loading

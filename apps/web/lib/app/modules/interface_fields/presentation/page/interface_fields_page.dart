@@ -65,7 +65,7 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
         loading: state.loading,
         avatarBuilder: (i) => '${i.id}',
         rowBuilder: (i) => [
-          i.description ?? '',
+          i.displayName,
           if ((i.moduleNames ?? '').isNotEmpty) i.moduleNames!,
           i.acquired
               ? 'forms.interfaceFields.acquired'.tr()
@@ -87,7 +87,7 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
       );
 
   Widget _buildFields(InterfaceFieldsFieldsState state) => SetesFormShell(
-        title: '${widget.title} · ${state.iface.description ?? ''}',
+        title: '${widget.title} · ${state.iface.displayName}',
         saving: state.saving,
         onBack: () => _bloc.add(const InterfaceFieldsBackToVitrine()),
         child: state.loading
