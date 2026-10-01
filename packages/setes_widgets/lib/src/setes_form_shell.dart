@@ -16,6 +16,7 @@ class SetesFormShell extends StatelessWidget {
     this.onSave,
     this.onDelete,
     this.saving = false,
+    this.actions,
     super.key,
   });
 
@@ -37,6 +38,10 @@ class SetesFormShell extends StatelessWidget {
   /// Corpo do formulário (Form + campos).
   final Widget child;
 
+  /// Ações extras no AppBar, ANTES de excluir/salvar (ex.: engrenagem do
+  /// Framework de Configurações). null = sem ações extras.
+  final List<Widget>? actions;
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -46,6 +51,7 @@ class SetesFormShell extends StatelessWidget {
           ),
           title: Text(title),
           actions: [
+            ...?actions,
             if (onDelete != null)
               IconButton(
                 icon: const Icon(Icons.delete_outline),

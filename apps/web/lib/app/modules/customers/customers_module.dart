@@ -7,6 +7,7 @@ import '../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/customer_datasource.dart';
 import 'data/datasource/customer_partnership_datasource.dart';
 import 'data/repository/customer_repository_impl.dart';
@@ -66,6 +67,10 @@ class CustomersModule extends Module {
             (i) => SalesmanLookupDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<CarrierLookupDatasource>(
             (i) => CarrierLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/customers')),
       ];
 
   @override

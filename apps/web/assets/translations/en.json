@@ -1524,5 +1524,39 @@
       "delete": "Delete",
       "authorize": "Authorize"
     }
+  },
+  "search": {
+    "title": "Advanced search",
+    "clear": "Clear",
+    "from": "From",
+    "to": "To",
+    "any": "Any",
+    "containsHint": "Contains the text",
+    "invalidRange": "Start is greater than end",
+    "range": "from {} to {}",
+    "rangeFrom": "from {}",
+    "rangeTo": "up to {}",
+    "customers": {
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "salesman": "Salesperson",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "service-orders": {
+      "customer": "Customer",
+      "dtRecord": "Order date",
+      "totalValue": "Total amount",
+      "number": "Order no.",
+      "invoiceNumber": "Invoice no."
+    },
+    "tooLong": "At most {} characters",
+    "criterionRemoved": "An advanced search criterion was removed because its value was rejected. The list was refreshed with the remaining criteria."
   }
 }

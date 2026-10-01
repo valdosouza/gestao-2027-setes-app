@@ -12,6 +12,7 @@ import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:setes_web/app/shared/search/search_criterion.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_fiscal_repository.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_repository.dart';
@@ -90,13 +91,16 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(<int>[]);
+    registerFallbackValue(SearchCriteriaValues.empty);
   });
 
   setUp(() {
     repo = _RepoMock();
     fiscal = _FiscalRepoMock();
     when(() => repo.getList(any(), any(),
-            page: any(named: 'page'), pageSize: any(named: 'pageSize')))
+            page: any(named: 'page'),
+            pageSize: any(named: 'pageSize'),
+            criteria: any(named: 'criteria')))
         .thenAnswer((_) async => const Right(PagedResult.empty()));
   });
 

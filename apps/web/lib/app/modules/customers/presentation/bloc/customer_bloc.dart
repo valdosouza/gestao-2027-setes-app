@@ -9,6 +9,8 @@ import '../../domain/usecase/customer_getlist.dart';
 import '../../domain/usecase/customer_post.dart';
 import '../../domain/usecase/customer_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'customer_event.dart';
 part 'customer_state.dart';
 
@@ -49,6 +51,10 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Cadastro novo com as pré-seleções do Framework de Configurações
   /// (piloto, decisões 10 e 14) aplicadas sobre o draft padrão.
   void _onNewPressed(CustomerNewPressed event, Emitter<CustomerBlocState> emit) {
@@ -67,16 +73,27 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<CustomerBlocState> emit) async {
-    emit(const CustomerListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(CustomerListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(CustomerActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(CustomerActionFailure(failure));
-        emit(const CustomerListState());
+        emit(CustomerListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -91,6 +108,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
         emit(CustomerListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -102,12 +120,13 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerBlocState> {
   /// Edição: busca o objeto COMPLETO (GET :id) antes de abrir o form.
   Future<void> _onEditPressed(
       CustomerEditPressed event, Emitter<CustomerBlocState> emit) async {
-    emit(CustomerListState(items: _currentItems, loading: true));
+    emit(CustomerListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     result.fold(
       (failure) {
         emit(CustomerActionFailure(failure));
-        emit(CustomerListState(items: _currentItems));
+        emit(CustomerListState(items: _currentItems, criteria: _criteria));
       },
       (customer) => emit(CustomerFormState(draft: customer, creating: false)),
     );

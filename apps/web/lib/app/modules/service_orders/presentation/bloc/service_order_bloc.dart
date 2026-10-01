@@ -24,6 +24,8 @@ import '../../domain/usecase/service_order_monthly_run.dart';
 import '../../domain/usecase/service_order_post.dart';
 import '../../domain/usecase/service_order_transmit.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'service_order_event.dart';
 part 'service_order_state.dart';
 
@@ -107,6 +109,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8): sobrevive à volta do detalhe e às
+  /// operações; troca de aba NÃO a apaga (os critérios valem nas duas abas).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// OS aberta no detalhe — preserva o conteúdo nos re-emits de
   /// saving/falha sem nova consulta.
   ServiceOrderFull? _detail;
@@ -132,13 +138,22 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _detail = null;
     _fiscal = null;
     _fiscalFailure = null;
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await getlist(_status, _filter,
-        page: _page, pageSize: _pageSize);
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(ServiceOrderActionFailure(searchCriterionRemoved(failure)));
+          return _reloadList(emit);
+        }
         emit(ServiceOrderActionFailure(failure));
-        emit(ServiceOrderListState(status: _status));
+        emit(ServiceOrderListState(
+        status: _status, filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →
@@ -154,6 +169,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           items: paged.items,
           status: _status,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -201,12 +217,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     // só a navegação da barra manda outra página.
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reloadList(emit);
   }
 
   Future<void> _onOpenRequested(
       ServiceOrderOpenRequested event, Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await post(event.customerId);
     await result.fold(
       (failure) async {
@@ -222,7 +240,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _onViewRequested(
       ServiceOrderViewRequested event, Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     await _reloadDetail(event.id, emit);
   }
 
@@ -289,7 +308,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onMonthlyRunRequested(
       ServiceOrderMonthlyRunRequested event,
       Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await monthlyRun(event.year, event.month);
     await result.fold(
       (failure) async {
@@ -338,7 +358,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _runBatch(ServiceOrderBatchInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final ids = event.orderIds.toSet().toList();
     final parts = <BatchInvoiceReport>[];
     Failure? aborted;
@@ -555,7 +576,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       ServiceOrderFiscalPendingRequested event,
       Emitter<ServiceOrderState> emit) async {
     if (_fiscalBatchRunning) return;
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await fiscalPending();
     await result.fold(
       (failure) async {
@@ -592,7 +614,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _runFiscalBatch(ServiceOrderFiscalTransmitBatchRequested event,
       Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(loading: true, status: _status));
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final ids = event.orderIds.toSet().toList();
     final parts = <FiscalTransmitBatchReport>[];
     Failure? aborted;

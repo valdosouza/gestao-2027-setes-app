@@ -2,6 +2,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../search/advanced_search_panel.dart';
+import '../search/search_criteria_chips.dart';
+import '../search/search_criteria_datasource.dart';
+import '../search/search_criterion.dart';
 import 'register_config_button.dart';
 import 'register_paging_bar.dart';
 
@@ -35,6 +39,10 @@ class RegisterSearchPage<T> extends StatefulWidget {
     this.total,
     this.onPageChanged,
     this.onPageSizeChanged,
+    this.searchCriteria = const [],
+    this.criteriaValues = SearchCriteriaValues.empty,
+    this.onCriteriaChanged,
+    this.searchDatasource,
     super.key,
   });
 
@@ -102,6 +110,18 @@ class RegisterSearchPage<T> extends StatefulWidget {
   /// está presente — o callback só precisa recarregar a lista na página 1.
   final void Function(int pageSize)? onPageSizeChanged;
 
+  /// PESQUISA AVANÇADA (prompt_pesquisa_avancada.md, D-BA9): com critérios
+  /// declarados pelo módulo (`GET /api/<m>/search-criteria`), [onCriteriaChanged]
+  /// e [searchDatasource], a lista ganha o botão "Pesquisa avançada" no AppBar
+  /// e os chips dos critérios ativos abaixo do filtro. Sem critérios = tela
+  /// idêntica à de antes (o botão não aparece). O filtro rápido continua e
+  /// soma em E (D-BA6); critério novo volta à página 1 (responsabilidade do
+  /// bloc, como o filtro).
+  final List<SearchCriterion> searchCriteria;
+  final SearchCriteriaValues criteriaValues;
+  final void Function(SearchCriteriaValues values)? onCriteriaChanged;
+  final SearchCriteriaDatasource? searchDatasource;
+
   @override
   State<RegisterSearchPage<T>> createState() => _RegisterSearchPageState<T>();
 }
@@ -115,6 +135,21 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
   void dispose() {
     _filter.dispose();
     super.dispose();
+  }
+
+  bool get _advanced =>
+      widget.searchCriteria.isNotEmpty &&
+      widget.onCriteriaChanged != null &&
+      widget.searchDatasource != null;
+
+  Future<void> _openAdvanced() async {
+    final values = await showAdvancedSearch(
+      context: context,
+      criteria: widget.searchCriteria,
+      current: widget.criteriaValues,
+      datasource: widget.searchDatasource!,
+    );
+    if (values != null) widget.onCriteriaChanged!(values);
   }
 
   bool get _paged =>
@@ -153,6 +188,16 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
           automaticallyImplyLeading: false,
           title: Text(widget.title),
           actions: [
+            if (_advanced)
+              IconButton(
+                tooltip: 'search.title'.tr(),
+                onPressed: _openAdvanced,
+                icon: Badge(
+                  isLabelVisible: !widget.criteriaValues.isEmpty,
+                  label: Text('${widget.criteriaValues.values.length}'),
+                  child: const Icon(Icons.manage_search),
+                ),
+              ),
             ...?widget.actions,
             if (widget.configModuleKey != null)
               RegisterConfigButton(moduleKey: widget.configModuleKey!),
@@ -177,6 +222,14 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
                 onSuffixPressed: _search,
                 onSubmitted: (_) => _search(),
               ),
+              if (_advanced && !widget.criteriaValues.isEmpty) ...[
+                const SizedBox(height: 8),
+                SearchCriteriaChips(
+                  criteria: widget.searchCriteria,
+                  values: widget.criteriaValues,
+                  onChanged: widget.onCriteriaChanged!,
+                ),
+              ],
               if (widget.banner != null) ...[
                 const SizedBox(height: 8),
                 widget.banner!,

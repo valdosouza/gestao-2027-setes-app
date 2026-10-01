@@ -11,6 +11,7 @@ import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:setes_web/app/shared/search/search_criterion.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_entity.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_fiscal_repository.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_repository.dart';
@@ -93,12 +94,15 @@ void main() {
   setUpAll(() {
     registerFallbackValue(_input);
     registerFallbackValue(<int>[]);
+    registerFallbackValue(SearchCriteriaValues.empty);
   });
 
   setUp(() {
     repo = _RepoMock();
     when(() => repo.getList(any(), any(),
-            page: any(named: 'page'), pageSize: any(named: 'pageSize')))
+            page: any(named: 'page'),
+            pageSize: any(named: 'pageSize'),
+            criteria: any(named: 'criteria')))
         .thenAnswer((_) async => const Right(PagedResult.empty()));
   });
 
@@ -223,6 +227,47 @@ void main() {
       expect(states.whereType<ServiceOrderBatchInvoiceDone>(), isEmpty);
       expect(states.whereType<ServiceOrderActionFailure>().single.failure.code,
           'PRIVILEGE_REQUIRED');
+    });
+  });
+
+  group('Q-BA16 (a) — critério recusado pela API', () {
+    test('é DESCARTADO, o usuário é avisado e a lista recarrega com os demais', () async {
+      final calls = <SearchCriteriaValues>[];
+      when(() => repo.getList(any(), any(),
+              page: any(named: 'page'),
+              pageSize: any(named: 'pageSize'),
+              criteria: any(named: 'criteria')))
+          .thenAnswer((inv) async {
+        final c = inv.namedArguments[#criteria] as SearchCriteriaValues;
+        calls.add(c);
+        if (c.values.containsKey('totalValue')) {
+          return const Left(Failure(message: 'x', statusCode: 422, code: 'SEARCH_CRITERION_INVALID',
+              fields: [FailureField(field: 'totalValue', message: 'Valor da faixa inválido')]));
+        }
+        return const Right(PagedResult.empty());
+      });
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      final criteria = SearchCriteriaValues.from({
+        'totalValue': const SearchRange(from: 1),
+        'customer': const SearchLookupValue(id: 5, name: 'Acme'),
+      });
+      final done = bloc.stream.firstWhere(
+          (s) => s is ServiceOrderListState && !s.loading && s.pageSize != null);
+      bloc.add(ServiceOrderListRequested(criteria: criteria));
+      final last = await done as ServiceOrderListState;
+      await sub.cancel();
+      await bloc.close();
+
+      expect(calls.map((c) => c.values.keys.toList()), [
+        ['totalValue', 'customer'],
+        ['customer'],
+      ]);
+      expect(last.criteria.values.keys, ['customer']);
+      final warned = states.whereType<ServiceOrderActionFailure>().single;
+      expect(warned.failure.message, 'search.criterionRemoved');
+      expect(warned.failure.fields.single.field, 'totalValue');
     });
   });
 }

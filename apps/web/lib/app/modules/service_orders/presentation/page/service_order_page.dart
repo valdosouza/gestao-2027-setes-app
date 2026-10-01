@@ -12,6 +12,10 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/search/advanced_search_panel.dart';
+import '../../../../shared/search/search_criteria_chips.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/web/open_data_url.dart';
 import '../../data/datasource/service_order_datasource.dart';
 import '../../domain/entity/service_order_entity.dart';
@@ -63,12 +67,19 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// aba sozinho (ex.: pós-faturamento cai em Faturadas).
   String _status = 'A';
 
+  /// Pesquisa avançada (D-BA9/D-BA10 — piloto de tela de processo): critérios
+  /// servidos pela API; falha ao carregar = sem botão (a tela nunca quebra).
+  late final SearchCriteriaDatasource _searchDatasource;
+  List<SearchCriterion> _searchCriteria = const [];
+
   @override
   void initState() {
     super.initState();
     _bloc = Modular.get<ServiceOrderBloc>()
       ..add(const ServiceOrderListRequested(status: 'A', filter: ''));
     _datasource = Modular.get<ServiceOrderDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     _tabs = TabController(length: 2, vsync: this);
     _tabs.addListener(() {
       if (_tabs.indexIsChanging) return;
@@ -176,6 +187,28 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   // Lista (abas Abertas × Faturadas)
   // -------------------------------------------------------------------
 
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
+  }
+
+  void _applyCriteria(SearchCriteriaValues criteria) =>
+      _bloc.add(ServiceOrderListRequested(criteria: criteria));
+
+  Future<void> _openAdvancedSearch(SearchCriteriaValues current) async {
+    final values = await showAdvancedSearch(
+      context: context,
+      criteria: _searchCriteria,
+      current: current,
+      datasource: _searchDatasource,
+    );
+    if (values != null) _applyCriteria(values);
+  }
+
   Widget _buildList(ServiceOrderListState state) {
     _status = state.status;
     // O estado de LOADING é emitido com page=1/pageSize=null/filter='' — se
@@ -183,8 +216,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     // depois do lote) limparia a seleção e a promessa de "repetir só as
     // recusadas" morreria. Só lista CARREGADA define o escopo.
     if (!state.loading) {
-      final scope =
-          '${state.status}|${state.page}|${state.pageSize}|${state.filter}';
+      // Critério da pesquisa avançada muda a lista vista ⇒ entra na assinatura.
+      final scope = '${state.status}|${state.page}|${state.pageSize}|'
+          '${state.filter}|${state.criteria.toQueryJson()}';
       if (scope != _selectionScope) {
         _selectionScope = scope;
         _selected.clear();
@@ -227,6 +261,16 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                   : () =>
                       _bloc.add(const ServiceOrderFiscalPendingRequested()),
             ),
+          if (_searchCriteria.isNotEmpty)
+            IconButton(
+              tooltip: 'search.title'.tr(),
+              onPressed: () => _openAdvancedSearch(state.criteria),
+              icon: Badge(
+                isLabelVisible: !state.criteria.isEmpty,
+                label: SetesText('${state.criteria.values.length}'),
+                child: const Icon(Icons.manage_search),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
             tooltip: 'forms.serviceOrder.monthlyRun'.tr(),
@@ -266,6 +310,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                     onSuffixPressed: _search,
                     onSubmitted: (_) => _search(),
                   ),
+                  if (!state.criteria.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    SearchCriteriaChips(
+                      criteria: _searchCriteria,
+                      values: state.criteria,
+                      onChanged: _applyCriteria,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Expanded(child: _buildListBody(state)),
                   // Barra de paginação compartilhada (Onda 4) no rodapé —

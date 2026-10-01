@@ -20,6 +20,8 @@ import '../../../../shared/interface_config/interface_config_loader.dart';
 import '../../../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/session/session_context.dart';
 import '../../data/datasource/customer_partnership_datasource.dart';
 import '../../domain/entity/object_customer.dart';
@@ -59,6 +61,11 @@ class _CustomerPageState extends State<CustomerPage>
   late final CarrierLookupDatasource _carrierLookup;
   late final EntityByDocumentDatasource _byDocumentLookup;
   late final CustomerPartnershipDatasource _partnershipDatasource;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
   /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
@@ -76,8 +83,19 @@ class _CustomerPageState extends State<CustomerPage>
     _carrierLookup = Modular.get<CarrierLookupDatasource>();
     _byDocumentLookup = Modular.get<EntityByDocumentDatasource>();
     _partnershipDatasource = Modular.get<CustomerPartnershipDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     // Engine do Framework de Configurações (piloto — decisões 10, 14 e 15)
     loadInterfaceConfig('customers');
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   /// Filtro de carteira (decisão 15): config ligada + usuário-vendedor →
@@ -136,6 +154,13 @@ class _CustomerPageState extends State<CustomerPage>
         onPageSizeChanged: (size) =>
             _bloc.add(CustomerListRequested(state.filter, pageSize: size)),
         onFilterChanged: (filter) => _bloc.add(CustomerListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(CustomerListRequested(state.filter, criteria: criteria)),
         onNew: _newCustomer,
         onView: (item) => _bloc.add(CustomerEditPressed(item.id)),
       );

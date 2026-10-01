@@ -1524,5 +1524,39 @@
       "delete": "Excluir",
       "authorize": "Autorizar"
     }
+  },
+  "search": {
+    "title": "Pesquisa avançada",
+    "clear": "Limpar",
+    "from": "De",
+    "to": "Até",
+    "any": "Todos",
+    "containsHint": "Contém o texto",
+    "invalidRange": "O início é maior que o fim",
+    "range": "de {} até {}",
+    "rangeFrom": "a partir de {}",
+    "rangeTo": "até {}",
+    "customers": {
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "salesman": "Vendedor",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "service-orders": {
+      "customer": "Cliente",
+      "dtRecord": "Data da OS",
+      "totalValue": "Valor total",
+      "number": "Nº da OS",
+      "invoiceNumber": "Nº da nota"
+    },
+    "tooLong": "Máximo de {} caracteres",
+    "criterionRemoved": "Um critério da pesquisa avançada foi removido porque o valor foi recusado. A lista foi atualizada com os demais critérios."
   }
 }

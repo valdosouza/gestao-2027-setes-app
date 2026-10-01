@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/service_order_entity.dart';
 import '../repository/service_order_repository.dart';
 
@@ -13,6 +14,7 @@ class ServiceOrderGetlist {
 
   Future<Either<Failure, PagedResult<ServiceOrderListItem>>> call(
           String status, String filter,
-          {int page = 1, int? pageSize}) =>
-      repository.getList(status, filter, page: page, pageSize: pageSize);
+          {int page = 1, int? pageSize, SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      repository.getList(status, filter,
+          page: page, pageSize: pageSize, criteria: criteria);
 }

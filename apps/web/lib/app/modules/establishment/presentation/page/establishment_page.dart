@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
+import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
 import '../../../../shared/entity/widgets/social_media_list_tab.dart';
@@ -403,6 +404,9 @@ class _EstablishmentFormViewState extends State<_EstablishmentFormView>
       saving: widget.saving,
       onBack: widget.onBack,
       onSave: _save,
+      // Engrenagem do Framework de Configurações — fuso do estabelecimento
+      // (`time_zone`, Q-BA14) e o que mais a interface ganhar no catálogo.
+      actions: const [RegisterConfigButton(moduleKey: 'establishment')],
       child: Column(
         children: [
           TabBar(

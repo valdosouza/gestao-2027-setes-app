@@ -19,7 +19,11 @@ class ServiceOrderListRequested extends ServiceOrderEvent {
     this.filter,
     this.page = 1,
     this.pageSize,
+    this.criteria,
   });
+
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes.
+  final SearchCriteriaValues? criteria;
 
   /// null = mantém a aba atual do bloc.
   final String? status;
@@ -31,7 +35,7 @@ class ServiceOrderListRequested extends ServiceOrderEvent {
   final int? pageSize;
 
   @override
-  List<Object?> get props => [status, filter, page, pageSize];
+  List<Object?> get props => [status, filter, page, pageSize, criteria];
 }
 
 /// FAB "Abrir OS": POST com o cliente escolhido no lookup — 409 (cliente

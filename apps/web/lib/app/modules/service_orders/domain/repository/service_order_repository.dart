@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/service_order_entity.dart';
 
 /// Contrato do repositório de Ordens de Serviço (Either/dartz) — operações
@@ -9,7 +10,7 @@ import '../entity/service_order_entity.dart';
 abstract class ServiceOrderRepository {
   Future<Either<Failure, PagedResult<ServiceOrderListItem>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1, int? pageSize, SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, ServiceOrderFull>> getById(int id);
   Future<Either<Failure, int>> open(int customerId);
   Future<Either<Failure, Unit>> cancel(int id);

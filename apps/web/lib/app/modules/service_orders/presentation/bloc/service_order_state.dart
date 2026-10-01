@@ -19,9 +19,13 @@ class ServiceOrderListState extends ServiceOrderState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<ServiceOrderListItem> items;
+
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
   final bool loading;
   final String status;
 
@@ -35,7 +39,7 @@ class ServiceOrderListState extends ServiceOrderState {
 
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total];
+      [items, loading, status, filter, page, pageSize, total, criteria];
 }
 
 /// Modo detalhe da OS (buildável). [saving] desabilita as ações enquanto

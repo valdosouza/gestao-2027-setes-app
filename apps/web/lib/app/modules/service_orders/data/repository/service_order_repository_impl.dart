@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/service_order_entity.dart';
 import '../../domain/repository/service_order_repository.dart';
 import '../datasource/service_order_datasource.dart';
@@ -23,9 +24,9 @@ class ServiceOrderRepositoryImpl implements ServiceOrderRepository {
   @override
   Future<Either<Failure, PagedResult<ServiceOrderListItem>>> getList(
           String status, String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() =>
-          datasource.getList(status, filter, page: page, pageSize: pageSize));
+          {int page = 1, int? pageSize, SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(status, filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, ServiceOrderFull>> getById(int id) =>

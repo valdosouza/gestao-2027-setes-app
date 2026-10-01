@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/service_order_datasource.dart';
 import 'data/datasource/service_order_fiscal_datasource.dart';
 import 'data/repository/service_order_fiscal_repository_impl.dart';
@@ -38,6 +39,10 @@ class ServiceOrdersModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<ServiceOrderDatasource>(
             (i) => ServiceOrderDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/service-orders')),
         Bind.lazySingleton<ServiceOrderRepository>((i) =>
             ServiceOrderRepositoryImpl(
                 datasource: i.get<ServiceOrderDatasource>())),
