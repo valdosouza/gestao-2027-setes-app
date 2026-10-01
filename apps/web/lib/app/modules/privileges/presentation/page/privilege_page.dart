@@ -106,6 +106,7 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
             _bloc.add(PrivilegeListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(PrivilegeListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(PrivilegeListRequested(filter)),
         onNew: () => _bloc.add(const PrivilegeNewPressed()),
         onView: (p) => _bloc.add(PrivilegeEditPressed(p)),

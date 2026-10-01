@@ -224,6 +224,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
             _bloc.add(UserListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(UserListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(UserListRequested(filter)),
         onNew: () => _bloc.add(const UserNewPressed()),
         onView: (u) => _bloc.add(UserEditPressed(u.id)),

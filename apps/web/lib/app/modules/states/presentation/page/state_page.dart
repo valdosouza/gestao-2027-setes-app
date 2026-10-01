@@ -197,6 +197,7 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
             _bloc.add(StateListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(StateListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(StateListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

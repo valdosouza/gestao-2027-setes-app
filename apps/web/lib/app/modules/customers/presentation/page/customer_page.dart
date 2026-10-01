@@ -153,6 +153,7 @@ class _CustomerPageState extends State<CustomerPage>
             _bloc.add(CustomerListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CustomerListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CustomerListRequested(filter)),
         // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
         // somam em E com o filtro rápido corrente (D-BA6).

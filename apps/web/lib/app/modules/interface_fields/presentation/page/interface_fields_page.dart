@@ -80,6 +80,7 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
             .add(InterfaceFieldsVitrineRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc.add(
             InterfaceFieldsVitrineRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(InterfaceFieldsVitrineRequested(filter)),
         onView: _openInterface,

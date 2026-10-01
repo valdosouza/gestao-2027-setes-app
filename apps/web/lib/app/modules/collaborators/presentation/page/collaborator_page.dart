@@ -88,6 +88,7 @@ class _CollaboratorPageState extends State<CollaboratorPage> {
             _bloc.add(CollaboratorListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CollaboratorListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(CollaboratorListRequested(filter)),
         onNew: () => _bloc.add(const CollaboratorNewPressed()),

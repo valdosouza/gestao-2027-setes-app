@@ -221,6 +221,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
             .add(InterfaceConfigsVitrineRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc.add(
             InterfaceConfigsVitrineRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(InterfaceConfigsVitrineRequested(filter)),
         onView: _openInterface,

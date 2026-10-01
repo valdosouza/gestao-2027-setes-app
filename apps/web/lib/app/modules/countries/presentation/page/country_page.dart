@@ -110,6 +110,7 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
             _bloc.add(CountryListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CountryListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CountryListRequested(filter)),
         onNew: () => _bloc.add(const CountryNewPressed()),
         onView: (c) => _bloc.add(CountryEditPressed(c)),

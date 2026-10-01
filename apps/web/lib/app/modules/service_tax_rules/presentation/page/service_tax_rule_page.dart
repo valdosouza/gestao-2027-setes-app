@@ -94,6 +94,7 @@ class _ServiceTaxRulePageState extends State<ServiceTaxRulePage>
             _bloc.add(ServiceTaxRuleListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc
             .add(ServiceTaxRuleListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(ServiceTaxRuleListRequested(filter)),
         onNew: () => _bloc.add(const ServiceTaxRuleNewPressed()),

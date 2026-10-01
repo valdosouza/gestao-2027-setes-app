@@ -190,6 +190,7 @@ class _ModulePageState extends State<ModulePage> with FieldConfigLoader {
             _bloc.add(ModuleListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(ModuleListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(ModuleListRequested(filter)),
         // O vínculo ordenável é estado da PÁGINA: inicializa AQUI, na
         // abertura do form (recarga por falha de salvar não clobbera a

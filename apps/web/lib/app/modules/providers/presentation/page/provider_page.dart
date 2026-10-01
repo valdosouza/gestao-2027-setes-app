@@ -89,6 +89,7 @@ class _ProviderPageState extends State<ProviderPage> {
             _bloc.add(ProviderListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(ProviderListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(ProviderListRequested(filter)),
         onNew: () => _bloc.add(const ProviderNewPressed()),
         onView: (item) => _bloc.add(ProviderEditPressed(item.id)),

@@ -79,6 +79,7 @@ class _ServicePageState extends State<ServicePage> with FieldConfigLoader {
             _bloc.add(ServiceListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(ServiceListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(ServiceListRequested(filter)),
         onNew: () => _bloc.add(const ServiceNewPressed()),
         onView: (s) => _bloc.add(ServiceEditPressed(s.id)),

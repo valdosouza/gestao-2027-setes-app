@@ -80,6 +80,7 @@ class _PaymentTypePageState extends State<PaymentTypePage>
             _bloc.add(PaymentTypeListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(PaymentTypeListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(PaymentTypeListRequested(filter)),
         onNew: () => _bloc.add(const PaymentTypeNewPressed()),

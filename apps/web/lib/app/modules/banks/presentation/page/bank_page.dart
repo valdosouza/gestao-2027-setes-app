@@ -124,6 +124,7 @@ class _BankPageState extends State<BankPage> with FieldConfigLoader {
             _bloc.add(BankListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(BankListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(BankListRequested(filter)),
         onNew: () => _bloc.add(const BankNewPressed()),
         onView: (b) => _bloc.add(BankEditPressed(b)),

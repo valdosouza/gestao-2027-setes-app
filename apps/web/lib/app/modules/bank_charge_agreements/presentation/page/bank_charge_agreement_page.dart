@@ -87,6 +87,7 @@ class _BankChargeAgreementPageState extends State<BankChargeAgreementPage>
             .add(BankChargeAgreementListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc.add(
             BankChargeAgreementListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(BankChargeAgreementListRequested(filter)),
         onNew: () => _bloc.add(const BankChargeAgreementNewPressed()),

@@ -239,6 +239,7 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
             _bloc.add(CfopListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CfopListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CfopListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

@@ -194,6 +194,7 @@ class _ServiceListPageState extends State<ServiceListPage>
             _bloc.add(ServiceListListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(ServiceListListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(ServiceListListRequested(filter)),
         onNew: _openNew,

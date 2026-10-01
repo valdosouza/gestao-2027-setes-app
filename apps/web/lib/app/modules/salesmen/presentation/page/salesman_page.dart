@@ -217,6 +217,7 @@ class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
             _bloc.add(SalesmanListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(SalesmanListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(SalesmanListRequested(filter)),
         onNew: _promoteNew,
         onView: (item) => _bloc.add(SalesmanEditPressed(item.id)),

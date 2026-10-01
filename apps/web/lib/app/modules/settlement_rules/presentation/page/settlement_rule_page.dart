@@ -91,6 +91,7 @@ class _SettlementRulePageState extends State<SettlementRulePage>
             .add(SettlementRuleListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) => _bloc
             .add(SettlementRuleListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(SettlementRuleListRequested(filter)),
         onNew: () => _bloc.add(const SettlementRuleNewPressed()),

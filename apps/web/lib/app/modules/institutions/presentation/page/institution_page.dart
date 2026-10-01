@@ -96,6 +96,7 @@ class _InstitutionPageState extends State<InstitutionPage> {
             _bloc.add(InstitutionListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(InstitutionListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(InstitutionListRequested(filter)),
         onNew: () => _bloc.add(const InstitutionNewPressed()),

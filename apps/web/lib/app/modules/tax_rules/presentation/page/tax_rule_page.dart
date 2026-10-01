@@ -107,6 +107,7 @@ class _TaxRulePageState extends State<TaxRulePage> {
             _bloc.add(TaxRuleListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(TaxRuleListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(TaxRuleListRequested(filter)),
         onNew: () => _bloc.add(const TaxRuleNewPressed()),
         onView: (item) => _bloc.add(TaxRuleEditPressed(item)),

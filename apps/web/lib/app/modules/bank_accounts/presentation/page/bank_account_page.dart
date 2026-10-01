@@ -91,6 +91,7 @@ class _BankAccountPageState extends State<BankAccountPage>
             _bloc.add(BankAccountListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(BankAccountListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(BankAccountListRequested(filter)),
         onNew: () => _bloc.add(const BankAccountNewPressed()),
         onView: (a) => _bloc.add(BankAccountEditPressed(a.id)),

@@ -71,6 +71,7 @@ class _PriceListPageState extends State<PriceListPage> with FieldConfigLoader {
             _bloc.add(PriceListListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(PriceListListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(PriceListListRequested(filter)),
         onNew: () => _bloc.add(const PriceListNewPressed()),
         onView: (p) => _bloc.add(PriceListEditPressed(p.id)),

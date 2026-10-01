@@ -43,6 +43,7 @@ class RegisterSearchPage<T> extends StatefulWidget {
     this.criteriaValues = SearchCriteriaValues.empty,
     this.onCriteriaChanged,
     this.searchDatasource,
+    this.filter = '',
     super.key,
   });
 
@@ -122,14 +123,28 @@ class RegisterSearchPage<T> extends StatefulWidget {
   final void Function(SearchCriteriaValues values)? onCriteriaChanged;
   final SearchCriteriaDatasource? searchDatasource;
 
+  /// Filtro rápido APLICADO (o que o bloc guarda). Achado do passeio logado de
+  /// 2026-09-30: ao voltar do formulário a lista era recriada com o campo VAZIO
+  /// enquanto a lista seguia filtrada — o campo nasce com o filtro corrente.
+  final String filter;
+
   @override
   State<RegisterSearchPage<T>> createState() => _RegisterSearchPageState<T>();
 }
 
 class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
-  final _filter = TextEditingController();
+  late final _filter = TextEditingController(text: widget.filter);
 
   void _search() => widget.onFilterChanged(_filter.text.trim());
+
+  @override
+  void didUpdateWidget(covariant RegisterSearchPage<T> old) {
+    super.didUpdateWidget(old);
+    // o bloc mudou o filtro por outro caminho (ex.: recarga) — o campo acompanha
+    if (widget.filter != old.filter && widget.filter != _filter.text.trim()) {
+      _filter.text = widget.filter;
+    }
+  }
 
   @override
   void dispose() {

@@ -90,6 +90,7 @@ class _ContractPageState extends State<ContractPage> with FieldConfigLoader {
             _bloc.add(ContractListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(ContractListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(ContractListRequested(filter)),
         onNew: () => _bloc.add(const ContractNewPressed()),
         onView: (c) => _bloc.add(ContractEditPressed(c.id)),

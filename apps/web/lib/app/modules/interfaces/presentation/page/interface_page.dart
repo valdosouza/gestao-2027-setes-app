@@ -248,6 +248,7 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
             _bloc.add(InterfaceListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(InterfaceListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(InterfaceListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,

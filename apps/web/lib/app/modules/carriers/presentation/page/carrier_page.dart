@@ -90,6 +90,7 @@ class _CarrierPageState extends State<CarrierPage> {
             _bloc.add(CarrierListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CarrierListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CarrierListRequested(filter)),
         onNew: () => _bloc.add(const CarrierNewPressed()),
         onView: (item) => _bloc.add(CarrierEditPressed(item.id)),

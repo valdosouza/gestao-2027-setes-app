@@ -214,6 +214,7 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
             _bloc.add(CityListRequested(state.filter, page: page)),
         onPageSizeChanged: (size) =>
             _bloc.add(CityListRequested(state.filter, pageSize: size)),
+        filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CityListRequested(filter)),
         onNew: _openNew,
         onView: _openEdit,
