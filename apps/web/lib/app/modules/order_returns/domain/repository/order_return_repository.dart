@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/order_return_entity.dart';
 
 /// Contrato do repositório da Devolução de Mercadoria (Either/dartz) —
@@ -10,7 +11,9 @@ import '../entity/order_return_entity.dart';
 abstract class OrderReturnRepository {
   Future<Either<Failure, PagedResult<OrderReturnListItem>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, OrderReturnFull>> getById(int id);
   Future<Either<Failure, int>> open(int saleOrderId);
   Future<Either<Failure, Unit>> cancel(int id);

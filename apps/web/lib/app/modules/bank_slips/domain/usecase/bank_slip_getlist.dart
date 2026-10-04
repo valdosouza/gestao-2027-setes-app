@@ -1,12 +1,14 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/bank_slip_entity.dart';
 import '../repository/bank_slip_repository.dart';
 
 /// Página da lista de boletos por [status] derivado e filtro (paginação
 /// D3: [pageSize] null = config page_size da API — D4). [pendingOnly] = só
-/// boletos com voz do banco de efeito recusado (D-I28).
+/// boletos com voz do banco de efeito recusado (D-I28). [criteria] =
+/// pesquisa avançada (D-BA1) — soma em E com os demais.
 class BankSlipGetlist {
   const BankSlipGetlist({required this.repository});
 
@@ -14,7 +16,13 @@ class BankSlipGetlist {
 
   Future<Either<Failure, PagedResult<BankSlipListRow>>> call(
           String status, String filter,
-          {int page = 1, int? pageSize, bool pendingOnly = false}) =>
+          {int page = 1,
+          int? pageSize,
+          bool pendingOnly = false,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
       repository.getList(status, filter,
-          page: page, pageSize: pageSize, pendingOnly: pendingOnly);
+          page: page,
+          pageSize: pageSize,
+          pendingOnly: pendingOnly,
+          criteria: criteria);
 }

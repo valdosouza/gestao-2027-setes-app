@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/check_entity.dart';
 
 /// Contrato do repositório de Cheques (Either/dartz) — operações do
@@ -11,7 +12,9 @@ import '../entity/check_entity.dart';
 abstract class CheckRepository {
   Future<Either<Failure, PagedResult<CheckListRow>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, CheckFull>> getOne(int id);
 
   /// Deposita (evento B) — cofre → banco.

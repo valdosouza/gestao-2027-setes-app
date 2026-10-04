@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/settlement_entity.dart';
 import '../../domain/repository/settlement_repository.dart';
 import '../datasource/settlement_datasource.dart';
@@ -23,9 +24,11 @@ class SettlementRepositoryImpl implements SettlementRepository {
   @override
   Future<Either<Failure, PagedResult<SettlementBill>>> bills(
           String status, String kind, String filter,
-          {int page = 1, int? pageSize}) =>
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
       _guard(() => datasource.bills(status, kind, filter,
-          page: page, pageSize: pageSize));
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, SettlementBatchResult>> settle(
@@ -35,9 +38,11 @@ class SettlementRepositoryImpl implements SettlementRepository {
   @override
   Future<Either<Failure, PagedResult<SettlementSettled>>> settled(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(
-          () => datasource.settled(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.settled(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, SettlementReversalResult>> reversal(

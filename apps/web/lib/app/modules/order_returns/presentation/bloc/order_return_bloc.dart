@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/order_return_entity.dart';
 import '../../domain/usecase/order_return_billing_invoice.dart';
 import '../../domain/usecase/order_return_billing_validate.dart';
@@ -65,19 +66,32 @@ class OrderReturnBloc extends Bloc<OrderReturnEvent, OrderReturnState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8): sobrevive à volta do detalhe e às
+  /// operações; troca de aba NÃO a apaga (os critérios valem nas duas abas).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Devolução aberta no detalhe — preserva o conteúdo nos re-emits de
   /// saving/falha sem nova consulta.
   OrderReturnFull? _detail;
 
   Future<void> _reloadList(Emitter<OrderReturnState> emit) async {
     _detail = null;
-    emit(OrderReturnListState(loading: true, status: _status));
-    final result =
-        await getlist(_status, _filter, page: _page, pageSize: _pageSize);
+    emit(OrderReturnListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
+    final result = await getlist(_status, _filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(OrderReturnActionFailure(searchCriterionRemoved(failure)));
+          return _reloadList(emit);
+        }
         emit(OrderReturnActionFailure(failure));
-        emit(OrderReturnListState(status: _status));
+        emit(OrderReturnListState(
+            status: _status, filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →
@@ -92,6 +106,7 @@ class OrderReturnBloc extends Bloc<OrderReturnEvent, OrderReturnState> {
           items: paged.items,
           status: _status,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -124,12 +139,14 @@ class OrderReturnBloc extends Bloc<OrderReturnEvent, OrderReturnState> {
     // a navegação da barra manda outra página.
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reloadList(emit);
   }
 
   Future<void> _onOpenRequested(
       OrderReturnOpenRequested event, Emitter<OrderReturnState> emit) async {
-    emit(OrderReturnListState(loading: true, status: _status));
+    emit(OrderReturnListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await post(event.saleOrderId);
     await result.fold(
       (failure) async {
@@ -145,7 +162,8 @@ class OrderReturnBloc extends Bloc<OrderReturnEvent, OrderReturnState> {
 
   Future<void> _onViewRequested(
       OrderReturnViewRequested event, Emitter<OrderReturnState> emit) async {
-    emit(OrderReturnListState(loading: true, status: _status));
+    emit(OrderReturnListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
     await _reloadDetail(event.id, emit);
   }
 

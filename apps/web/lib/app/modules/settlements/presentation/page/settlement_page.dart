@@ -12,7 +12,12 @@ import '../../../../shared/interface_config/interface_config_loader.dart';
 import '../../../../shared/session/current_interface.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/search/advanced_search_panel.dart';
+import '../../../../shared/search/search_criteria_chips.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/settlement_datasource.dart';
+import '../../data/datasource/settlement_search_criteria_datasource.dart';
 import '../../domain/settlement_discount_rules.dart';
 import '../../domain/entity/settlement_entity.dart';
 import '../bloc/settlement_bloc.dart';
@@ -22,7 +27,9 @@ import '../bloc/settlement_bloc.dart';
 /// 3 ABAS: Em aberto (carteira com seleção MÚLTIPLA e baixa em LOTE —
 /// N títulos → 1 código → 1 movimento), Baixados (linha por evento, com
 /// estorno IMUTÁVEL mediante motivo) e Movimento (extrato banco/caixa com
-/// totais prontos da API — o app nunca soma).
+/// totais prontos da API — o app nunca soma). Pesquisa avançada (Bloco B)
+/// nas duas listas paginadas, cada uma com o seu catálogo; o Movimento não
+/// tem.
 class SettlementPage extends StatefulWidget {
   const SettlementPage({required this.title, super.key});
 
@@ -127,6 +134,23 @@ Future<bool> _firstPendingCheck(
   return true;
 }
 
+/// Pesquisa avançada de UMA lista da tela (títulos ou baixas): catálogo
+/// próprio, valores APLICADOS (do estado do bloc), datasource amarrado ao
+/// /api da lista e o evento que a recarrega com os critérios novos.
+class _ListSearch {
+  const _ListSearch({
+    required this.criteria,
+    required this.values,
+    required this.datasource,
+    required this.apply,
+  });
+
+  final List<SearchCriterion> criteria;
+  final SearchCriteriaValues values;
+  final SearchCriteriaDatasource datasource;
+  final void Function(SearchCriteriaValues values) apply;
+}
+
 class _SettlementPageState extends State<SettlementPage>
     with SingleTickerProviderStateMixin, InterfaceConfigLoader {
   late final SettlementBloc _bloc;
@@ -136,7 +160,8 @@ class _SettlementPageState extends State<SettlementPage>
 
   // Seleção múltipla da aba Em aberto: vive no BLOC (chave orderId-parcel
   // + título inteiro) — sobrevive à navegação de página e à troca de
-  // filtro; só as ações de baixa/estorno limpam.
+  // filtro; limpam as ações de baixa/estorno e o critério NOVO da pesquisa
+  // avançada (D-BA40).
 
   /// Filtros da aba Movimento (a página guarda a exibição; o bloc, o
   /// valor vigente). null = Caixa (id 0, default).
@@ -148,6 +173,15 @@ class _SettlementPageState extends State<SettlementPage>
   final _stFromKey = GlobalKey<FormFieldState<String>>();
   final _stToKey = GlobalKey<FormFieldState<String>>();
 
+  /// Pesquisa avançada (D-BA9/D-BA10 — Bloco B): UM catálogo por LISTA —
+  /// títulos (Em aberto) e baixas (Baixados) têm critérios e lookups
+  /// próprios, servidos pela API; falha ao carregar = sem botão naquela aba
+  /// (a tela nunca quebra). O Movimento não tem pesquisa avançada.
+  late final SearchCriteriaDatasource _billsSearch;
+  late final SearchCriteriaDatasource _settledSearch;
+  List<SearchCriterion> _billsCriteria = const [];
+  List<SearchCriterion> _settledCriteria = const [];
+
   @override
   void initState() {
     super.initState();
@@ -155,6 +189,10 @@ class _SettlementPageState extends State<SettlementPage>
     _bloc = Modular.get<SettlementBloc>()
       ..add(const SettlementBillsRequested(filter: ''));
     _datasource = Modular.get<SettlementDatasource>();
+    _billsSearch = Modular.get<BillSearchCriteriaDatasource>();
+    _settledSearch = Modular.get<SettledSearchCriteriaDatasource>();
+    _loadSearchCriteria(_billsSearch, (c) => _billsCriteria = c);
+    _loadSearchCriteria(_settledSearch, (c) => _settledCriteria = c);
     _tabs = TabController(length: 3, vsync: this);
     _tabs.addListener(() {
       if (_tabs.indexIsChanging) return;
@@ -190,6 +228,57 @@ class _SettlementPageState extends State<SettlementPage>
     } else {
       _bloc.add(SettlementSettledRequested(filter: _filter.text.trim()));
     }
+  }
+
+  // -------------------------------------------------------------------
+  // Pesquisa avançada (abas Em aberto × Baixados)
+  // -------------------------------------------------------------------
+
+  /// Carrega o catálogo de UMA lista — as duas são independentes: falha de
+  /// uma não tira o botão da outra.
+  Future<void> _loadSearchCriteria(SearchCriteriaDatasource datasource,
+      void Function(List<SearchCriterion> criteria) assign) async {
+    try {
+      final criteria = await datasource.criteria();
+      if (mounted) setState(() => assign(criteria));
+    } catch (_) {
+      // sem critérios = sem botão nesta aba; o filtro rápido segue funcionando
+    }
+  }
+
+  /// Pesquisa avançada da lista que o ESTADO representa (vale para a ABA
+  /// ATIVA; cada aba guarda os seus critérios no bloc — D-BA8). null no
+  /// Movimento e quando o catálogo da lista não carregou (sem botão).
+  _ListSearch? _listSearch(SettlementState state) {
+    final search = switch (state) {
+      SettlementBillsState() => _ListSearch(
+          criteria: _billsCriteria,
+          values: state.criteria,
+          datasource: _billsSearch,
+          // Critério novo zera a seleção do lote (D-BA40 — no bloc).
+          apply: (values) =>
+              _bloc.add(SettlementBillsRequested(criteria: values)),
+        ),
+      SettlementSettledState() => _ListSearch(
+          criteria: _settledCriteria,
+          values: state.criteria,
+          datasource: _settledSearch,
+          apply: (values) =>
+              _bloc.add(SettlementSettledRequested(criteria: values)),
+        ),
+      _ => null,
+    };
+    return search == null || search.criteria.isEmpty ? null : search;
+  }
+
+  Future<void> _openAdvancedSearch(_ListSearch search) async {
+    final values = await showAdvancedSearch(
+      context: context,
+      criteria: search.criteria,
+      current: search.values,
+      datasource: search.datasource,
+    );
+    if (values != null) search.apply(values);
   }
 
   // -------------------------------------------------------------------
@@ -657,7 +746,8 @@ class _SettlementPageState extends State<SettlementPage>
               setState(() => _maxDiscountFromApi = expected);
             }
           }
-          if (failure.fields.isNotEmpty) {
+          // recusa de critério da pesquisa avançada = aviso "critério removido" (ponte genérica)
+          if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
             showFailureFeedback(context, failure);
@@ -667,53 +757,78 @@ class _SettlementPageState extends State<SettlementPage>
             current is SettlementBillsState ||
             current is SettlementSettledState ||
             current is SettlementStatementsState,
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: Text('register.listTitle'.tr(args: [widget.title])),
-            actions: const [
-              RegisterConfigButton(moduleKey: 'settlements'),
-            ],
-          ),
-          body: Column(
-            children: [
-              // Abas no CORPO (padrão service_orders — no bottom da AppBar
-              // as cores do tema somem no fundo primário).
-              TabBar(
-                controller: _tabs,
-                tabs: [
-                  Tab(text: 'forms.settlement.tabOpen'.tr()),
-                  Tab(text: 'forms.settlement.tabSettled'.tr()),
-                  Tab(text: 'forms.settlement.tabStatements'.tr()),
-                ],
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Filtro de entidade/nº só nas abas de títulos —
-                      // o Movimento tem filtro próprio (conta/período).
-                      if (_tabs.index != 2) ...[
-                        SetesTextField(
-                          label: 'register.filter'.tr(),
-                          hint: 'register.filterHint'.tr(),
-                          controller: _filter,
-                          suffixIcon: Icons.search,
-                          onSuffixPressed: _searchList,
-                          onSubmitted: (_) => _searchList(),
-                        ),
-                        const SizedBox(height: 16),
+        builder: (context, state) {
+          // Pesquisa avançada da ABA ATIVA (null no Movimento — sem
+          // botão nem chips).
+          final search = _listSearch(state);
+          return Scaffold(
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              title: Text('register.listTitle'.tr(args: [widget.title])),
+              actions: [
+                if (search != null)
+                  IconButton(
+                    tooltip: 'search.title'.tr(),
+                    onPressed: () => _openAdvancedSearch(search),
+                    icon: Badge(
+                      isLabelVisible: !search.values.isEmpty,
+                      label: SetesText('${search.values.values.length}'),
+                      child: const Icon(Icons.manage_search),
+                    ),
+                  ),
+                const RegisterConfigButton(moduleKey: 'settlements'),
+              ],
+            ),
+            body: Column(
+              children: [
+                // Abas no CORPO (padrão service_orders — no bottom da AppBar
+                // as cores do tema somem no fundo primário).
+                TabBar(
+                  controller: _tabs,
+                  tabs: [
+                    Tab(text: 'forms.settlement.tabOpen'.tr()),
+                    Tab(text: 'forms.settlement.tabSettled'.tr()),
+                    Tab(text: 'forms.settlement.tabStatements'.tr()),
+                  ],
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Filtro de entidade/nº só nas abas de títulos —
+                        // o Movimento tem filtro próprio (conta/período).
+                        if (_tabs.index != 2) ...[
+                          SetesTextField(
+                            label: 'register.filter'.tr(),
+                            hint: 'register.filterHint'.tr(),
+                            controller: _filter,
+                            suffixIcon: Icons.search,
+                            onSuffixPressed: _searchList,
+                            onSubmitted: (_) => _searchList(),
+                          ),
+                          // Chips dos critérios ATIVOS da aba (D-BA6) —
+                          // remover/limpar recarrega só a lista desta aba.
+                          if (search != null && !search.values.isEmpty) ...[
+                            const SizedBox(height: 8),
+                            SearchCriteriaChips(
+                              criteria: search.criteria,
+                              values: search.values,
+                              onChanged: search.apply,
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                        ],
+                        Expanded(child: _buildBody(state)),
                       ],
-                      Expanded(child: _buildBody(state)),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       );
 }
 

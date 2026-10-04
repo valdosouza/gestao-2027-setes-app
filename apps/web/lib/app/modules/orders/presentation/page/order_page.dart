@@ -12,6 +12,10 @@ import '../../../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/role_lookup_entity.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/search/advanced_search_panel.dart';
+import '../../../../shared/search/search_criteria_chips.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/order_datasource.dart';
 import '../../domain/entity/order_entity.dart';
 import '../bloc/order_bloc.dart';
@@ -71,6 +75,11 @@ class _OrderPageState extends State<OrderPage>
   /// (o servidor aponta uma parcela por vez); zera com a negociação.
   final Map<int, double> _checksExpected = {};
 
+  /// Pesquisa avançada (D-BA9/D-BA10 — molde service_orders): critérios
+  /// servidos pela API; falha ao carregar = sem botão (a tela nunca quebra).
+  late final SearchCriteriaDatasource _searchDatasource;
+  List<SearchCriterion> _searchCriteria = const [];
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +87,8 @@ class _OrderPageState extends State<OrderPage>
       ..add(const OrderListRequested(status: 'A', filter: ''));
     _datasource = Modular.get<OrderDatasource>();
     _salesmanLookup = Modular.get<SalesmanLookupDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     _tabs = TabController(length: 2, vsync: this);
     _tabs.addListener(() {
       if (_tabs.indexIsChanging) return;
@@ -121,6 +132,29 @@ class _OrderPageState extends State<OrderPage>
   // Lista (abas Abertos × Faturados)
   // -------------------------------------------------------------------
 
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
+  }
+
+  /// Critério novo volta à página 1 (default do evento); a aba é mantida.
+  void _applyCriteria(SearchCriteriaValues criteria) =>
+      _bloc.add(OrderListRequested(criteria: criteria));
+
+  Future<void> _openAdvancedSearch(SearchCriteriaValues current) async {
+    final values = await showAdvancedSearch(
+      context: context,
+      criteria: _searchCriteria,
+      current: current,
+      datasource: _searchDatasource,
+    );
+    if (values != null) _applyCriteria(values);
+  }
+
   Widget _buildList(OrderListState state) {
     _status = state.status;
     final tabIndex = _statuses.indexOf(state.status);
@@ -131,6 +165,16 @@ class _OrderPageState extends State<OrderPage>
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
+          if (_searchCriteria.isNotEmpty)
+            IconButton(
+              tooltip: 'search.title'.tr(),
+              onPressed: () => _openAdvancedSearch(state.criteria),
+              icon: Badge(
+                isLabelVisible: !state.criteria.isEmpty,
+                label: SetesText('${state.criteria.values.length}'),
+                child: const Icon(Icons.manage_search),
+              ),
+            ),
           const RegisterConfigButton(moduleKey: 'orders'),
         ],
       ),
@@ -162,6 +206,14 @@ class _OrderPageState extends State<OrderPage>
                     onSuffixPressed: _search,
                     onSubmitted: (_) => _search(),
                   ),
+                  if (!state.criteria.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    SearchCriteriaChips(
+                      criteria: _searchCriteria,
+                      values: state.criteria,
+                      onChanged: _applyCriteria,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Expanded(child: _buildListBody(state)),
                   if (state.pageSize != null && state.total != null) ...[
@@ -366,7 +418,8 @@ class _OrderPageState extends State<OrderPage>
   /// Falha genérica (Framework de Mensagens): fields[] presente = dialog de
   /// validação com a mensagem do campo; senão a ponte deriva o canal.
   Future<void> _showFailure(Failure failure) {
-    if (failure.fields.isNotEmpty) {
+    // recusa de critério da pesquisa avançada = aviso "critério removido" (ponte genérica)
+    if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
       return showValidationFeedback(context, failure.fields.first.message.tr());
     }
     return showFailureFeedback(context, failure);

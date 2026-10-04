@@ -139,4 +139,13 @@ void main() {
       expect(client.paths, ['/api/customers/salesman-lookup?filter=jo']);
     });
   });
+
+  group('isSearchCriteriaFailure (Onda 3)', () {
+    test('recusa de critério (400/422 da pesquisa) é da LISTA — nunca ancora em campo', () {
+      expect(isSearchCriteriaFailure(const Failure(message: 'x', code: 'SEARCH_CRITERION_INVALID')), isTrue);
+      expect(isSearchCriteriaFailure(const Failure(message: 'x', code: 'SEARCH_CRITERIA_INVALID')), isTrue);
+      expect(isSearchCriteriaFailure(const Failure(message: 'x', code: 'VALIDATION')), isFalse);
+      expect(isSearchCriteriaFailure(const Failure(message: 'x')), isFalse);
+    });
+  });
 }

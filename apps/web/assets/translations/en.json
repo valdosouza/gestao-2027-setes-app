@@ -1822,6 +1822,98 @@
     "interface-fields": {
       "name": "Interface technical name",
       "acquired": "Acquired"
+    },
+    "orders": {
+      "customerName": "Customer name",
+      "customer": "Customer",
+      "salesman": "Salesperson",
+      "number": "Order no.",
+      "dtRecord": "Order date",
+      "totalValue": "Total amount",
+      "invoiceNumber": "Invoice no.",
+      "paymentType": "Payment method",
+      "hasService": "Has service"
+    },
+    "order-returns": {
+      "customerName": "Customer name",
+      "customer": "Customer",
+      "number": "Return no.",
+      "originNumber": "Origin order no.",
+      "dtRecord": "Return date",
+      "totalValue": "Total amount"
+    },
+    "settlements-bills": {
+      "entityName": "Customer/supplier name",
+      "entity": "Customer/Supplier",
+      "number": "Bill no.",
+      "operation": "Operation",
+      "operationOptions": {
+        "C": "Receivable",
+        "D": "Payable"
+      },
+      "kind": "Type",
+      "kindOptions": {
+        "RA": "Automatic receivable",
+        "RM": "Manual receivable",
+        "PA": "Automatic payable",
+        "PM": "Manual payable",
+        "CH": "Returned check"
+      },
+      "stage": "Settlement destination",
+      "stageOptions": {
+        "N": "Not settled",
+        "B": "Bank account",
+        "C": "Cashier"
+      },
+      "dtExpiration": "Due date",
+      "tagValue": "Bill amount",
+      "balance": "Open balance",
+      "paymentType": "Payment method"
+    },
+    "settlements-settled": {
+      "entityName": "Customer/supplier name",
+      "number": "Bill no.",
+      "dtPayment": "Settlement date",
+      "dtRealPayment": "Actual payment date",
+      "paidValue": "Amount paid",
+      "settledCode": "Settlement code",
+      "status": "Status",
+      "statusOptions": {
+        "N": "Current",
+        "E": "Reversed",
+        "R": "Reversal"
+      },
+      "kind": "Type",
+      "kindOptions": {
+        "RA": "Automatic receivable",
+        "RM": "Manual receivable",
+        "PA": "Automatic payable",
+        "PM": "Manual payable",
+        "CH": "Returned check"
+      }
+    },
+    "bank-slips": {
+      "customerName": "Customer",
+      "ourNumber": "Our number",
+      "documentNumber": "Document no.",
+      "dtEmission": "Issue date",
+      "dtExpiration": "Due date",
+      "value": "Amount",
+      "agreement": "Collection agreement"
+    },
+    "checks": {
+      "issuer": "Issuer",
+      "number": "Check no.",
+      "bank": "Bank",
+      "agency": "Branch",
+      "account": "Account",
+      "dtCheck": "Check date",
+      "value": "Amount",
+      "kind": "Origin",
+      "kindOptions": {
+        "P": "Payer's own",
+        "T": "Third party"
+      }
     }
   }
 }

@@ -9,6 +9,10 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
+import '../../../../shared/search/advanced_search_panel.dart';
+import '../../../../shared/search/search_criteria_chips.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/session/current_interface.dart';
 import '../../data/datasource/order_return_datasource.dart';
 import '../../domain/entity/order_return_entity.dart';
@@ -47,12 +51,19 @@ class _OrderReturnPageState extends State<OrderReturnPage>
   /// aba sozinho (ex.: pós-faturamento cai em Faturadas).
   String _status = 'A';
 
+  /// Pesquisa avançada (D-BA9/D-BA10 — molde service_orders): critérios
+  /// servidos pela API; falha ao carregar = sem botão (a tela nunca quebra).
+  late final SearchCriteriaDatasource _searchDatasource;
+  List<SearchCriterion> _searchCriteria = const [];
+
   @override
   void initState() {
     super.initState();
     _bloc = Modular.get<OrderReturnBloc>()
       ..add(const OrderReturnListRequested(status: 'A', filter: ''));
     _datasource = Modular.get<OrderReturnDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     _tabs = TabController(length: 2, vsync: this);
     _tabs.addListener(() {
       if (_tabs.indexIsChanging) return;
@@ -75,6 +86,29 @@ class _OrderReturnPageState extends State<OrderReturnPage>
   // Lista (abas Abertas × Faturadas)
   // -------------------------------------------------------------------
 
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
+  }
+
+  /// Critério novo volta à página 1 (default do evento); a aba é mantida.
+  void _applyCriteria(SearchCriteriaValues criteria) =>
+      _bloc.add(OrderReturnListRequested(criteria: criteria));
+
+  Future<void> _openAdvancedSearch(SearchCriteriaValues current) async {
+    final values = await showAdvancedSearch(
+      context: context,
+      criteria: _searchCriteria,
+      current: current,
+      datasource: _searchDatasource,
+    );
+    if (values != null) _applyCriteria(values);
+  }
+
   Widget _buildList(OrderReturnListState state) {
     _status = state.status;
     final tabIndex = _statuses.indexOf(state.status);
@@ -85,6 +119,16 @@ class _OrderReturnPageState extends State<OrderReturnPage>
         automaticallyImplyLeading: false,
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
+          if (_searchCriteria.isNotEmpty)
+            IconButton(
+              tooltip: 'search.title'.tr(),
+              onPressed: () => _openAdvancedSearch(state.criteria),
+              icon: Badge(
+                isLabelVisible: !state.criteria.isEmpty,
+                label: SetesText('${state.criteria.values.length}'),
+                child: const Icon(Icons.manage_search),
+              ),
+            ),
           const RegisterConfigButton(moduleKey: 'order-returns'),
         ],
       ),
@@ -111,6 +155,14 @@ class _OrderReturnPageState extends State<OrderReturnPage>
                     onSuffixPressed: _search,
                     onSubmitted: (_) => _search(),
                   ),
+                  if (!state.criteria.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    SearchCriteriaChips(
+                      criteria: _searchCriteria,
+                      values: state.criteria,
+                      onChanged: _applyCriteria,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Expanded(child: _buildListBody(state)),
                   if (state.pageSize != null && state.total != null) ...[
@@ -263,7 +315,8 @@ class _OrderReturnPageState extends State<OrderReturnPage>
             return;
           }
           final failure = (state as OrderReturnActionFailure).failure;
-          if (failure.fields.isNotEmpty) {
+          // recusa de critério da pesquisa avançada = aviso "critério removido" (ponte genérica)
+          if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
             showFailureFeedback(context, failure);

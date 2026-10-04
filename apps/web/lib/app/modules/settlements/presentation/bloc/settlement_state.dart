@@ -20,6 +20,7 @@ class SettlementBillsState extends SettlementState {
     this.pageSize,
     this.total,
     this.selected = const [],
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<SettlementBill> items;
@@ -30,8 +31,12 @@ class SettlementBillsState extends SettlementState {
   final int? pageSize;
   final int? total;
 
-  /// Títulos selecionados (TODAS as páginas) — só baixa/estorno limpam.
+  /// Títulos selecionados (TODAS as páginas) — baixa/estorno e critério
+  /// novo da pesquisa avançada (D-BA40) limpam.
   final List<SettlementBill> selected;
+
+  /// Critérios APLICADOS da pesquisa avançada dos títulos (chips + badge).
+  final SearchCriteriaValues criteria;
 
   /// Chaves selecionadas (orderId-parcel) para as checkboxes da página.
   Set<String> get selectedKeys => {for (final bill in selected) bill.key};
@@ -42,7 +47,8 @@ class SettlementBillsState extends SettlementState {
       selected.fold<double>(0, (sum, bill) => sum + bill.balance);
 
   @override
-  List<Object?> get props => [items, loading, page, pageSize, total, selected];
+  List<Object?> get props =>
+      [items, loading, page, pageSize, total, selected, criteria];
 }
 
 /// Aba BAIXADOS (buildável) — PÁGINA das linhas por EVENTO da parcela.
@@ -53,6 +59,7 @@ class SettlementSettledState extends SettlementState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<SettlementSettled> items;
@@ -63,8 +70,12 @@ class SettlementSettledState extends SettlementState {
   final int? pageSize;
   final int? total;
 
+  /// Critérios APLICADOS da pesquisa avançada das baixas (chips + badge).
+  final SearchCriteriaValues criteria;
+
   @override
-  List<Object?> get props => [items, loading, page, pageSize, total];
+  List<Object?> get props =>
+      [items, loading, page, pageSize, total, criteria];
 }
 
 /// Aba MOVIMENTO (buildável) — extrato com totais prontos da API.

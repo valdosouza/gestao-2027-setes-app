@@ -16,6 +16,8 @@ import '../../domain/usecase/bank_slip_issue.dart';
 import '../../domain/usecase/bank_slip_reverse.dart';
 import '../../domain/usecase/bank_slip_settle.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'bank_slip_event.dart';
 part 'bank_slip_state.dart';
 
@@ -75,17 +77,33 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
   int?   _pageSize;
   bool   _pendingOnly = false;
 
+  /// Pesquisa avançada corrente (D-BA8): sobrevive à volta do detalhe e às
+  /// ações; troca de aba e o "só pendências" NÃO a apagam (os critérios
+  /// valem nas três abas).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _reloadList(Emitter<BankSlipState> emit) async {
     emit(BankSlipListState(
         loading: true, status: _status, filter: _filter, page: _page,
-        pendingOnly: _pendingOnly));
+        pendingOnly: _pendingOnly, criteria: _criteria));
     final result = await getlist(_status, _filter,
-        page: _page, pageSize: _pageSize, pendingOnly: _pendingOnly);
+        page: _page,
+        pageSize: _pageSize,
+        pendingOnly: _pendingOnly,
+        criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(BankSlipActionFailure(searchCriterionRemoved(failure)));
+          return _reloadList(emit);
+        }
         emit(BankSlipActionFailure(failure));
         emit(BankSlipListState(
-            status: _status, filter: _filter, pendingOnly: _pendingOnly));
+            status: _status, filter: _filter, pendingOnly: _pendingOnly,
+            criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: último boleto da página mudou de estado)
@@ -105,6 +123,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
           pageSize: paged.pageSize,
           total: paged.total,
           pendingOnly: _pendingOnly,
+          criteria: _criteria,
         ));
       },
     );
@@ -138,6 +157,7 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
     _pendingOnly = event.pendingOnly ?? _pendingOnly;
+    _criteria = event.criteria ?? _criteria;
     await _reloadList(emit);
   }
 
@@ -154,7 +174,8 @@ class BankSlipBloc extends Bloc<BankSlipEvent, BankSlipState> {
   Future<void> _onIssueRequested(
       BankSlipIssueRequested event, Emitter<BankSlipState> emit) async {
     emit(BankSlipListState(
-        loading: true, status: _status, filter: _filter, page: _page));
+        loading: true, status: _status, filter: _filter, page: _page,
+        pendingOnly: _pendingOnly, criteria: _criteria));
     final result = await issue(event.input);
     await result.fold(
       (failure) async {

@@ -19,6 +19,7 @@ class OrderReturnListState extends OrderReturnState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<OrderReturnListItem> items;
@@ -33,9 +34,12 @@ class OrderReturnListState extends OrderReturnState {
   final int? pageSize;
   final int? total;
 
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
+
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total];
+      [items, loading, status, filter, page, pageSize, total, criteria];
 }
 
 /// Modo detalhe da devolução (buildável). [saving] desabilita as ações

@@ -14,6 +14,8 @@ import '../../domain/usecase/check_return_refund.dart';
 import '../../domain/usecase/check_return_to_origin.dart';
 import '../../domain/usecase/check_reverse.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'check_event.dart';
 part 'check_state.dart';
 
@@ -68,15 +70,28 @@ class CheckBloc extends Bloc<CheckEvent, CheckState> {
   int    _page = 1;
   int?   _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8): sobrevive à volta do detalhe e às
+  /// ações; troca de aba NÃO a apaga (os critérios valem nas seis abas).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _reloadList(Emitter<CheckState> emit) async {
     emit(CheckListState(
-        loading: true, status: _status, filter: _filter, page: _page));
-    final result =
-        await getlist(_status, _filter, page: _page, pageSize: _pageSize);
+        loading: true, status: _status, filter: _filter, page: _page,
+        criteria: _criteria));
+    final result = await getlist(_status, _filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(CheckActionFailure(searchCriterionRemoved(failure)));
+          return _reloadList(emit);
+        }
         emit(CheckActionFailure(failure));
-        emit(CheckListState(status: _status, filter: _filter));
+        emit(CheckListState(
+            status: _status, filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: último cheque da página mudou de estado)
@@ -95,6 +110,7 @@ class CheckBloc extends Bloc<CheckEvent, CheckState> {
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
+          criteria: _criteria,
         ));
       },
     );
@@ -127,6 +143,7 @@ class CheckBloc extends Bloc<CheckEvent, CheckState> {
     // a navegação da barra manda outra página.
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reloadList(emit);
   }
 

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/bank_slip_entity.dart';
 import '../../domain/repository/bank_slip_repository.dart';
 import '../datasource/bank_slip_datasource.dart';
@@ -23,9 +24,15 @@ class BankSlipRepositoryImpl implements BankSlipRepository {
   @override
   Future<Either<Failure, PagedResult<BankSlipListRow>>> getList(
           String status, String filter,
-          {int page = 1, int? pageSize, bool pendingOnly = false}) =>
+          {int page = 1,
+          int? pageSize,
+          bool pendingOnly = false,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
       _guard(() => datasource.getList(status, filter,
-          page: page, pageSize: pageSize, pendingOnly: pendingOnly));
+          page: page,
+          pageSize: pageSize,
+          pendingOnly: pendingOnly,
+          criteria: criteria));
 
   @override
   Future<Either<Failure, BankSlipFull>> getOne(int id) =>

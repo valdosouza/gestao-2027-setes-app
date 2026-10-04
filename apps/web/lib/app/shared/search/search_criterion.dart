@@ -104,8 +104,7 @@ class SearchCriteriaValues {
   /// não é de critério ou não aponta nenhum critério presente (falha comum —
   /// nunca entra em laço).
   SearchCriteriaValues? withoutRejected(Failure failure) {
-    const codes = {'SEARCH_CRITERION_INVALID', 'SEARCH_CRITERIA_INVALID'};
-    if (!codes.contains(failure.code)) return null;
+    if (!isSearchCriteriaFailure(failure)) return null;
     final rejected = failure.fields
         .map((f) => f.field)
         .where(values.containsKey)
@@ -146,6 +145,16 @@ class SearchCriteriaValues {
     return SearchCriteriaValues(out);
   }
 }
+
+/// Recusa de critério da pesquisa avançada (400 malformado/desconhecido · 422 valor
+/// inválido). É falha da LISTA, nunca de campo de formulário/dialog: tela de
+/// processo que ancora `fields[]` em campos de ação (ou mostra só a mensagem do
+/// 1º campo) desvia estas falhas para a ponte genérica (aviso "critério removido"
+/// — achado da Onda 3: o `dtExpiration` do critério casaria com o campo homônimo
+/// do dialog de emissão de boleto).
+bool isSearchCriteriaFailure(Failure failure) =>
+    failure.code == 'SEARCH_CRITERION_INVALID' ||
+    failure.code == 'SEARCH_CRITERIA_INVALID';
 
 /// Falha a exibir quando critérios foram DESCARTADOS (Q-BA16 a): a mensagem é
 /// chave i18n (a ponte de feedback traduz) e mantém os `fields[]` da API —

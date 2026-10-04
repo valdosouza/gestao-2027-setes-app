@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/bank_slip_datasource.dart';
 import 'data/datasource/bank_slip_lookup_datasource.dart';
 import 'data/repository/bank_slip_repository_impl.dart';
@@ -33,6 +34,10 @@ class BankSlipsModule extends Module {
         // DEDICADO, consumido direto pela page (não passa pelo bloc).
         Bind.lazySingleton<BankSlipLookupDatasource>(
             (i) => BankSlipLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/bank-slips')),
         Bind.lazySingleton<BankSlipRepository>((i) =>
             BankSlipRepositoryImpl(datasource: i.get<BankSlipDatasource>())),
         Bind.factory<BankSlipGetlist>(

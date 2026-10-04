@@ -20,6 +20,7 @@ class BankSlipListState extends BankSlipState {
     this.pageSize,
     this.total,
     this.pendingOnly = false,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<BankSlipListRow> items;
@@ -37,9 +38,14 @@ class BankSlipListState extends BankSlipState {
   /// D-I28: filtro "só pendências do banco" aplicado.
   final bool pendingOnly;
 
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
+
   @override
-  List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total, pendingOnly];
+  List<Object?> get props => [
+        items, loading, status, filter, page, pageSize, total, pendingOnly,
+        criteria,
+      ];
 }
 
 /// Detalhe em carga inicial (buildável) — antes do 1º GET :id.

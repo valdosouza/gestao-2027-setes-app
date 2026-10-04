@@ -17,6 +17,7 @@ class OrderListRequested extends OrderEvent {
     this.filter,
     this.page = 1,
     this.pageSize,
+    this.criteria,
   });
 
   /// null = mantém a aba atual do bloc.
@@ -28,8 +29,11 @@ class OrderListRequested extends OrderEvent {
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [status, filter, page, pageSize];
+  List<Object?> get props => [status, filter, page, pageSize, criteria];
 }
 
 /// FAB "Novo pedido": POST com cliente (obrigatório) e vendedor (opcional

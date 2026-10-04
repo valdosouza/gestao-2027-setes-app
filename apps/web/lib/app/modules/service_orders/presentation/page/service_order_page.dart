@@ -724,7 +724,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 .join('\n');
             showValidationFeedback(context,
                 '${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
-          } else if (failure.fields.isNotEmpty) {
+          } else if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
+            // recusa de critério da pesquisa avançada cai no else (aviso "critério removido")
             showValidationFeedback(context, failure.fields.first.message.tr());
           } else {
             showFailureFeedback(context, failure);

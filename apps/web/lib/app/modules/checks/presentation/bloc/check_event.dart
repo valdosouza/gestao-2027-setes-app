@@ -12,15 +12,19 @@ sealed class CheckEvent extends Equatable {
 /// [page] navega (aba/filtro novos voltam à página 1 — default); [pageSize]
 /// null mantém o tamanho corrente (1º load = config page_size da API).
 class CheckListRequested extends CheckEvent {
-  const CheckListRequested({this.status, this.filter, this.page = 1, this.pageSize});
+  const CheckListRequested(
+      {this.status, this.filter, this.page = 1, this.pageSize, this.criteria});
 
   final String? status;
   final String? filter;
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [status, filter, page, pageSize];
+  List<Object?> get props => [status, filter, page, pageSize, criteria];
 }
 
 /// Tap na linha → carrega o DETALHE do cheque.

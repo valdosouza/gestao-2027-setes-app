@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import 'data/datasource/settlement_datasource.dart';
+import 'data/datasource/settlement_search_criteria_datasource.dart';
 import 'data/repository/settlement_repository_impl.dart';
 import 'domain/repository/settlement_repository.dart';
 import 'domain/usecase/settlement_bills_getlist.dart';
@@ -22,6 +23,13 @@ class SettlementsModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<SettlementDatasource>(
             (i) => SettlementDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — UM datasource por LISTA, cada um
+        // amarrado ao /api da sua lista (catálogo e lookups próprios); tipos
+        // distintos porque o Modular resolve por TIPO.
+        Bind.lazySingleton<BillSearchCriteriaDatasource>((i) =>
+            BillSearchCriteriaDatasource(client: i.get<ApiClient>())),
+        Bind.lazySingleton<SettledSearchCriteriaDatasource>((i) =>
+            SettledSearchCriteriaDatasource(client: i.get<ApiClient>())),
         Bind.lazySingleton<SettlementRepository>((i) =>
             SettlementRepositoryImpl(
                 datasource: i.get<SettlementDatasource>())),

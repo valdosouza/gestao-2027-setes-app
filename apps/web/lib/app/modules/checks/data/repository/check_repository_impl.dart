@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/check_entity.dart';
 import '../../domain/repository/check_repository.dart';
 import '../datasource/check_datasource.dart';
@@ -23,9 +24,11 @@ class CheckRepositoryImpl implements CheckRepository {
   @override
   Future<Either<Failure, PagedResult<CheckListRow>>> getList(
           String status, String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() =>
-          datasource.getList(status, filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(status, filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, CheckFull>> getOne(int id) =>

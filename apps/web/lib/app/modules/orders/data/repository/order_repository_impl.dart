@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/order_entity.dart';
 import '../../domain/repository/order_repository.dart';
 import '../datasource/order_datasource.dart';
@@ -23,9 +24,11 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<Either<Failure, PagedResult<OrderListItem>>> getList(
           String status, String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() =>
-          datasource.getList(status, filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(status, filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, OrderFull>> getById(int id) =>

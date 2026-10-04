@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/order_entity.dart';
 
 /// Contrato do repositório do Pedido de Venda/Conjugado (Either/dartz) —
@@ -10,7 +11,9 @@ import '../entity/order_entity.dart';
 abstract class OrderRepository {
   Future<Either<Failure, PagedResult<OrderListItem>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, OrderFull>> getById(int id);
   Future<Either<Failure, int>> open(int customerId, int? salesmanId);
   Future<Either<Failure, Unit>> cancel(int id);

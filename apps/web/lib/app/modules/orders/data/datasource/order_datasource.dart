@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/order_entity.dart';
 
 /// Datasource remoto do Pedido de Venda/Conjugado: /api/orders na
@@ -17,8 +18,11 @@ abstract class OrderDatasource {
   /// Página dos pedidos da institution filtrados por [status] 'A'|'F' e
   /// nome do cliente ([filter] — o filtro é da API). Paginação: [pageSize]
   /// null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<OrderListItem>> getList(String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Pedido completo (itens + totalizer) para o detalhe.
   Future<OrderFull> getById(int id);
@@ -99,12 +103,15 @@ class OrderDatasourceImpl implements OrderDatasource {
 
   @override
   Future<PagedResult<OrderListItem>> getList(String status, String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/orders?${params.join('&')}');
     return PagedResult.fromJson(json, OrderListItem.fromJson);

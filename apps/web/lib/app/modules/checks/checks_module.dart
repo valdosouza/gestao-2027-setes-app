@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/check_datasource.dart';
 import 'data/datasource/check_lookup_datasource.dart';
 import 'data/repository/check_repository_impl.dart';
@@ -35,6 +36,10 @@ class ChecksModule extends Module {
         // DEDICADO, consumido direto pela page/detail view (não passa pelo bloc).
         Bind.lazySingleton<CheckLookupDatasource>(
             (i) => CheckLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/checks')),
         Bind.lazySingleton<CheckRepository>(
             (i) => CheckRepositoryImpl(datasource: i.get<CheckDatasource>())),
         Bind.factory<CheckGetlist>(

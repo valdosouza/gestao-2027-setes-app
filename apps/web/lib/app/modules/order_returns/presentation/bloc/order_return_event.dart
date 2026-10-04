@@ -17,6 +17,7 @@ class OrderReturnListRequested extends OrderReturnEvent {
     this.filter,
     this.page = 1,
     this.pageSize,
+    this.criteria,
   });
 
   /// null = mantém a aba atual do bloc.
@@ -28,8 +29,11 @@ class OrderReturnListRequested extends OrderReturnEvent {
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [status, filter, page, pageSize];
+  List<Object?> get props => [status, filter, page, pageSize, criteria];
 }
 
 /// Abre a devolução ancorada no pedido de venda FATURADO [saleOrderId]

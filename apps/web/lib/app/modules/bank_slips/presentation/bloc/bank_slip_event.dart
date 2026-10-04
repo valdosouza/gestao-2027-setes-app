@@ -19,6 +19,7 @@ class BankSlipListRequested extends BankSlipEvent {
     this.page = 1,
     this.pageSize,
     this.pendingOnly,
+    this.criteria,
   });
 
   final String? status;
@@ -29,8 +30,12 @@ class BankSlipListRequested extends BankSlipEvent {
   /// D-I28: só boletos com voz do banco pendente (null = mantém o vigente).
   final bool? pendingOnly;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [status, filter, page, pageSize, pendingOnly];
+  List<Object?> get props =>
+      [status, filter, page, pageSize, pendingOnly, criteria];
 }
 
 /// Tap na linha → carrega o DETALHE do boleto.

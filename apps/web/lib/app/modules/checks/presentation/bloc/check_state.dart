@@ -19,6 +19,7 @@ class CheckListState extends CheckState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<CheckListRow> items;
@@ -33,9 +34,12 @@ class CheckListState extends CheckState {
   final int? pageSize;
   final int? total;
 
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
+
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total];
+      [items, loading, status, filter, page, pageSize, total, criteria];
 }
 
 /// Detalhe em carga inicial (buildável) — antes do 1º GET :id.

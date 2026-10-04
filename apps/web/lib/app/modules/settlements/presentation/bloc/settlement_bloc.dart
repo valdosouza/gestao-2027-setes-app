@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/settlement_entity.dart';
 import '../../domain/usecase/settlement_bills_getlist.dart';
 import '../../domain/usecase/settlement_reversal.dart';
@@ -55,13 +56,28 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
   String? _stFrom;
   String? _stTo;
 
+  /// Pesquisa avançada de CADA lista (D-BA8): títulos e baixas têm
+  /// catálogos próprios e critérios INDEPENDENTES — trocar de aba preserva
+  /// os dois; o Movimento (extrato) não tem pesquisa avançada.
+  SearchCriteriaValues _billsCriteria   = SearchCriteriaValues.empty;
+  SearchCriteriaValues _settledCriteria = SearchCriteriaValues.empty;
+
   /// Seleção múltipla da aba Em aberto — vive no BLOC (não na página):
   /// sobrevive à navegação de página E à troca de filtro (o usuário pode
   /// marcar títulos em páginas diferentes para a MESMA baixa em lote).
   /// Guarda o título INTEIRO por chave (orderId-parcel): soma e dialog de
-  /// baixa corretos mesmo com seleção fora da página visível. SÓ as ações
-  /// de baixa/estorno limpam.
+  /// baixa corretos mesmo com seleção fora da página visível. Limpam: as
+  /// ações de baixa/estorno e o critério NOVO da pesquisa avançada (D-BA40).
   final Map<String, SettlementBill> _selected = {};
+
+  /// D-BA40: critério NOVO dos títulos (aplicar, remover chip, limpar — e o
+  /// descarte do recusado, Q-BA16) muda a lista vista ⇒ ZERA a seleção do
+  /// lote, como no lote da OS. Reaplicar os MESMOS critérios não zera.
+  void _setBillsCriteria(SearchCriteriaValues next) {
+    if (next.toQueryJson() == _billsCriteria.toQueryJson()) return;
+    _billsCriteria = next;
+    _selected.clear();
+  }
 
   /// Última página carregada da carteira — permite re-emitir a lista nos
   /// toggles de seleção sem nova consulta.
@@ -76,16 +92,26 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
       pageSize: paged?.pageSize,
       total: paged?.total,
       selected: List.unmodifiable(_selected.values),
+      criteria: _billsCriteria,
     );
   }
 
   Future<void> _reloadBills(Emitter<SettlementState> emit) async {
     emit(SettlementBillsState(
-        loading: true, selected: List.unmodifiable(_selected.values)));
+        loading: true,
+        selected: List.unmodifiable(_selected.values),
+        criteria: _billsCriteria));
     final result = await billsGetlist('open', '', _billsFilter,
-        page: _billsPage, pageSize: _billsPageSize);
+        page: _billsPage, pageSize: _billsPageSize, criteria: _billsCriteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _billsCriteria.withoutRejected(failure);
+        if (pruned != null) {
+          _setBillsCriteria(pruned);
+          emit(SettlementActionFailure(searchCriterionRemoved(failure)));
+          return _reloadBills(emit);
+        }
         emit(SettlementActionFailure(failure));
         _billsLoaded = null;
         emit(_billsState());
@@ -113,13 +139,22 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
   }
 
   Future<void> _reloadSettled(Emitter<SettlementState> emit) async {
-    emit(const SettlementSettledState(loading: true));
+    emit(SettlementSettledState(loading: true, criteria: _settledCriteria));
     final result = await settledGetlist(_settledFilter,
-        page: _settledPage, pageSize: _settledPageSize);
+        page: _settledPage,
+        pageSize: _settledPageSize,
+        criteria: _settledCriteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
+        final pruned = _settledCriteria.withoutRejected(failure);
+        if (pruned != null) {
+          _settledCriteria = pruned;
+          emit(SettlementActionFailure(searchCriterionRemoved(failure)));
+          return _reloadSettled(emit);
+        }
         emit(SettlementActionFailure(failure));
-        emit(const SettlementSettledState());
+        emit(SettlementSettledState(criteria: _settledCriteria));
       },
       (paged) async {
         // Recuo da página vazia (ex.: filtro novo com menos resultados).
@@ -134,6 +169,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
+          criteria: _settledCriteria,
         ));
       },
     );
@@ -154,8 +190,11 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
   Future<void> _onBillsRequested(
       SettlementBillsRequested event, Emitter<SettlementState> emit) async {
     _billsFilter = event.filter ?? _billsFilter;
-    // Filtro novo/troca de tamanho voltam à página 1 (default do evento);
-    // só a navegação da barra manda outra página. A SELEÇÃO não é tocada.
+    // Critério novo ZERA a seleção (D-BA40); null mantém os correntes.
+    if (event.criteria != null) _setBillsCriteria(event.criteria!);
+    // Filtro/critério novo e troca de tamanho voltam à página 1 (default
+    // do evento); só a navegação da barra manda outra página. Filtro
+    // rápido e página NÃO tocam a seleção.
     _billsPage = event.page;
     _billsPageSize = event.pageSize ?? _billsPageSize;
     await _reloadBills(emit);
@@ -171,9 +210,9 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
 
   Future<void> _onSettleRequested(
       SettlementSettleRequested event, Emitter<SettlementState> emit) async {
-    // Ação de BAIXA: única (junto do estorno) que limpa a seleção.
+    // Ação de BAIXA: limpa a seleção (como o estorno e o critério novo).
     _selected.clear();
-    emit(const SettlementBillsState(loading: true));
+    emit(SettlementBillsState(loading: true, criteria: _billsCriteria));
     final result = await settle(event.input);
     await result.fold(
       (failure) async {
@@ -191,6 +230,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
   Future<void> _onSettledRequested(
       SettlementSettledRequested event, Emitter<SettlementState> emit) async {
     _settledFilter = event.filter ?? _settledFilter;
+    _settledCriteria = event.criteria ?? _settledCriteria;
     _settledPage = event.page;
     _settledPageSize = event.pageSize ?? _settledPageSize;
     await _reloadSettled(emit);
@@ -202,7 +242,7 @@ class SettlementBloc extends Bloc<SettlementEvent, SettlementState> {
     // Ação de ESTORNO: devolve título à carteira — limpa a seleção (os
     // saldos guardados poderiam ficar defasados).
     _selected.clear();
-    emit(const SettlementSettledState(loading: true));
+    emit(SettlementSettledState(loading: true, criteria: _settledCriteria));
     final result = await reversal(
         event.orderId, event.parcel, event.event, event.reason);
     await result.fold(

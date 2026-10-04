@@ -1822,6 +1822,98 @@
     "interface-fields": {
       "name": "Nome técnico da interface",
       "acquired": "Adquirida"
+    },
+    "orders": {
+      "customerName": "Nome do cliente",
+      "customer": "Cliente",
+      "salesman": "Vendedor",
+      "number": "Nº do pedido",
+      "dtRecord": "Data do pedido",
+      "totalValue": "Valor total",
+      "invoiceNumber": "Nº da nota",
+      "paymentType": "Forma de pagamento",
+      "hasService": "Tem serviço"
+    },
+    "order-returns": {
+      "customerName": "Nome do cliente",
+      "customer": "Cliente",
+      "number": "Nº da devolução",
+      "originNumber": "Nº do pedido de origem",
+      "dtRecord": "Data da devolução",
+      "totalValue": "Valor total"
+    },
+    "settlements-bills": {
+      "entityName": "Nome do cliente/fornecedor",
+      "entity": "Cliente/Fornecedor",
+      "number": "Nº do título",
+      "operation": "Operação",
+      "operationOptions": {
+        "C": "A receber",
+        "D": "A pagar"
+      },
+      "kind": "Tipo",
+      "kindOptions": {
+        "RA": "Recebimento automático",
+        "RM": "Recebimento manual",
+        "PA": "Pagamento automático",
+        "PM": "Pagamento manual",
+        "CH": "Cheque devolvido"
+      },
+      "stage": "Destino da baixa",
+      "stageOptions": {
+        "N": "Sem baixa",
+        "B": "Conta bancária",
+        "C": "Caixa"
+      },
+      "dtExpiration": "Vencimento",
+      "tagValue": "Valor do título",
+      "balance": "Saldo em aberto",
+      "paymentType": "Forma de pagamento"
+    },
+    "settlements-settled": {
+      "entityName": "Nome do cliente/fornecedor",
+      "number": "Nº do título",
+      "dtPayment": "Data da baixa",
+      "dtRealPayment": "Data real do pagamento",
+      "paidValue": "Valor pago",
+      "settledCode": "Código da baixa",
+      "status": "Situação",
+      "statusOptions": {
+        "N": "Vigente",
+        "E": "Estornada",
+        "R": "Estorno"
+      },
+      "kind": "Tipo",
+      "kindOptions": {
+        "RA": "Recebimento automático",
+        "RM": "Recebimento manual",
+        "PA": "Pagamento automático",
+        "PM": "Pagamento manual",
+        "CH": "Cheque devolvido"
+      }
+    },
+    "bank-slips": {
+      "customerName": "Cliente",
+      "ourNumber": "Nosso número",
+      "documentNumber": "Nº do documento",
+      "dtEmission": "Emissão",
+      "dtExpiration": "Vencimento",
+      "value": "Valor",
+      "agreement": "Carteira de cobrança"
+    },
+    "checks": {
+      "issuer": "Emitente",
+      "number": "Nº do cheque",
+      "bank": "Banco",
+      "agency": "Agência",
+      "account": "Conta",
+      "dtCheck": "Data do cheque",
+      "value": "Valor",
+      "kind": "Origem",
+      "kindOptions": {
+        "P": "Próprio (do pagador)",
+        "T": "Terceiro"
+      }
     }
   }
 }

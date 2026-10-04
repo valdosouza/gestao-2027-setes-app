@@ -12,9 +12,15 @@ sealed class SettlementEvent extends Equatable {
 /// Paginação D3: [page] navega (filtro novo volta à página 1 — default);
 /// [pageSize] null mantém o tamanho corrente (1º load = config page_size
 /// resolvida pela API — D4). Navegar/filtrar NÃO mexe na seleção múltipla
-/// (ela vive no bloc — só a baixa/estorno limpam).
+/// (ela vive no bloc — a baixa/estorno limpam, e o critério NOVO da
+/// pesquisa avançada também, D-BA40).
 class SettlementBillsRequested extends SettlementEvent {
-  const SettlementBillsRequested({this.filter, this.page = 1, this.pageSize});
+  const SettlementBillsRequested({
+    this.filter,
+    this.page = 1,
+    this.pageSize,
+    this.criteria,
+  });
 
   /// null = mantém o filtro atual do bloc.
   final String? filter;
@@ -22,8 +28,12 @@ class SettlementBillsRequested extends SettlementEvent {
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada dos TÍTULOS (D-BA6/D-BA8): null MANTÉM os critérios
+  /// correntes; valor diferente do corrente zera a seleção (D-BA40).
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [filter, page, pageSize];
+  List<Object?> get props => [filter, page, pageSize, criteria];
 }
 
 /// Marca/desmarca UM título na seleção múltipla da aba Em aberto. O bloc
@@ -52,7 +62,12 @@ class SettlementSettleRequested extends SettlementEvent {
 /// D3: [page] navega (filtro novo volta à página 1 — default); [pageSize]
 /// null mantém o tamanho corrente.
 class SettlementSettledRequested extends SettlementEvent {
-  const SettlementSettledRequested({this.filter, this.page = 1, this.pageSize});
+  const SettlementSettledRequested({
+    this.filter,
+    this.page = 1,
+    this.pageSize,
+    this.criteria,
+  });
 
   /// null = mantém o filtro atual do bloc.
   final String? filter;
@@ -60,8 +75,12 @@ class SettlementSettledRequested extends SettlementEvent {
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada das BAIXAS (D-BA6/D-BA8): null MANTÉM os critérios
+  /// correntes (independentes dos critérios dos títulos).
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [filter, page, pageSize];
+  List<Object?> get props => [filter, page, pageSize, criteria];
 }
 
 /// Estorna a baixa VIGENTE (motivo já coletado no dialog) — o 409 da API

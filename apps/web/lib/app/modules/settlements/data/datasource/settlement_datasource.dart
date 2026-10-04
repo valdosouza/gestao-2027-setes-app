@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/settlement_entity.dart';
 
 /// Datasource remoto da Baixa de Títulos: /api/settlements na setes-api
@@ -10,17 +11,23 @@ abstract class SettlementDatasource {
   /// Página da carteira de títulos por [status] 'open'|'settled', [kind]
   /// opcional ('RA'|'RM'|'PA'|'PM') e [filter] de entidade/nº do título.
   /// Paginação D3: [pageSize] null deixa a API resolver a config
-  /// page_size do usuário (D4).
+  /// page_size do usuário (D4). [criteria] = pesquisa avançada (D-BA1) —
+  /// soma em E com [status], [kind] e [filter].
   Future<PagedResult<SettlementBill>> bills(
       String status, String kind, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Baixa em LOTE: N títulos → 1 settled_code → 1 movimento (N:1).
   Future<SettlementBatchResult> settle(SettlementBatchInput input);
 
   /// Página das baixas registradas (linha por EVENTO) — aba Baixados.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<SettlementSettled>> settled(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Estorno IMUTÁVEL (lançamento inverso) — 409 = baixa não vigente.
   Future<SettlementReversalResult> reversal(
@@ -50,13 +57,16 @@ class SettlementDatasourceImpl implements SettlementDatasource {
   @override
   Future<PagedResult<SettlementBill>> bills(
       String status, String kind, String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       'status=${Uri.encodeComponent(status)}',
       if (kind.isNotEmpty) 'kind=${Uri.encodeComponent(kind)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json =
         await client.get('/api/settlements/bills?${params.join('&')}');
@@ -72,11 +82,14 @@ class SettlementDatasourceImpl implements SettlementDatasource {
 
   @override
   Future<PagedResult<SettlementSettled>> settled(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json =
         await client.get('/api/settlements/settled?${params.join('&')}');

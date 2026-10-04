@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/bank_slip_entity.dart';
 
 /// Contrato do repositório de Boletos (Either/dartz) — operações do
@@ -9,7 +10,10 @@ import '../entity/bank_slip_entity.dart';
 abstract class BankSlipRepository {
   Future<Either<Failure, PagedResult<BankSlipListRow>>> getList(
       String status, String filter,
-      {int page = 1, int? pageSize, bool pendingOnly = false});
+      {int page = 1,
+      int? pageSize,
+      bool pendingOnly = false,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, BankSlipFull>> getOne(int id);
   Future<Either<Failure, BankSlipIssueResult>> issue(BankSlipIssueInput input);
   Future<Either<Failure, BankSlipSettleResult>> settle(

@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/check_entity.dart';
 
 /// Datasource remoto dos Cheques: fala SÓ com /api/checks na setes-api
@@ -9,9 +10,12 @@ import '../../domain/entity/check_entity.dart';
 abstract class CheckDatasource {
   /// Página da lista por [status] derivado ('' = todos) e [filter] (nº do
   /// cheque ou emitente). [pageSize] null deixa a API resolver a config
-  /// page_size do usuário.
+  /// page_size do usuário. [criteria] = pesquisa avançada (D-BA1) — soma
+  /// em E com [filter] e [status].
   Future<PagedResult<CheckListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Detalhe: cabeçalho imutável + história completa de eventos.
   Future<CheckFull> getOne(int id);
@@ -50,12 +54,15 @@ class CheckDatasourceImpl implements CheckDatasource {
 
   @override
   Future<PagedResult<CheckListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       if (status.isNotEmpty) 'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/checks?${params.join('&')}');
     return PagedResult.fromJson(json, CheckListRow.fromJson);

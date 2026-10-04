@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/salesman_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/order_datasource.dart';
 import 'data/repository/order_repository_impl.dart';
 import 'domain/repository/order_repository.dart';
@@ -34,6 +35,10 @@ class OrdersModule extends Module {
   List<Bind> get binds => [
         Bind.lazySingleton<OrderDatasource>(
             (i) => OrderDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/orders')),
         Bind.lazySingleton<OrderRepository>(
             (i) => OrderRepositoryImpl(datasource: i.get<OrderDatasource>())),
         Bind.lazySingleton<SalesmanLookupDatasource>(

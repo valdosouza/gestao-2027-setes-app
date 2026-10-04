@@ -19,6 +19,7 @@ class OrderListState extends OrderState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<OrderListItem> items;
@@ -33,9 +34,12 @@ class OrderListState extends OrderState {
   final int? pageSize;
   final int? total;
 
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
+
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total];
+      [items, loading, status, filter, page, pageSize, total, criteria];
 }
 
 /// Modo detalhe do pedido (buildável). [saving] desabilita as ações

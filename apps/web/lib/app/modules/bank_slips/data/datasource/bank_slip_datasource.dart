@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/bank_slip_entity.dart';
 
 /// Datasource remoto dos Boletos: fala SÓ com /api/bank-slips na setes-api
@@ -10,8 +11,13 @@ abstract class BankSlipDatasource {
   /// Página da lista por [status] 'open'|'settled'|'cancelled' ('' =
   /// todos) e [filter] (nosso número / nº do documento). Paginação D3:
   /// [pageSize] null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter],
+  /// [status] e [pendingOnly].
   Future<PagedResult<BankSlipListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize, bool pendingOnly = false});
+      {int page = 1,
+      int? pageSize,
+      bool pendingOnly = false,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Detalhe: cabeçalho congelado + títulos + eventos.
   Future<BankSlipFull> getOne(int id);
@@ -46,13 +52,17 @@ class BankSlipDatasourceImpl implements BankSlipDatasource {
 
   @override
   Future<PagedResult<BankSlipListRow>> getList(String status, String filter,
-      {int page = 1, int? pageSize, bool pendingOnly = false}) async {
+      {int page = 1,
+      int? pageSize,
+      bool pendingOnly = false,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       if (status.isNotEmpty) 'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       if (pendingOnly) 'pending=true',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/bank-slips?${params.join('&')}');
     return PagedResult.fromJson(json, BankSlipListRow.fromJson);

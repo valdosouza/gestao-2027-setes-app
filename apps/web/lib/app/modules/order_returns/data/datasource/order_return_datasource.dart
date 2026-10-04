@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/order_return_entity.dart';
 
 /// Datasource remoto da Devolução de Mercadoria: /api/order-returns na
@@ -14,8 +15,11 @@ abstract class OrderReturnDatasource {
   /// Página das devoluções da institution filtradas por [status] 'A'|'F' e
   /// nome do cliente ([filter] — o filtro é da API). Paginação: [pageSize]
   /// null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<OrderReturnListItem>> getList(String status, String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Devolução completa (itens com maxQuantity + total) para o detalhe.
   Future<OrderReturnFull> getById(int id);
@@ -57,12 +61,15 @@ class OrderReturnDatasourceImpl implements OrderReturnDatasource {
 
   @override
   Future<PagedResult<OrderReturnListItem>> getList(String status, String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = <String>[
       'status=${Uri.encodeComponent(status)}',
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/order-returns?${params.join('&')}');
     return PagedResult.fromJson(json, OrderReturnListItem.fromJson);
