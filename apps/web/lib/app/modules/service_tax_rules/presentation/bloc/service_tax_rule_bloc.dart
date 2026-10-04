@@ -10,6 +10,8 @@ import '../../domain/usecase/service_tax_rule_getlist.dart';
 import '../../domain/usecase/service_tax_rule_post.dart';
 import '../../domain/usecase/service_tax_rule_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'service_tax_rule_event.dart';
 part 'service_tax_rule_state.dart';
 
@@ -48,6 +50,10 @@ class ServiceTaxRuleBloc
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Regra aberta no form (null = nova) — preserva o editing nos re-emits
   /// de saving/falha.
   ServiceTaxRuleEntity? _editing;
@@ -57,16 +63,27 @@ class ServiceTaxRuleBloc
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<ServiceTaxRuleState> emit) async {
-    emit(const ServiceTaxRuleListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(ServiceTaxRuleListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(ServiceTaxRuleActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(ServiceTaxRuleActionFailure(failure));
-        emit(const ServiceTaxRuleListState());
+        emit(ServiceTaxRuleListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -81,6 +98,7 @@ class ServiceTaxRuleBloc
         emit(ServiceTaxRuleListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -96,12 +114,14 @@ class ServiceTaxRuleBloc
 
   Future<void> _onEditPressed(ServiceTaxRuleEditPressed event,
       Emitter<ServiceTaxRuleState> emit) async {
-    emit(ServiceTaxRuleListState(items: _currentItems, loading: true));
+    emit(ServiceTaxRuleListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(ServiceTaxRuleActionFailure(failure));
-        emit(ServiceTaxRuleListState(items: _currentItems));
+        emit(ServiceTaxRuleListState(
+            items: _currentItems, criteria: _criteria));
       },
       (rule) async {
         _editing = rule;

@@ -11,6 +11,8 @@ import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/interface_config/entity/interface_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../bloc/interface_configs_bloc.dart';
 
 /// Painel de configurações do sistema — interface 'interface-configs'
@@ -49,6 +51,11 @@ class InterfaceConfigsPage extends StatefulWidget {
 
 class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
   late final InterfaceConfigsBloc _bloc;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = vitrine sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Perfil do usuário logado (via /api/core/me): decide o alvo do salvar
   /// (institution × override pessoal) e o que fica editável.
@@ -64,7 +71,18 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
     } else {
       _bloc.add(const InterfaceConfigsVitrineRequested(''));
     }
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     _loadProfile();
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -224,6 +242,13 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(InterfaceConfigsVitrineRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc.add(
+            InterfaceConfigsVitrineRequested(state.filter, criteria: criteria)),
         onView: _openInterface,
       );
 

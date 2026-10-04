@@ -18,9 +18,13 @@ class CountryListState extends CountryState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<CountryEntity> items;
+
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
   final bool loading;
 
   /// Filtro APLICADO (o mesmo usado na recarga pós-salvar/excluir).
@@ -32,7 +36,8 @@ class CountryListState extends CountryState {
   final int? total;
 
   @override
-  List<Object?> get props => [items, loading, filter, page, pageSize, total];
+  List<Object?> get props =>
+      [items, loading, filter, page, pageSize, total, criteria];
 }
 
 /// Modo formulário (buildável). [editing] null = inclusão.

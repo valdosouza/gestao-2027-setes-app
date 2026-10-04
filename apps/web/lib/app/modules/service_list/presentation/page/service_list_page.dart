@@ -9,6 +9,8 @@ import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/service_list_entity.dart';
 import '../bloc/service_list_bloc.dart';
 
@@ -32,6 +34,11 @@ class ServiceListPage extends StatefulWidget {
 class _ServiceListPageState extends State<ServiceListPage>
     with FieldConfigLoader {
   late final ServiceListBloc _bloc;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
   /// (showServerFieldError — Framework de Mensagens, Onda B).
@@ -49,7 +56,18 @@ class _ServiceListPageState extends State<ServiceListPage>
     super.initState();
     _bloc = Modular.get<ServiceListBloc>()
       ..add(const ServiceListListRequested(''));
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('service-list'); // engine de campos configuráveis
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   void _openNew() {
@@ -197,6 +215,13 @@ class _ServiceListPageState extends State<ServiceListPage>
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(ServiceListListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(ServiceListListRequested(state.filter, criteria: criteria)),
         onNew: _openNew,
         onView: _openEdit,
       );

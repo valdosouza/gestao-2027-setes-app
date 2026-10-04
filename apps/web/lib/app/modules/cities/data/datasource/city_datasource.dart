@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/city_entity.dart';
 
 /// Datasource remoto de Cidade: /api/cities na setes-api.
@@ -7,8 +8,11 @@ import '../../domain/entity/city_entity.dart';
 abstract class CityDatasource {
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<CityEntity>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<int> post(CityEntity city);
   Future<void> put(CityEntity city);
   Future<void> delete(int id);
@@ -21,11 +25,14 @@ class CityDatasourceImpl implements CityDatasource {
 
   @override
   Future<PagedResult<CityEntity>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/cities?${params.join('&')}');
     return PagedResult.fromJson(json, CityEntity.fromJson);

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/state_entity.dart';
 import '../../domain/repository/state_repository.dart';
 import '../datasource/state_datasource.dart';
@@ -22,8 +23,11 @@ class StateRepositoryImpl implements StateRepository {
 
   @override
   Future<Either<Failure, PagedResult<StateEntity>>> getList(String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, int>> post(StateEntity state) =>

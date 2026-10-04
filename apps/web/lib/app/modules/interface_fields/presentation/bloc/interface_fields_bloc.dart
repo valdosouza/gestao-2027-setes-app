@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/usecase/interface_fields_getfields.dart';
 import '../../domain/usecase/interface_fields_getvitrine.dart';
 import '../../domain/usecase/interface_fields_savefield.dart';
@@ -38,21 +39,37 @@ class InterfaceFieldsBloc
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do painel; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _onVitrineRequested(InterfaceFieldsVitrineRequested event,
       Emitter<InterfaceFieldsState> emit) async {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reloadVitrine(emit);
   }
 
   Future<void> _reloadVitrine(Emitter<InterfaceFieldsState> emit) async {
-    emit(const InterfaceFieldsVitrineState(loading: true));
-    final result = await getVitrine(_filter, page: _page, pageSize: _pageSize);
+    emit(InterfaceFieldsVitrineState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getVitrine(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(InterfaceFieldsActionFailure(searchCriterionRemoved(failure)));
+          return _reloadVitrine(emit);
+        }
         emit(InterfaceFieldsActionFailure(failure));
-        emit(const InterfaceFieldsVitrineState());
+        emit(InterfaceFieldsVitrineState(
+            filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (filtro/clamp) → recua para a última página
@@ -67,6 +84,7 @@ class InterfaceFieldsBloc
         emit(InterfaceFieldsVitrineState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -87,7 +105,7 @@ class InterfaceFieldsBloc
     result.fold(
       (failure) {
         emit(InterfaceFieldsActionFailure(failure));
-        emit(const InterfaceFieldsVitrineState());
+        emit(InterfaceFieldsVitrineState(criteria: _criteria));
       },
       (fields) => emit(InterfaceFieldsFieldsState(iface: iface, fields: fields)),
     );

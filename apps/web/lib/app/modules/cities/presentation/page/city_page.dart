@@ -11,6 +11,8 @@ import '../../../../shared/lookup/entity/state_lookup_entity.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/city_entity.dart';
 import '../bloc/city_bloc.dart';
 
@@ -36,6 +38,11 @@ class CityPage extends StatefulWidget {
 class _CityPageState extends State<CityPage> with FieldConfigLoader {
   late final CityBloc _bloc;
   late final StateLookupDatasource _stateLookup;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
   /// (showServerFieldError — Framework de Mensagens, Onda B).
@@ -50,7 +57,18 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
     super.initState();
     _bloc = Modular.get<CityBloc>()..add(const CityListRequested(''));
     _stateLookup = Modular.get<StateLookupDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('cities'); // engine de campos configuráveis (decisão 7)
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Future<void> _pickState() async {
@@ -216,6 +234,13 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
             _bloc.add(CityListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CityListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) =>
+            _bloc.add(CityListRequested(state.filter, criteria: criteria)),
         onNew: _openNew,
         onView: _openEdit,
       );

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/interface_datasource.dart';
 import 'data/repository/interface_repository_impl.dart';
 import 'domain/repository/interface_repository.dart';
@@ -36,6 +37,10 @@ class InterfacesModule extends Module {
               put:     i.get<InterfacePut>(),
               delete:  i.get<InterfaceDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/interfaces')),
       ];
 
   @override

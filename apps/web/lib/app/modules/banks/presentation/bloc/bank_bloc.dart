@@ -8,6 +8,8 @@ import '../../domain/usecase/bank_getlist.dart';
 import '../../domain/usecase/bank_post.dart';
 import '../../domain/usecase/bank_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'bank_event.dart';
 part 'bank_state.dart';
 
@@ -42,21 +44,35 @@ class BankBloc extends Bloc<BankEvent, BankState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _onListRequested(
       BankListRequested event, Emitter<BankState> emit) async {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<BankState> emit) async {
-    emit(const BankListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(BankListState(loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(BankActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(BankActionFailure(failure));
-        emit(const BankListState());
+        emit(BankListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -71,6 +87,7 @@ class BankBloc extends Bloc<BankEvent, BankState> {
         emit(BankListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,

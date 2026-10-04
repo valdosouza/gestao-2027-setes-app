@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/interface_configs_datasource.dart';
 import 'data/repository/interface_configs_repository_impl.dart';
 import 'domain/repository/interface_configs_repository.dart';
@@ -39,6 +40,12 @@ class InterfaceConfigsModule extends Module {
               getConfigs: i.get<InterfaceConfigsGetconfigs>(),
               saveValue:  i.get<InterfaceConfigsSavevalue>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        // (lista = vitrine de interfaces; os painéis de edição não pesquisam)
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(),
+                basePath: '/api/interface-configs')),
       ];
 
   @override

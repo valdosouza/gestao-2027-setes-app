@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/service_tax_rule_entity.dart';
 
 /// Datasource remoto de Regras de Tributação de Serviço:
@@ -9,8 +10,11 @@ import '../../domain/entity/service_tax_rule_entity.dart';
 abstract class ServiceTaxRuleDatasource {
   /// Página da lista (filtro REMOTO por cidade/item/descrição): [pageSize]
   /// null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<ServiceTaxRuleEntity>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Regra por id para edição.
   Future<ServiceTaxRuleEntity> getById(int id);
@@ -32,11 +36,14 @@ class ServiceTaxRuleDatasourceImpl implements ServiceTaxRuleDatasource {
 
   @override
   Future<PagedResult<ServiceTaxRuleEntity>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json =
         await client.get('/api/service-tax-rules?${params.join('&')}');

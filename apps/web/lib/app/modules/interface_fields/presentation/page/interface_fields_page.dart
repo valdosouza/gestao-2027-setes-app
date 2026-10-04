@@ -8,6 +8,8 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 import '../bloc/interface_fields_bloc.dart';
 
@@ -31,12 +33,28 @@ class InterfaceFieldsPage extends StatefulWidget {
 
 class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
   late final InterfaceFieldsBloc _bloc;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = vitrine sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   @override
   void initState() {
     super.initState();
     _bloc = Modular.get<InterfaceFieldsBloc>()
       ..add(const InterfaceFieldsVitrineRequested(''));
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   void _openInterface(InterfaceVitrineEntity iface) {
@@ -83,6 +101,13 @@ class _InterfaceFieldsPageState extends State<InterfaceFieldsPage> {
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(InterfaceFieldsVitrineRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc.add(
+            InterfaceFieldsVitrineRequested(state.filter, criteria: criteria)),
         onView: _openInterface,
       );
 

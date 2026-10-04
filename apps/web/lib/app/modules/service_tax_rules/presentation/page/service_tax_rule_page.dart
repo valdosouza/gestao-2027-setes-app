@@ -17,6 +17,8 @@ import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/city_lookup_entity.dart';
 import '../../../../shared/lookup/entity/state_lookup_entity.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/service_tax_rule_lookup_datasource.dart';
 import '../../domain/entity/service_tax_rule_entity.dart';
 import '../bloc/service_tax_rule_bloc.dart';
@@ -53,6 +55,11 @@ class _ServiceTaxRulePageState extends State<ServiceTaxRulePage>
   late final ServiceTaxRuleLookupDatasource _lookup;
   late final StateLookupDatasource _stateLookup;
   late final CityLookupDatasource _cityLookup;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
   /// campo. O form só está montado no modo formulário.
@@ -66,7 +73,18 @@ class _ServiceTaxRulePageState extends State<ServiceTaxRulePage>
     _lookup      = Modular.get<ServiceTaxRuleLookupDatasource>();
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cityLookup  = Modular.get<CityLookupDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('service-tax-rules'); // engine de campos configuráveis
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Widget _buildSearch(ServiceTaxRuleListState state) =>
@@ -97,6 +115,13 @@ class _ServiceTaxRulePageState extends State<ServiceTaxRulePage>
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(ServiceTaxRuleListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc.add(
+            ServiceTaxRuleListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const ServiceTaxRuleNewPressed()),
         onView: (r) => _bloc.add(ServiceTaxRuleEditPressed(r.id)),
       );

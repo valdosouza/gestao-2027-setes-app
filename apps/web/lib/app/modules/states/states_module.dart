@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/country_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/state_datasource.dart';
 import 'data/repository/state_repository_impl.dart';
 import 'domain/repository/state_repository.dart';
@@ -39,6 +40,10 @@ class StatesModule extends Module {
         // Lookup de País (shared) — lista de apoio da FK tb_country_id
         Bind.lazySingleton<CountryLookupDatasource>(
             (i) => CountryLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/states')),
       ];
 
   @override

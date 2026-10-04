@@ -11,6 +11,8 @@ import '../../../../shared/lookup/entity/country_lookup_entity.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/state_entity.dart';
 import '../bloc/state_bloc.dart';
 
@@ -36,6 +38,11 @@ class StatePage extends StatefulWidget {
 class _StatePageState extends State<StatePage> with FieldConfigLoader {
   late final StateBloc _bloc;
   late final CountryLookupDatasource _countryLookup;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
   /// (showServerFieldError — Framework de Mensagens, Onda B).
@@ -50,7 +57,18 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
     super.initState();
     _bloc = Modular.get<StateBloc>()..add(const StateListRequested(''));
     _countryLookup = Modular.get<CountryLookupDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('states'); // engine de campos configuráveis (decisão 7)
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Future<void> _pickCountry() async {
@@ -199,6 +217,13 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
             _bloc.add(StateListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(StateListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) =>
+            _bloc.add(StateListRequested(state.filter, criteria: criteria)),
         onNew: _openNew,
         onView: _openEdit,
       );

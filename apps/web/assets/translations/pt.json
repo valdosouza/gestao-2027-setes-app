@@ -1696,6 +1696,132 @@
       "identifier": "Identificador",
       "category": "Categoria",
       "active": "Ativo"
+    },
+    "tax-rules": {
+      "ncm": "NCM da Regra",
+      "productName": "Nome do produto",
+      "product": "Produto",
+      "stateName": "Nome do estado",
+      "state": "Estado do Destinatário",
+      "cfop": "CFOP da Regra",
+      "origin": "Origem da Mercadoria",
+      "originOptions": {
+        "0": "0 - Nacional, exceto as indicadas nos códigos 3, 4, 5 e 8",
+        "1": "1 - Estrangeira, importação direta, exceto a indicada no código 6",
+        "2": "2 - Estrangeira, adquirida no mercado interno, exceto a indicada no código 7",
+        "3": "3 - Nacional, com Conteúdo de Importação superior a 40% e inferior ou igual a 70%",
+        "4": "4 - Nacional, produção em conformidade com os processos produtivos básicos",
+        "5": "5 - Nacional, com Conteúdo de Importação inferior ou igual a 40%",
+        "6": "6 - Estrangeira, importação direta, sem similar nacional (lista CAMEX) e gás natural",
+        "7": "7 - Estrangeira, adquirida no mercado interno, sem similar nacional (lista CAMEX) e gás natural",
+        "8": "8 - Nacional, com Conteúdo de Importação superior a 70%"
+      },
+      "purpose": "Finalidade da Operação",
+      "purposeOptions": {
+        "0": "Outras",
+        "1": "Revenda",
+        "2": "Produção",
+        "3": "Consignado",
+        "4": "Industrialização",
+        "5": "Consumo Interno",
+        "6": "Prestação de Serviço",
+        "7": "Ativo Imobilizado"
+      },
+      "direction": "Sentido da Operação",
+      "directionOptions": {
+        "E": "Entrada",
+        "S": "Saída"
+      },
+      "st": "Com substituição tributária",
+      "finalConsumer": "Consumidor Final",
+      "simples": "Optante do Simples",
+      "hasIcms": "Tem ICMS",
+      "hasIcmsSt": "Tem ICMS-ST",
+      "hasIpi": "Tem IPI",
+      "hasPisCofins": "Tem PIS/COFINS",
+      "hasIi": "Tem Importação"
+    },
+    "service-tax-rules": {
+      "serviceListName": "Descrição do serviço (LC 116)",
+      "serviceListCode": "Item da LC 116",
+      "cityName": "Nome da cidade",
+      "city": "Cidade de incidência",
+      "uf": "UF",
+      "aliq": "Alíquota (%)",
+      "nationalCode": "Código nacional informado",
+      "active": "Ativa"
+    },
+    "cfop": {
+      "description": "Descrição do CFOP",
+      "concise": "Descrição Abreviada",
+      "code": "Código CFOP",
+      "way": "Sentido",
+      "wayOptions": {
+        "E": "Entrada",
+        "S": "Saída"
+      },
+      "jurisdiction": "Alçada",
+      "jurisdictionOptions": {
+        "E": "Estadual",
+        "N": "Nacional",
+        "X": "Exterior"
+      },
+      "active": "Ativo"
+    },
+    "cities": {
+      "name": "Nome",
+      "stateName": "Nome do estado",
+      "state": "Estado",
+      "ibge": "Código IBGE",
+      "population": "População"
+    },
+    "states": {
+      "name": "Nome",
+      "abbreviation": "Sigla",
+      "countryName": "Nome do país",
+      "country": "País",
+      "aliquota": "Alíquota interna (%)"
+    },
+    "service-list": {
+      "description": "Descrição do Serviço",
+      "code": "Item",
+      "localIncidence": "Município de Incidência do ISS",
+      "localIncidenceOptions": {
+        "P": "Município do Prestador",
+        "E": "Município da Execução"
+      },
+      "active": "Ativo"
+    },
+    "interfaces": {
+      "description": "Descrição da Interface",
+      "groupDefault": "Grupo Padrão (menu)",
+      "i18nKey": "Chave de Tradução (i18n)",
+      "kind": "Tipo",
+      "kindOptions": {
+        "T": "Tela (vai ao menu)",
+        "R": "Recurso/Aba (não vai ao menu)"
+      }
+    },
+    "countries": {
+      "name": "Nome"
+    },
+    "banks": {
+      "description": "Nome do banco",
+      "number": "Número (FEBRABAN)"
+    },
+    "privileges": {
+      "description": "Descrição"
+    },
+    "modules": {
+      "description": "Descrição"
+    },
+    "interface-configs": {
+      "name": "Nome técnico da interface",
+      "acquired": "Adquirida"
+    },
+    "interface-fields": {
+      "name": "Nome técnico da interface",
+      "acquired": "Adquirida"
     }
   }
 }

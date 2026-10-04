@@ -3,6 +3,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/service_tax_rule_datasource.dart';
 import 'data/datasource/service_tax_rule_lookup_datasource.dart';
 import 'data/repository/service_tax_rule_repository_impl.dart';
@@ -52,6 +53,11 @@ class ServiceTaxRulesModule extends Module {
               put:     i.get<ServiceTaxRulePut>(),
               delete:  i.get<ServiceTaxRuleDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(),
+                basePath: '/api/service-tax-rules')),
       ];
 
   @override

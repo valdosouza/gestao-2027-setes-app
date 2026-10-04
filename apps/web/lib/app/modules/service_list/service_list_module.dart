@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/service_list_datasource.dart';
 import 'data/repository/service_list_repository_impl.dart';
 import 'domain/repository/service_list_repository.dart';
@@ -37,6 +38,10 @@ class ServiceListModule extends Module {
               put:     i.get<ServiceListPut>(),
               delete:  i.get<ServiceListDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/service-list')),
       ];
 
   @override

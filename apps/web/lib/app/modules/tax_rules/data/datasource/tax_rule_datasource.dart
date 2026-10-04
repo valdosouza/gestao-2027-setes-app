@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/tax_rule_catalogs.dart';
 import '../../domain/entity/tax_rule_draft.dart';
 import '../../domain/entity/tax_rule_list_item.dart';
@@ -9,8 +10,11 @@ import '../../domain/entity/tax_rule_list_item.dart';
 abstract class TaxRuleDatasource {
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4). Filtro por NCM/descrição do produto.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<TaxRuleListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Regra completa (seletor + peças presentes) para a edição.
   Future<TaxRuleDraft> getById(int id);
@@ -31,11 +35,14 @@ class TaxRuleDatasourceImpl implements TaxRuleDatasource {
 
   @override
   Future<PagedResult<TaxRuleListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/tax-rules?${params.join('&')}');
     return PagedResult.fromJson(json, TaxRuleListItem.fromJson);

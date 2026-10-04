@@ -1696,6 +1696,132 @@
       "identifier": "Identifier",
       "category": "Category",
       "active": "Active"
+    },
+    "tax-rules": {
+      "ncm": "Rule NCM",
+      "productName": "Product name",
+      "product": "Product",
+      "stateName": "State name",
+      "state": "Recipient State",
+      "cfop": "Rule CFOP",
+      "origin": "Merchandise Origin",
+      "originOptions": {
+        "0": "0 - Domestic, except those indicated in codes 3, 4, 5 and 8",
+        "1": "1 - Foreign, direct import, except the one indicated in code 6",
+        "2": "2 - Foreign, acquired in the domestic market, except the one indicated in code 7",
+        "3": "3 - Domestic, with Import Content above 40% and up to 70%",
+        "4": "4 - Domestic, produced under the basic production processes",
+        "5": "5 - Domestic, with Import Content up to 40%",
+        "6": "6 - Foreign, direct import, no domestic equivalent (CAMEX list) and natural gas",
+        "7": "7 - Foreign, acquired in the domestic market, no domestic equivalent (CAMEX list) and natural gas",
+        "8": "8 - Domestic, with Import Content above 70%"
+      },
+      "purpose": "Operation Purpose",
+      "purposeOptions": {
+        "0": "Other",
+        "1": "Resale",
+        "2": "Production",
+        "3": "Consignment",
+        "4": "Industrialization",
+        "5": "Internal Consumption",
+        "6": "Service Rendering",
+        "7": "Fixed Asset"
+      },
+      "direction": "Operation Direction",
+      "directionOptions": {
+        "E": "Inbound",
+        "S": "Outbound"
+      },
+      "st": "With tax substitution",
+      "finalConsumer": "Final Consumer",
+      "simples": "Simples Nacional",
+      "hasIcms": "Has ICMS",
+      "hasIcmsSt": "Has ICMS-ST",
+      "hasIpi": "Has IPI",
+      "hasPisCofins": "Has PIS/COFINS",
+      "hasIi": "Has Import Tax"
+    },
+    "service-tax-rules": {
+      "serviceListName": "Service description (LC 116)",
+      "serviceListCode": "LC 116 item",
+      "cityName": "City name",
+      "city": "Incidence city",
+      "uf": "State",
+      "aliq": "Rate (%)",
+      "nationalCode": "National code (set)",
+      "active": "Active"
+    },
+    "cfop": {
+      "description": "CFOP Description",
+      "concise": "Short Description",
+      "code": "CFOP Code",
+      "way": "Direction",
+      "wayOptions": {
+        "E": "Inbound",
+        "S": "Outbound"
+      },
+      "jurisdiction": "Jurisdiction",
+      "jurisdictionOptions": {
+        "E": "State",
+        "N": "National",
+        "X": "Foreign"
+      },
+      "active": "Active"
+    },
+    "cities": {
+      "name": "Name",
+      "stateName": "State name",
+      "state": "State",
+      "ibge": "IBGE code",
+      "population": "Population"
+    },
+    "states": {
+      "name": "Name",
+      "abbreviation": "Abbreviation",
+      "countryName": "Country name",
+      "country": "Country",
+      "aliquota": "Internal rate (%)"
+    },
+    "service-list": {
+      "description": "Service Description",
+      "code": "Item",
+      "localIncidence": "ISS Incidence City",
+      "localIncidenceOptions": {
+        "P": "Provider's City",
+        "E": "Execution City"
+      },
+      "active": "Active"
+    },
+    "interfaces": {
+      "description": "Interface Description",
+      "groupDefault": "Default Group (menu)",
+      "i18nKey": "Translation Key (i18n)",
+      "kind": "Kind",
+      "kindOptions": {
+        "T": "Screen (shown in menu)",
+        "R": "Resource/Tab (never in menu)"
+      }
+    },
+    "countries": {
+      "name": "Name"
+    },
+    "banks": {
+      "description": "Bank name",
+      "number": "Number (FEBRABAN)"
+    },
+    "privileges": {
+      "description": "Description"
+    },
+    "modules": {
+      "description": "Description"
+    },
+    "interface-configs": {
+      "name": "Interface technical name",
+      "acquired": "Acquired"
+    },
+    "interface-fields": {
+      "name": "Interface technical name",
+      "acquired": "Acquired"
     }
   }
 }

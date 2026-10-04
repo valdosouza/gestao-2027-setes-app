@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/tax_rule_catalogs.dart';
 import '../entity/tax_rule_draft.dart';
 import '../entity/tax_rule_list_item.dart';
@@ -9,7 +10,9 @@ import '../entity/tax_rule_list_item.dart';
 /// `Either<Failure, T>` via dartz).
 abstract class TaxRuleRepository {
   Future<Either<Failure, PagedResult<TaxRuleListItem>>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<Either<Failure, TaxRuleDraft>> getById(int id);
   Future<Either<Failure, TaxRuleCatalogs>> getCatalogs();
   Future<Either<Failure, Unit>> post(TaxRuleDraft draft);

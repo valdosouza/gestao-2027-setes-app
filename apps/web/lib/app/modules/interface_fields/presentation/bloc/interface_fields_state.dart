@@ -19,9 +19,13 @@ class InterfaceFieldsVitrineState extends InterfaceFieldsState {
     this.page = 1,
     this.pageSize,
     this.total,
+    this.criteria = SearchCriteriaValues.empty,
   });
 
   final List<InterfaceVitrineEntity> items;
+
+  /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
+  final SearchCriteriaValues criteria;
   final bool loading;
 
   /// Filtro APLICADO (o mesmo usado na recarga ao voltar da lista de campos).
@@ -33,7 +37,8 @@ class InterfaceFieldsVitrineState extends InterfaceFieldsState {
   final int? total;
 
   @override
-  List<Object?> get props => [items, loading, filter, page, pageSize, total];
+  List<Object?> get props =>
+      [items, loading, filter, page, pageSize, total, criteria];
 }
 
 /// Campos da interface aberta (buildável).

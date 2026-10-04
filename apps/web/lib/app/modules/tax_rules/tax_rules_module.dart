@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/cfop_lookup_datasource.dart';
 import 'data/datasource/tax_rule_datasource.dart';
 import 'data/repository/tax_rule_repository_impl.dart';
@@ -51,6 +52,10 @@ class TaxRulesModule extends Module {
               put:         i.get<TaxRulePut>(),
               delete:      i.get<TaxRuleDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/tax-rules')),
       ];
 
   @override

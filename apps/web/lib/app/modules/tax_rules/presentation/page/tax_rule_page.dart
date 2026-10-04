@@ -9,6 +9,8 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/cfop_lookup_datasource.dart';
 import '../../domain/entity/tax_rule_catalogs.dart';
 import '../../domain/entity/tax_rule_draft.dart';
@@ -49,6 +51,11 @@ class _TaxRulePageState extends State<TaxRulePage> {
   /// consome direto, padrão StateLookupDatasource; nunca o datasource
   /// principal do módulo).
   late final CfopLookupDatasource _cfopLookup;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
   /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
@@ -61,6 +68,17 @@ class _TaxRulePageState extends State<TaxRulePage> {
     _bloc = Modular.get<TaxRuleBloc>()..add(const TaxRuleListRequested(''));
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cfopLookup = Modular.get<CfopLookupDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   /// Célula-título da linha: produto específico > NCM > regra geral.
@@ -109,6 +127,13 @@ class _TaxRulePageState extends State<TaxRulePage> {
             _bloc.add(TaxRuleListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(TaxRuleListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(TaxRuleListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const TaxRuleNewPressed()),
         onView: (item) => _bloc.add(TaxRuleEditPressed(item)),
       );

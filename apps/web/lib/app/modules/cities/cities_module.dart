@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/city_datasource.dart';
 import 'data/repository/city_repository_impl.dart';
 import 'domain/repository/city_repository.dart';
@@ -39,6 +40,10 @@ class CitiesModule extends Module {
         // Lookup de Estado (shared) — lista de apoio da FK tb_state_id
         Bind.lazySingleton<StateLookupDatasource>(
             (i) => StateLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/cities')),
       ];
 
   @override

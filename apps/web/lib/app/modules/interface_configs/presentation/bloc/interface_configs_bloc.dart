@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/interface_config/entity/interface_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/usecase/interface_configs_getconfigs.dart';
 import '../../domain/usecase/interface_configs_getvitrine.dart';
 import '../../domain/usecase/interface_configs_savevalue.dart';
@@ -41,21 +42,37 @@ class InterfaceConfigsBloc
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do painel; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _onVitrineRequested(InterfaceConfigsVitrineRequested event,
       Emitter<InterfaceConfigsState> emit) async {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reloadVitrine(emit);
   }
 
   Future<void> _reloadVitrine(Emitter<InterfaceConfigsState> emit) async {
-    emit(const InterfaceConfigsVitrineState(loading: true));
-    final result = await getVitrine(_filter, page: _page, pageSize: _pageSize);
+    emit(InterfaceConfigsVitrineState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getVitrine(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(InterfaceConfigsActionFailure(searchCriterionRemoved(failure)));
+          return _reloadVitrine(emit);
+        }
         emit(InterfaceConfigsActionFailure(failure));
-        emit(const InterfaceConfigsVitrineState());
+        emit(InterfaceConfigsVitrineState(
+            filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (filtro/clamp) → recua para a última página
@@ -70,6 +87,7 @@ class InterfaceConfigsBloc
         emit(InterfaceConfigsVitrineState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -89,12 +107,12 @@ class InterfaceConfigsBloc
   /// pageSize=100 explícito mantém o alcance, como nos lookups da Onda 2.
   Future<void> _onOpenByKey(InterfaceConfigsOpenByKey event,
       Emitter<InterfaceConfigsState> emit) async {
-    emit(const InterfaceConfigsVitrineState(loading: true));
+    emit(InterfaceConfigsVitrineState(loading: true, criteria: _criteria));
     final result = await getVitrine('', pageSize: 100);
     await result.fold(
       (failure) async {
         emit(InterfaceConfigsActionFailure(failure));
-        emit(const InterfaceConfigsVitrineState());
+        emit(InterfaceConfigsVitrineState(criteria: _criteria));
       },
       (paged) async {
         InterfaceVitrineEntity? match;
@@ -121,7 +139,7 @@ class InterfaceConfigsBloc
     result.fold(
       (failure) {
         emit(InterfaceConfigsActionFailure(failure));
-        emit(const InterfaceConfigsVitrineState());
+        emit(InterfaceConfigsVitrineState(criteria: _criteria));
       },
       (configs) =>
           emit(InterfaceConfigsConfigsState(iface: iface, configs: configs)),

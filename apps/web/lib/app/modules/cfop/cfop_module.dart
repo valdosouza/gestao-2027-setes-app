@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/cfop_datasource.dart';
 import 'data/repository/cfop_repository_impl.dart';
 import 'domain/repository/cfop_repository.dart';
@@ -35,6 +36,10 @@ class CfopModule extends Module {
               put:     i.get<CfopPut>(),
               delete:  i.get<CfopDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/cfop')),
       ];
 
   @override

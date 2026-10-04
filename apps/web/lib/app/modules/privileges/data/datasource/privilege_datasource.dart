@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/privilege_entity.dart';
 
 /// Datasource remoto de Privilégio: /api/privileges na setes-api.
@@ -7,8 +8,11 @@ import '../../domain/entity/privilege_entity.dart';
 abstract class PrivilegeDatasource {
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<PrivilegeEntity>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<int> post(PrivilegeEntity privilege);
   Future<void> put(PrivilegeEntity privilege);
   Future<void> delete(int id);
@@ -21,11 +25,14 @@ class PrivilegeDatasourceImpl implements PrivilegeDatasource {
 
   @override
   Future<PagedResult<PrivilegeEntity>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/privileges?${params.join('&')}');
     return PagedResult.fromJson(json, PrivilegeEntity.fromJson);

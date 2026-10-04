@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../shared/interface_config/entity/interface_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/repository/interface_configs_repository.dart';
 import '../datasource/interface_configs_datasource.dart';
 
@@ -24,8 +25,11 @@ class InterfaceConfigsRepositoryImpl implements InterfaceConfigsRepository {
   @override
   Future<Either<Failure, PagedResult<InterfaceVitrineEntity>>> vitrine(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.vitrine(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.vitrine(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, List<InterfaceConfigEntity>>> configs(int interfaceId) =>

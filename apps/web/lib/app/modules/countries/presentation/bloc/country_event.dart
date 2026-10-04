@@ -12,13 +12,18 @@ sealed class CountryEvent extends Equatable {
 /// tela); [pageSize] null mantém o tamanho corrente (1º load = config
 /// page_size resolvida pela API — D4).
 class CountryListRequested extends CountryEvent {
-  const CountryListRequested(this.filter, {this.page = 1, this.pageSize});
+  const CountryListRequested(this.filter,
+      {this.page = 1, this.pageSize, this.criteria});
   final String filter;
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes
+  /// (filtro rápido e paginação não os apagam); instância nova substitui.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [filter, page, pageSize];
+  List<Object?> get props => [filter, page, pageSize, criteria];
 }
 
 class CountryNewPressed extends CountryEvent {

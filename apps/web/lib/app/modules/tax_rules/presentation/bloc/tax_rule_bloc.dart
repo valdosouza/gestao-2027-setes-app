@@ -12,6 +12,8 @@ import '../../domain/usecase/tax_rule_getlist.dart';
 import '../../domain/usecase/tax_rule_post.dart';
 import '../../domain/usecase/tax_rule_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'tax_rule_event.dart';
 part 'tax_rule_state.dart';
 
@@ -51,6 +53,10 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Cache dos combos fiscais (os catálogos centrais não mudam durante a
   /// sessão de cadastro).
   TaxRuleCatalogs? _catalogs;
@@ -60,16 +66,27 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<TaxRuleState> emit) async {
-    emit(const TaxRuleListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(TaxRuleListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(TaxRuleActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(TaxRuleActionFailure(failure));
-        emit(const TaxRuleListState());
+        emit(TaxRuleListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -84,6 +101,7 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
         emit(TaxRuleListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -107,7 +125,7 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
     return result.fold(
       (failure) {
         emit(TaxRuleActionFailure(failure));
-        emit(TaxRuleListState(items: _currentItems));
+        emit(TaxRuleListState(items: _currentItems, criteria: _criteria));
         return null;
       },
       (catalogs) {
@@ -119,7 +137,8 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
 
   Future<void> _onNewPressed(
       TaxRuleNewPressed event, Emitter<TaxRuleState> emit) async {
-    emit(TaxRuleListState(items: _currentItems, loading: true));
+    emit(TaxRuleListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final catalogs = await _ensureCatalogs(emit);
     if (catalogs == null) return;
     emit(TaxRuleFormState(
@@ -134,14 +153,15 @@ class TaxRuleBloc extends Bloc<TaxRuleEvent, TaxRuleState> {
   /// devolve só o id.
   Future<void> _onEditPressed(
       TaxRuleEditPressed event, Emitter<TaxRuleState> emit) async {
-    emit(TaxRuleListState(items: _currentItems, loading: true));
+    emit(TaxRuleListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final catalogs = await _ensureCatalogs(emit);
     if (catalogs == null) return;
     final result = await get(event.item.id);
     result.fold(
       (failure) {
         emit(TaxRuleActionFailure(failure));
-        emit(TaxRuleListState(items: _currentItems));
+        emit(TaxRuleListState(items: _currentItems, criteria: _criteria));
       },
       (draft) => emit(TaxRuleFormState(
         draft: draft.copyWith(

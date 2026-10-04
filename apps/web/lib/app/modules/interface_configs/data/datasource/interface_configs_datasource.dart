@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 
 import '../../../../shared/interface_config/entity/interface_config_entity.dart';
 import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
+import '../../../../shared/search/search_criterion.dart';
 
 /// Datasource do painel de configurações do sistema: /api/interface-configs
 /// (Framework de Configurações, decisões 7 e 9). Módulo do CLIENTE — admin
@@ -10,8 +11,11 @@ import '../../../../shared/interface_vitrine/interface_vitrine_entity.dart';
 abstract class InterfaceConfigsDatasource {
   /// Página da vitrine (paginação D3 — a API paginou a vitrine nesta onda):
   /// [pageSize] null deixa a API resolver a config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<InterfaceVitrineEntity>> vitrine(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<List<InterfaceConfigEntity>> configs(int interfaceId);
 
   /// Salva o valor de UMA configuração. [content] null = volta a herdar
@@ -32,11 +36,14 @@ class InterfaceConfigsDatasourceImpl implements InterfaceConfigsDatasource {
 
   @override
   Future<PagedResult<InterfaceVitrineEntity>> vitrine(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/interface-configs?${params.join('&')}');
     return PagedResult.fromJson(json, InterfaceVitrineEntity.fromJson);

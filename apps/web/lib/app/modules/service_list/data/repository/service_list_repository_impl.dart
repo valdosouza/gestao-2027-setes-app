@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/service_list_entity.dart';
 import '../../domain/repository/service_list_repository.dart';
 import '../datasource/service_list_datasource.dart';
@@ -23,8 +24,11 @@ class ServiceListRepositoryImpl implements ServiceListRepository {
   @override
   Future<Either<Failure, PagedResult<ServiceListEntity>>> getList(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, Unit>> post(ServiceListEntity item) =>

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/city_entity.dart';
 import '../repository/city_repository.dart';
 
@@ -11,6 +12,9 @@ class CityGetlist {
   final CityRepository repository;
 
   Future<Either<Failure, PagedResult<CityEntity>>> call(String filter,
-          {int page = 1, int? pageSize}) =>
-      repository.getList(filter, page: page, pageSize: pageSize);
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      repository.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria);
 }

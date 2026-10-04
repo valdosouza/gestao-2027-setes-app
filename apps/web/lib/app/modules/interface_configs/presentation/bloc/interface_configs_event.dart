@@ -13,13 +13,17 @@ sealed class InterfaceConfigsEvent extends Equatable {
 /// page_size resolvida pela API — D4).
 class InterfaceConfigsVitrineRequested extends InterfaceConfigsEvent {
   const InterfaceConfigsVitrineRequested(this.filter,
-      {this.page = 1, this.pageSize});
+      {this.page = 1, this.pageSize, this.criteria});
   final String filter;
   final int page;
   final int? pageSize;
 
+  /// Pesquisa avançada (D-BA6/D-BA8): null MANTÉM os critérios correntes
+  /// (filtro rápido e paginação não os apagam); instância nova substitui.
+  final SearchCriteriaValues? criteria;
+
   @override
-  List<Object?> get props => [filter, page, pageSize];
+  List<Object?> get props => [filter, page, pageSize, criteria];
 }
 
 /// Abre a lista de configurações de uma interface ADQUIRIDA.

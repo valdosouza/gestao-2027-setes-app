@@ -8,6 +8,8 @@ import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/privilege_entity.dart';
 import '../bloc/privilege_bloc.dart';
 
@@ -33,6 +35,11 @@ class PrivilegePage extends StatefulWidget {
 
 class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
   late final PrivilegeBloc _bloc;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
   /// (showServerFieldError — Framework de Mensagens, Onda B).
@@ -42,7 +49,18 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
   void initState() {
     super.initState();
     _bloc = Modular.get<PrivilegeBloc>()..add(const PrivilegeListRequested(''));
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('privileges'); // engine de campos configuráveis (decisão 7)
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   String? _validateRequired(String? value) =>
@@ -108,6 +126,13 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
             _bloc.add(PrivilegeListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(PrivilegeListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(PrivilegeListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const PrivilegeNewPressed()),
         onView: (p) => _bloc.add(PrivilegeEditPressed(p)),
       );
