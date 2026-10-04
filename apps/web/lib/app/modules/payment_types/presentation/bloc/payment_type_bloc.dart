@@ -8,6 +8,8 @@ import '../../domain/usecase/payment_type_getlist.dart';
 import '../../domain/usecase/payment_type_post.dart';
 import '../../domain/usecase/payment_type_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'payment_type_event.dart';
 part 'payment_type_state.dart';
 
@@ -50,6 +52,10 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Vínculo aberto no form (null = novo) — preserva o editing nos
   /// re-emits de saving/falha.
   LinkedPaymentType? _editing;
@@ -59,16 +65,27 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<PaymentTypeState> emit) async {
-    emit(const PaymentTypeListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(PaymentTypeListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(PaymentTypeActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(PaymentTypeActionFailure(failure));
-        emit(const PaymentTypeListState());
+        emit(PaymentTypeListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -83,6 +100,7 @@ class PaymentTypeBloc extends Bloc<PaymentTypeEvent, PaymentTypeState> {
         emit(PaymentTypeListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/bank_account_entity.dart';
 import '../../domain/repository/bank_account_repository.dart';
 import '../datasource/bank_account_datasource.dart';
@@ -23,8 +24,11 @@ class BankAccountRepositoryImpl implements BankAccountRepository {
   @override
   Future<Either<Failure, PagedResult<BankAccountListItem>>> getList(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, BankAccountFull>> getById(int id) =>

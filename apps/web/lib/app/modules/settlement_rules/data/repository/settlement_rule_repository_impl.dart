@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/settlement_rule_entity.dart';
 import '../../domain/repository/settlement_rule_repository.dart';
 import '../datasource/settlement_rule_datasource.dart';
@@ -23,8 +24,11 @@ class SettlementRuleRepositoryImpl implements SettlementRuleRepository {
   @override
   Future<Either<Failure, PagedResult<SettlementRuleListItem>>> getList(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, SettlementRuleFull>> getById(int id) =>

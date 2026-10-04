@@ -18,6 +18,8 @@ import '../../../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/object_carrier.dart';
 import '../bloc/carrier_bloc.dart';
 import '../widget/carrier_tab.dart';
@@ -49,6 +51,11 @@ class _CarrierPageState extends State<CarrierPage> {
   late final StateLookupDatasource _stateLookup;
   late final CityLookupDatasource _cityLookup;
   late final EntityByDocumentDatasource _byDocumentLookup;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao form montado: ancora o fields[] do servidor no campo da aba
   /// certa (showServerFieldError — Framework de Mensagens, Onda B). Na
@@ -63,6 +70,17 @@ class _CarrierPageState extends State<CarrierPage> {
     _stateLookup = Modular.get<StateLookupDatasource>();
     _cityLookup = Modular.get<CityLookupDatasource>();
     _byDocumentLookup = Modular.get<EntityByDocumentDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Widget _buildSearch(CarrierListState state) =>
@@ -92,6 +110,13 @@ class _CarrierPageState extends State<CarrierPage> {
             _bloc.add(CarrierListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(CarrierListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(CarrierListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const CarrierNewPressed()),
         onView: (item) => _bloc.add(CarrierEditPressed(item.id)),
       );

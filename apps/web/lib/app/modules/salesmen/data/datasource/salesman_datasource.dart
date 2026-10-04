@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 
 import '../../../../shared/lookup/entity/role_lookup_entity.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/object_salesman.dart';
 
 /// Datasource remoto de Vendedor: /api/salesmen na setes-api (módulo gêmeo
@@ -12,8 +13,11 @@ import '../../domain/entity/object_salesman.dart';
 abstract class SalesmanDatasource {
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<SalesmanListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Identificação do colaborador (readonly) + campos do papel.
   Future<ObjectSalesman> get(int id);
@@ -35,11 +39,14 @@ class SalesmanDatasourceImpl implements SalesmanDatasource {
 
   @override
   Future<PagedResult<SalesmanListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/salesmen?${params.join('&')}');
     return PagedResult.fromJson(json, SalesmanListItem.fromJson);

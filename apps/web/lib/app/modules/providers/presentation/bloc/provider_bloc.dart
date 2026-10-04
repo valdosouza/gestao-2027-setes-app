@@ -9,6 +9,8 @@ import '../../domain/usecase/provider_getlist.dart';
 import '../../domain/usecase/provider_post.dart';
 import '../../domain/usecase/provider_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'provider_event.dart';
 part 'provider_state.dart';
 
@@ -51,21 +53,36 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderBlocState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _onListRequested(
       ProviderListRequested event, Emitter<ProviderBlocState> emit) async {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<ProviderBlocState> emit) async {
-    emit(const ProviderListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(ProviderListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(ProviderActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(ProviderActionFailure(failure));
-        emit(const ProviderListState());
+        emit(ProviderListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -80,6 +97,7 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderBlocState> {
         emit(ProviderListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -91,12 +109,13 @@ class ProviderBloc extends Bloc<ProviderEvent, ProviderBlocState> {
   /// Edição: busca o objeto COMPLETO (GET :id) antes de abrir o form.
   Future<void> _onEditPressed(
       ProviderEditPressed event, Emitter<ProviderBlocState> emit) async {
-    emit(ProviderListState(items: _currentItems, loading: true));
+    emit(ProviderListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     result.fold(
       (failure) {
         emit(ProviderActionFailure(failure));
-        emit(ProviderListState(items: _currentItems));
+        emit(ProviderListState(items: _currentItems, criteria: _criteria));
       },
       (provider) => emit(ProviderFormState(draft: provider, creating: false)),
     );

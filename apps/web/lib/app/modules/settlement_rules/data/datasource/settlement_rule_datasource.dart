@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/settlement_rule_entity.dart';
 
 /// Datasource remoto de Regras de Recebimento: /api/settlement-rules na
@@ -9,8 +10,11 @@ import '../../domain/entity/settlement_rule_entity.dart';
 abstract class SettlementRuleDatasource {
   /// Página da lista (filtro REMOTO por forma/conta): [pageSize] null deixa
   /// a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<SettlementRuleListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Contrato completo (+ note) para edição.
   Future<SettlementRuleFull> getById(int id);
@@ -32,11 +36,14 @@ class SettlementRuleDatasourceImpl implements SettlementRuleDatasource {
 
   @override
   Future<PagedResult<SettlementRuleListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json =
         await client.get('/api/settlement-rules?${params.join('&')}');

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import '../../shared/users/datasource/user_datasource.dart';
 import 'data/repository/user_repository_impl.dart';
 import 'domain/repository/user_repository.dart';
@@ -39,6 +40,10 @@ class UsersModule extends Module {
               put:     i.get<UserPut>(),
               delete:  i.get<UserDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/users')),
       ];
 
   @override

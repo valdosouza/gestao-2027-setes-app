@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/payment_type_datasource.dart';
 import 'data/repository/payment_type_repository_impl.dart';
 import 'domain/repository/payment_type_repository.dart';
@@ -37,6 +38,10 @@ class PaymentTypesModule extends Module {
               put:     i.get<PaymentTypePut>(),
               delete:  i.get<PaymentTypeDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/payment-types')),
       ];
 
   @override

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/object_provider.dart';
 import '../../domain/repository/provider_repository.dart';
 import '../datasource/provider_datasource.dart';
@@ -22,8 +23,11 @@ class ProviderRepositoryImpl implements ProviderRepository {
 
   @override
   Future<Either<Failure, PagedResult<ProviderListItem>>> getList(String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, ObjectProvider>> get(int id) =>

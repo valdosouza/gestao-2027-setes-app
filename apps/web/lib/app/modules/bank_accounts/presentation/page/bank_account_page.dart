@@ -14,6 +14,8 @@ import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/bank_account_channel_datasource.dart';
 import '../../data/datasource/bank_account_datasource.dart';
 import '../../domain/entity/bank_account_entity.dart';
@@ -47,6 +49,11 @@ class _BankAccountPageState extends State<BankAccountPage>
   late final BankAccountBloc _bloc;
   late final BankAccountDatasource _datasource;
   late final BankAccountChannelDatasource _channelDatasource;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado do form híbrido: ancora o fields[] do servidor no
   /// campo (equivalente local do showServerFieldError da fábrica). O form
@@ -60,7 +67,18 @@ class _BankAccountPageState extends State<BankAccountPage>
       ..add(const BankAccountListRequested(''));
     _datasource = Modular.get<BankAccountDatasource>();
     _channelDatasource = Modular.get<BankAccountChannelDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('bank-accounts'); // engine de campos configuráveis (dec. 7)
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Widget _buildSearch(BankAccountListState state) =>
@@ -93,6 +111,13 @@ class _BankAccountPageState extends State<BankAccountPage>
             _bloc.add(BankAccountListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(BankAccountListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(BankAccountListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const BankAccountNewPressed()),
         onView: (a) => _bloc.add(BankAccountEditPressed(a.id)),
       );

@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/service_entity.dart';
 
 /// Datasource remoto de Serviços: /api/services na setes-api (módulo gêmeo —
@@ -11,8 +12,11 @@ import '../../domain/entity/service_entity.dart';
 abstract class ServiceDatasource {
   /// Página da lista (filtro REMOTO por descrição/identificador):
   /// [pageSize] null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<ServiceListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Serviço completo (plano, flags, observação e grade de preços).
   Future<ServiceFull> getById(int id);
@@ -37,11 +41,14 @@ class ServiceDatasourceImpl implements ServiceDatasource {
 
   @override
   Future<PagedResult<ServiceListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/services?${params.join('&')}');
     return PagedResult.fromJson(json, ServiceListItem.fromJson);

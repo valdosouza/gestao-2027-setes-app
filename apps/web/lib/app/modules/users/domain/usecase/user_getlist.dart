@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 import '../repository/user_repository.dart';
 
@@ -12,6 +13,9 @@ class UserGetlist {
   final UserRepository repository;
 
   Future<Either<Failure, PagedResult<UserListItem>>> call(String filter,
-          {int page = 1, int? pageSize}) =>
-      repository.getList(filter, page: page, pageSize: pageSize);
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      repository.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria);
 }

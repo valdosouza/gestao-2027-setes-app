@@ -10,6 +10,8 @@ import '../../../../shared/lookup/entity/role_lookup_entity.dart';
 import '../../../../shared/register/field_config_merge.dart';
 import '../../../../shared/register/register_form_page.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/salesman_datasource.dart';
 import '../../domain/entity/object_salesman.dart';
 import '../bloc/salesman_bloc.dart';
@@ -37,6 +39,11 @@ class SalesmanPage extends StatefulWidget {
 class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
   late final SalesmanBloc _bloc;
   late final SalesmanDatasource _datasource;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado da fábrica: ancora o fields[] do servidor no campo
   /// (showServerFieldError — Framework de Mensagens, Onda B).
@@ -47,7 +54,18 @@ class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
     super.initState();
     _bloc = Modular.get<SalesmanBloc>()..add(const SalesmanListRequested(''));
     _datasource = Modular.get<SalesmanDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('salesmen'); // engine de campos configuráveis (decisão 7)
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   /// FAB "novo" (D1): lookup de COLABORADORES → form de promoção. A lista
@@ -219,6 +237,13 @@ class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
             _bloc.add(SalesmanListRequested(state.filter, pageSize: size)),
         filter: state.filter,
         onFilterChanged: (filter) => _bloc.add(SalesmanListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(SalesmanListRequested(state.filter, criteria: criteria)),
         onNew: _promoteNew,
         onView: (item) => _bloc.add(SalesmanEditPressed(item.id)),
       );

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/bank_charge_agreement_entity.dart';
 import '../../domain/repository/bank_charge_agreement_repository.dart';
 import '../datasource/bank_charge_agreement_datasource.dart';
@@ -24,8 +25,11 @@ class BankChargeAgreementRepositoryImpl
   @override
   Future<Either<Failure, PagedResult<BankChargeAgreementListItem>>> getList(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, BankChargeAgreementFull>> getById(int id) =>

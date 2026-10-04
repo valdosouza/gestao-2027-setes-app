@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/price_list_entity.dart';
 
 /// Datasource remoto de Tabelas de Preço: /api/price-lists na setes-api
@@ -7,8 +8,11 @@ import '../../domain/entity/price_list_entity.dart';
 abstract class PriceListDatasource {
   /// Página da lista (paginação obrigatória — filtro REMOTO por descrição):
   /// [pageSize] null deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<PriceListEntity>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Tabela de preço para edição.
   Future<PriceListEntity> getById(int id);
@@ -30,11 +34,14 @@ class PriceListDatasourceImpl implements PriceListDatasource {
 
   @override
   Future<PagedResult<PriceListEntity>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/price-lists?${params.join('&')}');
     return PagedResult.fromJson(json, PriceListEntity.fromJson);

@@ -11,6 +11,8 @@ import '../../domain/usecase/service_post.dart';
 import '../../domain/usecase/service_price_lists_get.dart';
 import '../../domain/usecase/service_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'service_event.dart';
 part 'service_state.dart';
 
@@ -49,6 +51,10 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Serviço aberto no form (null = novo) + grade inicial — preservados nos
   /// re-emits de saving/falha (o form continua montado).
   ServiceFull? _editing;
@@ -59,16 +65,27 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<ServiceState> emit) async {
-    emit(const ServiceListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(ServiceListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(ServiceActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(ServiceActionFailure(failure));
-        emit(const ServiceListState());
+        emit(ServiceListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -82,6 +99,7 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
         emit(ServiceListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -100,7 +118,8 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
   /// grade vazia e a falha vai para a ponte.
   Future<void> _onNewPressed(
       ServiceNewPressed event, Emitter<ServiceState> emit) async {
-    emit(ServiceListState(items: _currentItems, loading: true));
+    emit(ServiceListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await getPriceLists();
     _editing = null;
     _prices = result.fold((_) => const [], (lists) => lists);
@@ -113,12 +132,13 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
 
   Future<void> _onEditPressed(
       ServiceEditPressed event, Emitter<ServiceState> emit) async {
-    emit(ServiceListState(items: _currentItems, loading: true));
+    emit(ServiceListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(ServiceActionFailure(failure));
-        emit(ServiceListState(items: _currentItems));
+        emit(ServiceListState(items: _currentItems, criteria: _criteria));
       },
       (full) async {
         _editing = full;

@@ -12,6 +12,8 @@ import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/field_config/field_config_of.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/bank_charge_agreement_datasource.dart';
 import '../../domain/entity/bank_charge_agreement_entity.dart';
 import '../bloc/bank_charge_agreement_bloc.dart';
@@ -46,6 +48,11 @@ class _BankChargeAgreementPageState extends State<BankChargeAgreementPage>
     with FieldConfigLoader {
   late final BankChargeAgreementBloc _bloc;
   late final BankChargeAgreementDatasource _datasource;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado do form: ancora o fields[] do servidor no campo. O
   /// form só está montado no modo formulário — na lista o currentState é
@@ -58,7 +65,18 @@ class _BankChargeAgreementPageState extends State<BankChargeAgreementPage>
     _bloc = Modular.get<BankChargeAgreementBloc>()
       ..add(const BankChargeAgreementListRequested(''));
     _datasource = Modular.get<BankChargeAgreementDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     loadFieldConfig('bank-charge-agreements'); // engine de campos configuráveis
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Widget _buildSearch(BankChargeAgreementListState state) =>
@@ -90,6 +108,14 @@ class _BankChargeAgreementPageState extends State<BankChargeAgreementPage>
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(BankChargeAgreementListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc.add(
+            BankChargeAgreementListRequested(state.filter,
+                criteria: criteria)),
         onNew: () => _bloc.add(const BankChargeAgreementNewPressed()),
         onView: (a) => _bloc.add(BankChargeAgreementEditPressed(a.id)),
       );

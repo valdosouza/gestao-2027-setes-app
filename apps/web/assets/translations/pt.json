@@ -1537,6 +1537,7 @@
     "rangeFrom": "a partir de {}",
     "rangeTo": "até {}",
     "customers": {
+      "name": "Nome / razão social",
       "document": "CPF/CNPJ",
       "city": "Cidade",
       "salesman": "Vendedor",
@@ -1557,6 +1558,144 @@
       "invoiceNumber": "Nº da nota"
     },
     "tooLong": "Máximo de {} caracteres",
-    "criterionRemoved": "Um critério da pesquisa avançada foi removido porque o valor foi recusado. A lista foi atualizada com os demais critérios."
+    "criterionRemoved": "Um critério da pesquisa avançada foi removido porque o valor foi recusado. A lista foi atualizada com os demais critérios.",
+    "carriers": {
+      "name": "Nome / razão social",
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "collaborators": {
+      "name": "Nome / razão social",
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "providers": {
+      "name": "Nome / razão social",
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "salesmen": {
+      "name": "Nome / razão social",
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "institutions": {
+      "name": "Nome / razão social",
+      "document": "CPF/CNPJ",
+      "city": "Cidade",
+      "personType": "Tipo de pessoa",
+      "personTypeOptions": {
+        "F": "Pessoa física",
+        "J": "Pessoa jurídica",
+        "N": "Sem documento"
+      },
+      "schemaName": "Schema do banco",
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "users": {
+      "name": "Nome",
+      "email": "E-mail",
+      "kind": "Perfil",
+      "kindOptions": {
+        "user": "Usuário",
+        "admin": "Administrador",
+        "super": "Super"
+      },
+      "institution": "Instituição",
+      "active": "Ativo",
+      "createdAt": "Data de cadastro"
+    },
+    "contracts": {
+      "customerName": "Nome do cliente",
+      "customer": "Cliente",
+      "paymentType": "Forma de pagamento",
+      "paymentDay": "Dia de vencimento",
+      "dtStart": "Início",
+      "dtEnd": "Fim",
+      "monthlyValue": "Valor mensal",
+      "active": "Ativo"
+    },
+    "bank-accounts": {
+      "bankName": "Nome do banco",
+      "bank": "Banco",
+      "agency": "Agência",
+      "number": "Conta",
+      "manager": "Gerente",
+      "limitValue": "Limite"
+    },
+    "bank-charge-agreements": {
+      "agreement": "Convênio",
+      "bankAccount": "Conta bancária",
+      "active": "Ativa"
+    },
+    "settlement-rules": {
+      "paymentTypeName": "Nome da forma",
+      "paymentType": "Forma de pagamento",
+      "bankAccount": "Conta de destino",
+      "feeRate": "Taxa (%)",
+      "paymentTerm": "Prazo (dias)",
+      "expirationDate": "Validade"
+    },
+    "payment-types": {
+      "description": "Descrição",
+      "kind": "Comportamento",
+      "kindOptions": {
+        "E": "Espécie",
+        "X": "PIX",
+        "Q": "Cheque",
+        "B": "Boleto",
+        "W": "Carteira",
+        "C": "Cartão",
+        "O": "Outros"
+      },
+      "enable": "Habilitada",
+      "appMobile": "App mobile",
+      "tef": "TEF",
+      "maxParcels": "Máx. de parcelas"
+    },
+    "price-lists": {
+      "description": "Descrição",
+      "validity": "Validade",
+      "published": "Publicada"
+    },
+    "services": {
+      "description": "Descrição",
+      "identifier": "Identificador",
+      "category": "Categoria",
+      "active": "Ativo"
+    }
   }
 }

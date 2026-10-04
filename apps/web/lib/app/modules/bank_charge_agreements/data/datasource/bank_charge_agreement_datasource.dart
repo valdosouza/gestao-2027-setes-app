@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/bank_charge_agreement_entity.dart';
 
 /// Datasource remoto de Carteiras de Cobrança: /api/bank-charge-agreements
@@ -10,8 +11,11 @@ import '../../domain/entity/bank_charge_agreement_entity.dart';
 abstract class BankChargeAgreementDatasource {
   /// Página da lista (filtro REMOTO por convênio/banco): [pageSize] null
   /// deixa a API resolver a config page_size do usuário.
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<BankChargeAgreementListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Carteira COMPLETA (GET /:id) para edição — a lista não traz encargos/
   /// instrução/protesto.
@@ -41,11 +45,14 @@ class BankChargeAgreementDatasourceImpl
 
   @override
   Future<PagedResult<BankChargeAgreementListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client
         .get('/api/bank-charge-agreements?${params.join('&')}');

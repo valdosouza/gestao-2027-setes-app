@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../search/search_criterion.dart';
 import '../entity/user_entity.dart';
 
 /// Datasource remoto de Usuário: /api/users na setes-api — COMPARTILHADO
@@ -11,8 +12,12 @@ abstract class UserDatasource {
   /// para o admin do cliente a API força a institution do JWT.
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<UserListItem>> getList(String filter,
-      {int? institutionId, int page = 1, int? pageSize});
+      {int? institutionId,
+      int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
   Future<UserEntity> get(int id);
 
   /// A API gera o id (MAX+1 da tb_entity) e aplica o MD5 da senha.
@@ -48,12 +53,16 @@ class UserDatasourceImpl implements UserDatasource {
 
   @override
   Future<PagedResult<UserListItem>> getList(String filter,
-      {int? institutionId, int page = 1, int? pageSize}) async {
+      {int? institutionId,
+      int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       if (institutionId != null) 'institutionId=$institutionId',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/users?${params.join('&')}');
     return PagedResult.fromJson(json, UserListItem.fromJson);

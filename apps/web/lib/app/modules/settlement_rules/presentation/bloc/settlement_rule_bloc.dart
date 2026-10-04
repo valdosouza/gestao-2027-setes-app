@@ -10,6 +10,8 @@ import '../../domain/usecase/settlement_rule_getlist.dart';
 import '../../domain/usecase/settlement_rule_post.dart';
 import '../../domain/usecase/settlement_rule_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'settlement_rule_event.dart';
 part 'settlement_rule_state.dart';
 
@@ -49,6 +51,10 @@ class SettlementRuleBloc
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Contrato aberto no form (null = novo) — preserva o editing nos
   /// re-emits de saving/falha.
   SettlementRuleFull? _editing;
@@ -58,16 +64,27 @@ class SettlementRuleBloc
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<SettlementRuleState> emit) async {
-    emit(const SettlementRuleListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(SettlementRuleListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(SettlementRuleActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(SettlementRuleActionFailure(failure));
-        emit(const SettlementRuleListState());
+        emit(SettlementRuleListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -81,6 +98,7 @@ class SettlementRuleBloc
         emit(SettlementRuleListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -96,12 +114,14 @@ class SettlementRuleBloc
 
   Future<void> _onEditPressed(SettlementRuleEditPressed event,
       Emitter<SettlementRuleState> emit) async {
-    emit(SettlementRuleListState(items: _currentItems, loading: true));
+    emit(SettlementRuleListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(SettlementRuleActionFailure(failure));
-        emit(SettlementRuleListState(items: _currentItems));
+        emit(SettlementRuleListState(
+            items: _currentItems, criteria: _criteria));
       },
       (full) async {
         _editing = full;

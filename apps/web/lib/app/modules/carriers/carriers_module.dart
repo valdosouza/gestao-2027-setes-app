@@ -5,6 +5,7 @@ import '../../shared/entity/data/entity_by_document_datasource.dart';
 import '../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/carrier_datasource.dart';
 import 'data/repository/carrier_repository_impl.dart';
 import 'domain/repository/carrier_repository.dart';
@@ -55,6 +56,10 @@ class CarriersModule extends Module {
             (i) => StateLookupDatasourceImpl(client: i.get<ApiClient>())),
         Bind.lazySingleton<CityLookupDatasource>(
             (i) => CityLookupDatasourceImpl(client: i.get<ApiClient>())),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(), basePath: '/api/carriers')),
       ];
 
   @override

@@ -1537,6 +1537,7 @@
     "rangeFrom": "from {}",
     "rangeTo": "up to {}",
     "customers": {
+      "name": "Name / company name",
       "document": "Tax ID (CPF/CNPJ)",
       "city": "City",
       "salesman": "Salesperson",
@@ -1557,6 +1558,144 @@
       "invoiceNumber": "Invoice no."
     },
     "tooLong": "At most {} characters",
-    "criterionRemoved": "An advanced search criterion was removed because its value was rejected. The list was refreshed with the remaining criteria."
+    "criterionRemoved": "An advanced search criterion was removed because its value was rejected. The list was refreshed with the remaining criteria.",
+    "carriers": {
+      "name": "Name / company name",
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "collaborators": {
+      "name": "Name / company name",
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "providers": {
+      "name": "Name / company name",
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "salesmen": {
+      "name": "Name / company name",
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "institutions": {
+      "name": "Name / company name",
+      "document": "Tax ID (CPF/CNPJ)",
+      "city": "City",
+      "personType": "Person type",
+      "personTypeOptions": {
+        "F": "Individual",
+        "J": "Company",
+        "N": "No document"
+      },
+      "schemaName": "Database schema",
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "users": {
+      "name": "Name",
+      "email": "E-mail",
+      "kind": "Profile",
+      "kindOptions": {
+        "user": "User",
+        "admin": "Administrator",
+        "super": "Super"
+      },
+      "institution": "Institution",
+      "active": "Active",
+      "createdAt": "Registration date"
+    },
+    "contracts": {
+      "customerName": "Customer name",
+      "customer": "Customer",
+      "paymentType": "Payment method",
+      "paymentDay": "Due day",
+      "dtStart": "Start",
+      "dtEnd": "End",
+      "monthlyValue": "Monthly amount",
+      "active": "Active"
+    },
+    "bank-accounts": {
+      "bankName": "Bank name",
+      "bank": "Bank",
+      "agency": "Branch",
+      "number": "Account",
+      "manager": "Manager",
+      "limitValue": "Limit"
+    },
+    "bank-charge-agreements": {
+      "agreement": "Agreement",
+      "bankAccount": "Bank account",
+      "active": "Active"
+    },
+    "settlement-rules": {
+      "paymentTypeName": "Payment method name",
+      "paymentType": "Payment method",
+      "bankAccount": "Destination account",
+      "feeRate": "Fee (%)",
+      "paymentTerm": "Term (days)",
+      "expirationDate": "Expiration"
+    },
+    "payment-types": {
+      "description": "Description",
+      "kind": "Behavior",
+      "kindOptions": {
+        "E": "Cash",
+        "X": "PIX",
+        "Q": "Check",
+        "B": "Bank slip",
+        "W": "Store credit",
+        "C": "Card",
+        "O": "Other"
+      },
+      "enable": "Enabled",
+      "appMobile": "Mobile app",
+      "tef": "TEF",
+      "maxParcels": "Max. installments"
+    },
+    "price-lists": {
+      "description": "Description",
+      "validity": "Validity",
+      "published": "Published"
+    },
+    "services": {
+      "description": "Description",
+      "identifier": "Identifier",
+      "category": "Category",
+      "active": "Active"
+    }
   }
 }

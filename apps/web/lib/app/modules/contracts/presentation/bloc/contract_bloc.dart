@@ -10,6 +10,8 @@ import '../../domain/usecase/contract_getlist.dart';
 import '../../domain/usecase/contract_post.dart';
 import '../../domain/usecase/contract_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'contract_event.dart';
 part 'contract_state.dart';
 
@@ -50,6 +52,10 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Contrato aberto no form (null = novo) — preserva o editing nos
   /// re-emits de saving/falha.
   ContractFull? _editing;
@@ -59,16 +65,27 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<ContractState> emit) async {
-    emit(const ContractListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(ContractListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(ContractActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(ContractActionFailure(failure));
-        emit(const ContractListState());
+        emit(ContractListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -83,6 +100,7 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
         emit(ContractListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -98,12 +116,13 @@ class ContractBloc extends Bloc<ContractEvent, ContractState> {
 
   Future<void> _onEditPressed(
       ContractEditPressed event, Emitter<ContractState> emit) async {
-    emit(ContractListState(items: _currentItems, loading: true));
+    emit(ContractListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(ContractActionFailure(failure));
-        emit(ContractListState(items: _currentItems));
+        emit(ContractListState(items: _currentItems, criteria: _criteria));
       },
       (full) async {
         _editing = full;

@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../../../shared/users/entity/user_entity.dart';
 
 /// Contrato do repositório de Usuário (decisão 12: `Either<Failure, T>`).
@@ -8,7 +9,7 @@ import '../../../../shared/users/entity/user_entity.dart';
 /// precedente da aba Interfaces do Estabelecimento).
 abstract class UserRepository {
   Future<Either<Failure, PagedResult<UserListItem>>> getList(String filter,
-      {int page, int? pageSize});
+      {int page, int? pageSize, SearchCriteriaValues criteria});
   Future<Either<Failure, UserEntity>> get(int id);
   Future<Either<Failure, int>> post(UserEntity user);
   Future<Either<Failure, Unit>> put(UserEntity user);

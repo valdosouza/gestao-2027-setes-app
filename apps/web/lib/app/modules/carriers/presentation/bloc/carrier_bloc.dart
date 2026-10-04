@@ -9,6 +9,8 @@ import '../../domain/usecase/carrier_getlist.dart';
 import '../../domain/usecase/carrier_post.dart';
 import '../../domain/usecase/carrier_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'carrier_event.dart';
 part 'carrier_state.dart';
 
@@ -50,21 +52,36 @@ class CarrierBloc extends Bloc<CarrierEvent, CarrierBlocState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   Future<void> _onListRequested(
       CarrierListRequested event, Emitter<CarrierBlocState> emit) async {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<CarrierBlocState> emit) async {
-    emit(const CarrierListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(CarrierListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(CarrierActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(CarrierActionFailure(failure));
-        emit(const CarrierListState());
+        emit(CarrierListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -79,6 +96,7 @@ class CarrierBloc extends Bloc<CarrierEvent, CarrierBlocState> {
         emit(CarrierListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -90,12 +108,13 @@ class CarrierBloc extends Bloc<CarrierEvent, CarrierBlocState> {
   /// Edição: busca o objeto COMPLETO (GET :id) antes de abrir o form.
   Future<void> _onEditPressed(
       CarrierEditPressed event, Emitter<CarrierBlocState> emit) async {
-    emit(CarrierListState(items: _currentItems, loading: true));
+    emit(CarrierListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     result.fold(
       (failure) {
         emit(CarrierActionFailure(failure));
-        emit(CarrierListState(items: _currentItems));
+        emit(CarrierListState(items: _currentItems, criteria: _criteria));
       },
       (carrier) => emit(CarrierFormState(draft: carrier, creating: false)),
     );

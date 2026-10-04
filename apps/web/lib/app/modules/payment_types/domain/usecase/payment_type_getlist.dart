@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../entity/payment_type_entity.dart';
 import '../repository/payment_type_repository.dart';
 
@@ -12,6 +13,9 @@ class PaymentTypeGetlist {
   final PaymentTypeRepository repository;
 
   Future<Either<Failure, PagedResult<LinkedPaymentType>>> call(String filter,
-          {int page = 1, int? pageSize}) =>
-      repository.getList(filter, page: page, pageSize: pageSize);
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      repository.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria);
 }

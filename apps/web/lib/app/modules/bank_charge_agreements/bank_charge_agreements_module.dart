@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/bank_charge_agreement_datasource.dart';
 import 'data/repository/bank_charge_agreement_repository_impl.dart';
 import 'domain/repository/bank_charge_agreement_repository.dart';
@@ -44,6 +45,11 @@ class BankChargeAgreementsModule extends Module {
               put:     i.get<BankChargeAgreementPut>(),
               delete:  i.get<BankChargeAgreementDelete>(),
             )),
+        // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
+        Bind.lazySingleton<SearchCriteriaDatasource>((i) =>
+            SearchCriteriaDatasourceImpl(
+                client: i.get<ApiClient>(),
+                basePath: '/api/bank-charge-agreements')),
       ];
 
   @override

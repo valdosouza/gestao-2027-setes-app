@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/object_collaborator.dart';
 import '../../domain/repository/collaborator_repository.dart';
 import '../datasource/collaborator_datasource.dart';
@@ -23,8 +24,11 @@ class CollaboratorRepositoryImpl implements CollaboratorRepository {
   @override
   Future<Either<Failure, PagedResult<CollaboratorListItem>>> getList(
           String filter,
-          {int page = 1, int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          {int page = 1,
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, ObjectCollaborator>> get(int id) =>

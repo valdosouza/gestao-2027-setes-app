@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/contract_entity.dart';
 
 /// Datasource remoto de Contratos de serviço: /api/contracts na setes-api
@@ -10,8 +11,11 @@ import '../../domain/entity/contract_entity.dart';
 abstract class ContractDatasource {
   /// Página da lista (paginação D3/D7 — filtro REMOTO por nome do cliente):
   /// [pageSize] null deixa a API resolver a config page_size do usuário (D4).
+  /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
   Future<PagedResult<ContractListItem>> getList(String filter,
-      {int page = 1, int? pageSize});
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty});
 
   /// Contrato completo (itens + paymentDay) para edição.
   Future<ContractFull> getById(int id);
@@ -45,11 +49,14 @@ class ContractDatasourceImpl implements ContractDatasource {
 
   @override
   Future<PagedResult<ContractListItem>> getList(String filter,
-      {int page = 1, int? pageSize}) async {
+      {int page = 1,
+      int? pageSize,
+      SearchCriteriaValues criteria = SearchCriteriaValues.empty}) async {
     final params = [
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'page=$page',
       if (pageSize != null) 'pageSize=$pageSize',
+      if (!criteria.isEmpty) criteria.toQueryParam(),
     ];
     final json = await client.get('/api/contracts?${params.join('&')}');
     return PagedResult.fromJson(json, ContractListItem.fromJson);

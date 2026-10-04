@@ -1,6 +1,7 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
+import '../../../../shared/search/search_criterion.dart';
 import '../../domain/entity/object_institution.dart';
 import '../../domain/repository/institution_repository.dart';
 import '../datasource/institution_datasource.dart';
@@ -24,8 +25,10 @@ class InstitutionRepositoryImpl implements InstitutionRepository {
   Future<Either<Failure, PagedResult<InstitutionListItem>>> getList(
           String filter,
           {int page = 1,
-          int? pageSize}) =>
-      _guard(() => datasource.getList(filter, page: page, pageSize: pageSize));
+          int? pageSize,
+          SearchCriteriaValues criteria = SearchCriteriaValues.empty}) =>
+      _guard(() => datasource.getList(filter,
+          page: page, pageSize: pageSize, criteria: criteria));
 
   @override
   Future<Either<Failure, ObjectInstitution>> get(int id) =>

@@ -10,6 +10,8 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
 import '../../../../shared/register/register_search_page.dart';
+import '../../../../shared/search/search_criteria_datasource.dart';
+import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/payment_type_datasource.dart';
 import '../../domain/entity/payment_type_entity.dart';
 import '../bloc/payment_type_bloc.dart';
@@ -38,6 +40,11 @@ class _PaymentTypePageState extends State<PaymentTypePage>
     with FieldConfigLoader {
   late final PaymentTypeBloc _bloc;
   late final PaymentTypeDatasource _datasource;
+  late final SearchCriteriaDatasource _searchDatasource;
+
+  /// Critérios da pesquisa avançada servidos pela API (D-BA2). Falha ao
+  /// carregar = lista sem o botão (a tela nunca quebra por isso).
+  List<SearchCriterion> _searchCriteria = const [];
 
   /// Acesso ao estado do form artesanal: ancora o fields[] do servidor no
   /// campo (showServerFieldError — Framework de Mensagens, Onda B).
@@ -49,8 +56,19 @@ class _PaymentTypePageState extends State<PaymentTypePage>
     _bloc = Modular.get<PaymentTypeBloc>()
       ..add(const PaymentTypeListRequested(''));
     _datasource = Modular.get<PaymentTypeDatasource>();
+    _searchDatasource = Modular.get<SearchCriteriaDatasource>();
+    _loadSearchCriteria();
     // Engine de campos configuráveis (decisão 7) — catálogo do seed 14.
     loadFieldConfig('payment-types');
+  }
+
+  Future<void> _loadSearchCriteria() async {
+    try {
+      final criteria = await _searchDatasource.criteria();
+      if (mounted) setState(() => _searchCriteria = criteria);
+    } catch (_) {
+      // sem critérios = sem botão; o filtro rápido segue funcionando
+    }
   }
 
   Widget _buildSearch(PaymentTypeListState state) =>
@@ -83,6 +101,13 @@ class _PaymentTypePageState extends State<PaymentTypePage>
         filter: state.filter,
         onFilterChanged: (filter) =>
             _bloc.add(PaymentTypeListRequested(filter)),
+        // Pesquisa avançada (D-BA9): critérios novos voltam à página 1 e
+        // somam em E com o filtro rápido corrente (D-BA6).
+        searchCriteria: _searchCriteria,
+        searchDatasource: _searchDatasource,
+        criteriaValues: state.criteria,
+        onCriteriaChanged: (criteria) => _bloc
+            .add(PaymentTypeListRequested(state.filter, criteria: criteria)),
         onNew: () => _bloc.add(const PaymentTypeNewPressed()),
         onView: (p) => _bloc.add(PaymentTypeEditPressed(p)),
       );

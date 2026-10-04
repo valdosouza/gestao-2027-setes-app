@@ -10,6 +10,8 @@ import '../../domain/usecase/bank_account_getlist.dart';
 import '../../domain/usecase/bank_account_post.dart';
 import '../../domain/usecase/bank_account_put.dart';
 
+import '../../../../shared/search/search_criterion.dart';
+
 part 'bank_account_event.dart';
 part 'bank_account_state.dart';
 
@@ -50,6 +52,10 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
   int _page = 1;
   int? _pageSize;
 
+  /// Pesquisa avançada corrente (D-BA8: sobrevive à volta do form; o bloc
+  /// é singleton do módulo — sair da tela = módulo descartado = limpa).
+  SearchCriteriaValues _criteria = SearchCriteriaValues.empty;
+
   /// Conta aberta no form (null = nova) — preserva o editing nos
   /// re-emits de saving/falha.
   BankAccountFull? _editing;
@@ -59,16 +65,27 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
     _filter = event.filter;
     _page = event.page;
     _pageSize = event.pageSize ?? _pageSize;
+    _criteria = event.criteria ?? _criteria;
     await _reload(emit);
   }
 
   Future<void> _reload(Emitter<BankAccountState> emit) async {
-    emit(const BankAccountListState(loading: true));
-    final result = await getlist(_filter, page: _page, pageSize: _pageSize);
+    emit(BankAccountListState(
+        loading: true, filter: _filter, criteria: _criteria));
+    final result = await getlist(_filter,
+        page: _page, pageSize: _pageSize, criteria: _criteria);
     await result.fold(
       (failure) async {
+        // Q-BA16 (a): critério recusado pela API é DESCARTADO, o usuário é
+        // avisado e a lista recarrega com os demais — nunca fica travada.
+        final pruned = _criteria.withoutRejected(failure);
+        if (pruned != null) {
+          _criteria = pruned;
+          emit(BankAccountActionFailure(searchCriterionRemoved(failure)));
+          return _reload(emit);
+        }
         emit(BankAccountActionFailure(failure));
-        emit(const BankAccountListState());
+        emit(BankAccountListState(filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: exclusão do último item) → recua para a
@@ -83,6 +100,7 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
         emit(BankAccountListState(
           items: paged.items,
           filter: _filter,
+          criteria: _criteria,
           page: paged.page,
           pageSize: paged.pageSize,
           total: paged.total,
@@ -98,12 +116,13 @@ class BankAccountBloc extends Bloc<BankAccountEvent, BankAccountState> {
 
   Future<void> _onEditPressed(
       BankAccountEditPressed event, Emitter<BankAccountState> emit) async {
-    emit(BankAccountListState(items: _currentItems, loading: true));
+    emit(BankAccountListState(
+        items: _currentItems, loading: true, criteria: _criteria));
     final result = await get(event.id);
     await result.fold(
       (failure) async {
         emit(BankAccountActionFailure(failure));
-        emit(BankAccountListState(items: _currentItems));
+        emit(BankAccountListState(items: _currentItems, criteria: _criteria));
       },
       (full) async {
         _editing = full;
