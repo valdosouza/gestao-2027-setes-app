@@ -38,4 +38,50 @@ void main() {
 
     expect(value, isTrue);
   });
+
+  // showSetesLookup: avatar mostra o itemId por padrão; com itemAvatar mostra
+  // o texto dado (código oficial com zero à esquerda — ex.: CST '000').
+  Future<void> openLookup(WidgetTester tester,
+      {String Function(String item)? itemAvatar}) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showSetesLookup<String>(
+              context: context,
+              title: 'Lista',
+              filterHint: 'Filtro',
+              emptyText: 'Vazio',
+              onSearch: (_) async => ['000001'],
+              itemId: (code) => int.parse(code),
+              itemLabel: (code) => 'Código $code',
+              itemAvatar: itemAvatar,
+            ),
+            child: const Text('abrir'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('showSetesLookup sem itemAvatar mostra o itemId no avatar',
+      (tester) async {
+    await openLookup(tester);
+    expect(
+        find.descendant(
+            of: find.byType(CircleAvatar), matching: find.text('1')),
+        findsOneWidget);
+  });
+
+  testWidgets('showSetesLookup com itemAvatar mostra o texto dado',
+      (tester) async {
+    await openLookup(tester, itemAvatar: (code) => code.substring(0, 3));
+    expect(
+        find.descendant(
+            of: find.byType(CircleAvatar), matching: find.text('000')),
+        findsOneWidget);
+    expect(find.text('Código 000001'), findsOneWidget);
+  });
 }

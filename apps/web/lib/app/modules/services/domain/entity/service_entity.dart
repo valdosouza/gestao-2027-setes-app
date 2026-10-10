@@ -93,6 +93,9 @@ class ServiceFull extends ServiceListItem {
     this.published = 'N',
     this.note,
     this.prices = const [],
+    this.nbs,
+    this.nbsDescription,
+    this.ibscbs,
   });
 
   final int?    financialPlansId;
@@ -109,6 +112,19 @@ class ServiceFull extends ServiceListItem {
 
   /// Grade: TODAS as tabelas de preço vivas com o preço atual (null = sem).
   final List<ServicePrice> prices;
+
+  /// Fase IBS/CBS (D-IB6): NBS do serviço — 9 dígitos SEM pontos (null =
+  /// sem NBS) + descrição oficial (JOIN da API com o catálogo central).
+  final String? nbs;
+  final String? nbsDescription;
+
+  /// Classificação IBS/CBS que o serviço presume (peça 1:1
+  /// tb_service_ibscbs); null = não classificado.
+  final ServiceIbscbs? ibscbs;
+
+  /// Exibição da NBS no MESMO formato da lista de apoio
+  /// ("115022000 — descrição"); '' sem NBS.
+  String get nbsDisplay => _codeDisplay(nbs, nbsDescription);
 
   factory ServiceFull.fromJson(Map<String, dynamic> json) => ServiceFull(
         id:                        jsonInt(json['id']) ?? 0,
@@ -128,6 +144,11 @@ class ServiceFull extends ServiceListItem {
         prices: (json['prices'] as List<dynamic>? ?? const [])
             .map((e) => ServicePrice.fromJson(e as Map<String, dynamic>))
             .toList(),
+        nbs:            _jsonCode(json['nbs']),
+        nbsDescription: json['nbsDescription'] as String?,
+        ibscbs: json['ibscbs'] is Map<String, dynamic>
+            ? ServiceIbscbs.fromJson(json['ibscbs'] as Map<String, dynamic>)
+            : null,
       );
 
   @override
@@ -135,7 +156,103 @@ class ServiceFull extends ServiceListItem {
         ...super.props, financialPlansId, financialPlansDescription,
         serviceTaxRuleId, serviceTaxRuleLabel,
         promotion, highlights, published, note, prices,
+        nbs, nbsDescription, ibscbs,
       ];
+}
+
+/// Código oficial vindo da API → texto aparado (null quando vazio).
+/// Tolera número (JSON mal tipado), mas código com zero à esquerda só
+/// sobrevive como string — que é o contrato da API.
+String? _jsonCode(Object? value) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty ? null : text;
+}
+
+/// "código — descrição": o mesmo formato que a API devolve nas listas de
+/// apoio (CONCAT(code, ' — ', description)); '' sem código.
+String _codeDisplay(String? code, String? description) {
+  if (code == null || code.isEmpty) return '';
+  final text = description?.trim() ?? '';
+  return text.isEmpty ? code : '$code — $text';
+}
+
+/// CST do IBS/CBS = os 3 primeiros dígitos do cClassTrib (espelho do
+/// `deriveCst` da API — o CST NUNCA é escolhido nem gravado, só exibido).
+String deriveIbscbsCst(String classificationCode) =>
+    classificationCode.length >= 3
+        ? classificationCode.substring(0, 3)
+        : classificationCode;
+
+/// Classificação IBS/CBS do serviço (GET /api/services/:id → `ibscbs`):
+/// cClassTrib + cIndOp ESCOLHIDOS (D-IB6); [cst] derivado pela API;
+/// nome/descrição do catálogo central só para exibir.
+class ServiceIbscbs extends Equatable {
+  const ServiceIbscbs({
+    required this.classificationCode,
+    required this.cst,
+    this.classificationName,
+    required this.placeIndicatorCode,
+    this.placeIndicatorDescription,
+  });
+
+  /// cClassTrib — 6 dígitos.
+  final String  classificationCode;
+
+  /// CST derivado (3 dígitos) — SÓ exibição.
+  final String  cst;
+  final String? classificationName;
+
+  /// cIndOp (indicador da operação — Anexo VII) — 6 dígitos.
+  final String  placeIndicatorCode;
+  final String? placeIndicatorDescription;
+
+  /// "CST · cClassTrib — nome": o MESMO formato da lista de apoio.
+  String get classificationDisplay {
+    final name = classificationName?.trim() ?? '';
+    final head = '$cst · $classificationCode';
+    return name.isEmpty ? head : '$head — $name';
+  }
+
+  /// "cIndOp — descrição": o MESMO formato da lista de apoio.
+  String get placeIndicatorDisplay =>
+      _codeDisplay(placeIndicatorCode, placeIndicatorDescription);
+
+  factory ServiceIbscbs.fromJson(Map<String, dynamic> json) {
+    final classification = _jsonCode(json['classificationCode']) ?? '';
+    return ServiceIbscbs(
+      classificationCode:        classification,
+      cst: _jsonCode(json['cst']) ?? deriveIbscbsCst(classification),
+      classificationName:        json['classificationName'] as String?,
+      placeIndicatorCode:        _jsonCode(json['placeIndicatorCode']) ?? '',
+      placeIndicatorDescription: json['placeIndicatorDescription'] as String?,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        classificationCode, cst, classificationName,
+        placeIndicatorCode, placeIndicatorDescription,
+      ];
+}
+
+/// Classificação IBS/CBS no PAYLOAD: os DOIS códigos vão JUNTOS (a tela
+/// barra o par incompleto antes de salvar — service_ibscbs_rules.dart).
+class ServiceIbscbsInput extends Equatable {
+  const ServiceIbscbsInput({
+    required this.classificationCode,
+    required this.placeIndicatorCode,
+  });
+
+  final String classificationCode;
+  final String placeIndicatorCode;
+
+  Map<String, dynamic> toJson() => {
+        'classificationCode': classificationCode,
+        'placeIndicatorCode': placeIndicatorCode,
+      };
+
+  @override
+  List<Object?> get props => [classificationCode, placeIndicatorCode];
 }
 
 /// Linha da grade no PAYLOAD: [priceTag] null = remover o preço da tabela
@@ -159,7 +276,9 @@ class ServicePriceInput extends Equatable {
 /// máx 50 opcional — em branco a API usa o id (D1); description 1..100;
 /// categoryId obrigatório; financialPlansId e serviceTaxRuleId opcionais
 /// (null = sem vínculo); flags S/N; note máx 4000; prices[] sem tabela
-/// duplicada).
+/// duplicada). Fase IBS/CBS: `nbs` (9 dígitos) e `ibscbs` (par cClassTrib +
+/// cIndOp) — na API "ausente = não mexe · null = remove"; esta tela SEMPRE
+/// manda os dois com o estado dela (null quando vazios).
 class ServiceInput extends Equatable {
   const ServiceInput({
     this.identifier,
@@ -173,6 +292,8 @@ class ServiceInput extends Equatable {
     this.active = 'S',
     this.note,
     this.prices = const [],
+    this.nbs,
+    this.ibscbs,
   });
 
   final String? identifier;
@@ -187,6 +308,12 @@ class ServiceInput extends Equatable {
   final String? note;
   final List<ServicePriceInput> prices;
 
+  /// NBS sem pontos; null = sem NBS (a API remove).
+  final String? nbs;
+
+  /// Classificação IBS/CBS; null = não classificado (a API remove).
+  final ServiceIbscbsInput? ibscbs;
+
   Map<String, dynamic> toJson() => {
         'identifier':       identifier,
         'description':      description,
@@ -199,13 +326,16 @@ class ServiceInput extends Equatable {
         'active':           active,
         'note':             note,
         'prices':           prices.map((p) => p.toJson()).toList(),
+        // SEMPRE presentes (null = remove) — a tela é a dona do estado.
+        'nbs':              nbs,
+        'ibscbs':           ibscbs?.toJson(),
       };
 
   @override
   List<Object?> get props => [
         identifier, description, categoryId, financialPlansId,
         serviceTaxRuleId, promotion, highlights, published, active, note,
-        prices,
+        prices, nbs, ibscbs,
       ];
 }
 
@@ -226,4 +356,27 @@ class ServiceLookup extends Equatable {
 
   @override
   List<Object?> get props => [id, description];
+}
+
+/// Item das listas de apoio da fase IBS/CBS (GET /api/services/nbs,
+/// /ibscbs-classifications e /ibscbs-place-indicators → {code, description}).
+/// [code] é o CÓDIGO OFICIAL em texto (zero à esquerda importa — '000001'),
+/// não um id numérico; [description] já vem formatada pela API para exibir
+/// ("código — descrição"; na classificação "CST · código — nome").
+class ServiceCodeLookup extends Equatable {
+  const ServiceCodeLookup({required this.code, this.description});
+
+  final String  code;
+  final String? description;
+
+  String get display => description ?? code;
+
+  factory ServiceCodeLookup.fromJson(Map<String, dynamic> json) =>
+      ServiceCodeLookup(
+        code:        _jsonCode(json['code']) ?? '',
+        description: json['description'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [code, description];
 }

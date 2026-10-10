@@ -17,14 +17,17 @@ import '../../../../shared/search/search_criteria_datasource.dart';
 import '../../../../shared/search/search_criterion.dart';
 import '../../data/datasource/service_lookup_datasource.dart';
 import '../../domain/entity/service_entity.dart';
+import '../../domain/service_ibscbs_rules.dart';
 import '../bloc/service_bloc.dart';
 
 /// Tela de Serviços — interface 'services' (prompt_modulo_services.md,
 /// D1–D7). Lista = descrição + identificador/categoria + situação. Form em
-/// DUAS abas (grupos naturais): Principal (identificador, descrição,
-/// categoria e plano financeiro por lookup, flags S/N, observação) e
+/// TRÊS abas (grupos naturais): Principal (identificador, descrição,
+/// categoria e plano financeiro por lookup, flags S/N, observação),
 /// Preços (GRADE: uma linha por tabela de preço viva com o valor — D4/D7;
-/// a API sincroniza a tb_price na mesma transação).
+/// a API sincroniza a tb_price na mesma transação) e IBS/CBS (fase IBS/CBS,
+/// D-IB6: NBS + classificação cClassTrib/cIndOp por lista de apoio, CST
+/// derivado só exibido; a API confere vigência/aceitação na NFS-e).
 ///
 /// Feedback 100% via PONTE (Framework de Mensagens): validação
 /// uma-pendência-por-vez (R3) trocando para a aba do campo, fields[] do
@@ -195,12 +198,16 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     with SingleTickerProviderStateMixin {
   static const _tabMain = 0;
   static const _tabPrices = 1;
+  static const _tabIbscbs = 2;
 
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(length: 3, vsync: this);
 
   late final TextEditingController _identifier;
   late final TextEditingController _description;
   late final TextEditingController _note;
+
+  /// CST do IBS/CBS — SOMENTE LEITURA, derivado do cClassTrib escolhido.
+  late final TextEditingController _cst;
 
   /// Grade de preços: uma linha por tabela viva (ordem da API); o valor
   /// digitado mora no controller da linha.
@@ -235,6 +242,15 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   String _highlights = 'N';
   String _published = 'N';
 
+  /// Fase IBS/CBS (D-IB6) — CÓDIGO OFICIAL salvo (texto, zero à esquerda
+  /// importa), descrição exibida. Os dois da classificação vão JUNTOS.
+  String? _nbs;
+  String _nbsDisplay = '';
+  String? _classificationCode;
+  String _classificationDisplay = '';
+  String? _placeIndicatorCode;
+  String _placeIndicatorDisplay = '';
+
   ServiceFull? get _editing => widget.state.editing;
 
   @override
@@ -255,6 +271,15 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     _highlights = editing?.highlights ?? 'N';
     _published  = editing?.published ?? 'N';
 
+    final ibscbs = editing?.ibscbs;
+    _nbs                   = editing?.nbs;
+    _nbsDisplay            = editing?.nbsDisplay ?? '';
+    _classificationCode    = ibscbs?.classificationCode;
+    _classificationDisplay = ibscbs?.classificationDisplay ?? '';
+    _placeIndicatorCode    = ibscbs?.placeIndicatorCode;
+    _placeIndicatorDisplay = ibscbs?.placeIndicatorDisplay ?? '';
+    _cst = TextEditingController(text: ibscbs?.cst ?? '');
+
     _priceRows = widget.state.prices;
     for (final row in _priceRows) {
       _priceControllers[row.priceListId] =
@@ -270,6 +295,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     _identifier.dispose();
     _description.dispose();
     _note.dispose();
+    _cst.dispose();
     for (final node in _focus.values) {
       node.dispose();
     }
@@ -336,6 +362,69 @@ class _ServiceFormViewState extends State<_ServiceFormView>
       setState(() {
         _serviceTaxRuleId = picked.id;
         _serviceTaxRuleDisplay = picked.display;
+      });
+    }
+  }
+
+  // Fase IBS/CBS (D-IB6): listas do catálogo central servidas pelo PRÓPRIO
+  // módulo (/api/services/*). Chave = CÓDIGO OFICIAL em texto: o avatar
+  // mostra um prefixo legível (capítulo da NBS, CST, grupo do cIndOp) e a
+  // linha traz o código inteiro + descrição formatados pela API.
+
+  Future<void> _pickNbs() async {
+    final picked = await showSetesLookup<ServiceCodeLookup>(
+      context: context,
+      title: 'forms.services.nbsLookupTitle'.tr(),
+      filterHint: 'forms.services.nbsFilterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: widget.datasource.nbs,
+      itemId: (n) => int.tryParse(n.code) ?? 0,
+      itemAvatar: (n) => nbsAvatar(n.code),
+      itemLabel: (n) => n.display,
+    );
+    if (picked != null) {
+      setState(() {
+        _nbs = picked.code;
+        _nbsDisplay = picked.display;
+      });
+    }
+  }
+
+  Future<void> _pickClassification() async {
+    final picked = await showSetesLookup<ServiceCodeLookup>(
+      context: context,
+      title: 'forms.services.ibscbsClassificationLookupTitle'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: widget.datasource.ibscbsClassifications,
+      itemId: (c) => int.tryParse(c.code) ?? 0,
+      itemAvatar: (c) => deriveIbscbsCst(c.code),
+      itemLabel: (c) => c.display,
+    );
+    if (picked != null) {
+      setState(() {
+        _classificationCode = picked.code;
+        _classificationDisplay = picked.display;
+        _cst.text = deriveIbscbsCst(picked.code);
+      });
+    }
+  }
+
+  Future<void> _pickPlaceIndicator() async {
+    final picked = await showSetesLookup<ServiceCodeLookup>(
+      context: context,
+      title: 'forms.services.ibscbsPlaceIndicatorLookupTitle'.tr(),
+      filterHint: 'register.filterHint'.tr(),
+      emptyText: 'register.emptyList'.tr(),
+      onSearch: widget.datasource.ibscbsPlaceIndicators,
+      itemId: (p) => int.tryParse(p.code) ?? 0,
+      itemAvatar: (p) => placeIndicatorAvatar(p.code),
+      itemLabel: (p) => p.display,
+    );
+    if (picked != null) {
+      setState(() {
+        _placeIndicatorCode = picked.code;
+        _placeIndicatorDisplay = picked.display;
       });
     }
   }
@@ -410,6 +499,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
 
   void _toMain() => _tabs.animateTo(_tabMain);
   void _toPrices() => _tabs.animateTo(_tabPrices);
+  void _toIbscbs() => _tabs.animateTo(_tabIbscbs);
 
   /// Campos NA ORDEM da tela (R3). Os names casam com o payload da API —
   /// é por eles que o fields[] do servidor ancora no campo; cada campo
@@ -472,6 +562,49 @@ class _ServiceFormViewState extends State<_ServiceFormView>
           ),
         PendencyField(
             name: 'prices', beforeFocus: _toPrices, validate: () => null),
+        // Aba IBS/CBS: names = paths do payload/fields[] da API (`nbs`,
+        // `ibscbs.classificationCode`, `ibscbs.placeIndicatorCode`; `ibscbs`
+        // pega erro do objeto inteiro). Regra local: o par vai JUNTO.
+        PendencyField(
+          name: 'nbs',
+          beforeFocus: _toIbscbs,
+          validate: () => _nbs == null && _requiredCfg('nbs')
+              ? 'register.requiredField'
+                  .tr(args: [_label('nbs', 'forms.services.nbs')])
+              : null,
+        ),
+        // Catálogo do cliente (seed sql/62) pode APERTAR os dois códigos — a
+        // API confere pelo mesmo caminho (SERVICE_FIELD_PATHS).
+        PendencyField(
+          name: 'ibscbs.classificationCode',
+          beforeFocus: _toIbscbs,
+          validate: () =>
+              ibscbsClassificationPendency(
+                  _classificationCode, _placeIndicatorCode) ??
+              (_classificationCode == null &&
+                      _requiredCfg('classification_code')
+                  ? 'register.requiredField'.tr(args: [
+                      _label('classification_code',
+                          'forms.services.ibscbsClassification')
+                    ])
+                  : null),
+        ),
+        PendencyField(
+          name: 'ibscbs.placeIndicatorCode',
+          beforeFocus: _toIbscbs,
+          validate: () =>
+              ibscbsPlaceIndicatorPendency(
+                  _classificationCode, _placeIndicatorCode) ??
+              (_placeIndicatorCode == null &&
+                      _requiredCfg('place_indicator_code')
+                  ? 'register.requiredField'.tr(args: [
+                      _label('place_indicator_code',
+                          'forms.services.ibscbsPlaceIndicator')
+                    ])
+                  : null),
+        ),
+        PendencyField(
+            name: 'ibscbs', beforeFocus: _toIbscbs, validate: () => null),
       ];
 
   PendencyField _text(
@@ -513,6 +646,9 @@ class _ServiceFormViewState extends State<_ServiceFormView>
                   _priceControllers[row.priceListId]!.text),
             ),
         ],
+        // SEMPRE enviados com o estado da tela (null = a API remove).
+        nbs: nbsInputOf(_nbs),
+        ibscbs: ibscbsInputOf(_classificationCode, _placeIndicatorCode),
       ),
     ));
   }
@@ -689,6 +825,73 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     );
   }
 
+  /// Aba IBS/CBS (fase IBS/CBS, D-IB6): o serviço PRESUME a NBS e a
+  /// classificação (cClassTrib + cIndOp); o CST é derivado (só exibido).
+  /// Tudo por lista de apoio — campos fora do Tab (lookup/readOnly).
+  Widget _buildIbscbsTab() {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline,
+                size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: SetesText('forms.services.ibscbsHelp'.tr(),
+                  style: theme.textTheme.bodySmall),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SetesLookupField(
+          label: _label('nbs', 'forms.services.nbs'),
+          display: _nbsDisplay,
+          onSearch: _pickNbs,
+          onClear: () => setState(() {
+            _nbs = null;
+            _nbsDisplay = '';
+          }),
+        ),
+        const SizedBox(height: 16),
+        SetesLookupField(
+          label: _label(
+              'classification_code', 'forms.services.ibscbsClassification'),
+          display: _classificationDisplay,
+          onSearch: _pickClassification,
+          onClear: () => setState(() {
+            _classificationCode = null;
+            _classificationDisplay = '';
+            _cst.clear();
+          }),
+        ),
+        const SizedBox(height: 16),
+        SetesTextField(
+          label: 'forms.services.ibscbsCst'.tr(),
+          hint: 'forms.services.ibscbsCstHint'.tr(),
+          controller: _cst,
+          readOnly: true,
+        ),
+        const SizedBox(height: 16),
+        SetesLookupField(
+          label: _label('place_indicator_code',
+              'forms.services.ibscbsPlaceIndicator'),
+          display: _placeIndicatorDisplay,
+          onSearch: _pickPlaceIndicator,
+          onClear: () => setState(() {
+            _placeIndicatorCode = null;
+            _placeIndicatorDisplay = '';
+          }),
+        ),
+        const SizedBox(height: 8),
+        SetesText('forms.services.ibscbsPairHint'.tr(),
+            style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => SetesFormShell(
         title: widget.title,
@@ -703,6 +906,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
               tabs: [
                 Tab(text: 'forms.services.tabMain'.tr()),
                 Tab(text: 'forms.services.tabPrices'.tr()),
+                Tab(text: 'forms.services.tabIbscbs'.tr()),
               ],
             ),
             Expanded(
@@ -711,6 +915,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
                 children: [
                   _buildMainTab(),
                   _buildPricesTab(),
+                  _buildIbscbsTab(),
                 ],
               ),
             ),

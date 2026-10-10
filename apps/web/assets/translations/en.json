@@ -1423,7 +1423,21 @@
       "noPriceLists": "No price list registered — register one in Price Lists to set the service prices",
       "identifierRow": "Identifier: {} · Category: {}",
       "activeRow": "Active",
-      "inactiveRow": "Inactive"
+      "inactiveRow": "Inactive",
+      "tabIbscbs": "IBS/CBS",
+      "ibscbsHelp": "The IBS/CBS classification is used on the NFS-e from 2027 onwards (Brazilian tax reform). The service only records the codes here — the IBS and CBS amounts are calculated by the tax authority.",
+      "nbs": "Service NBS (Brazilian Nomenclature of Services)",
+      "nbsLookupTitle": "NBS List — Brazilian Nomenclature of Services",
+      "nbsFilterHint": "Search by description or by the beginning of the code",
+      "ibscbsClassification": "IBS/CBS Tax Classification (cClassTrib)",
+      "ibscbsClassificationLookupTitle": "List of IBS/CBS Tax Classifications (cClassTrib)",
+      "ibscbsCst": "IBS/CBS CST",
+      "ibscbsCstHint": "Derived from the tax classification (first 3 digits)",
+      "ibscbsPlaceIndicator": "IBS/CBS Operation Indicator (cIndOp)",
+      "ibscbsPlaceIndicatorLookupTitle": "List of IBS/CBS Operation Indicators (cIndOp)",
+      "ibscbsPairHint": "The tax classification and the operation indicator go together: choose both or leave both blank.",
+      "ibscbsClassificationRequired": "Choose the IBS/CBS Tax Classification (cClassTrib) — it goes together with the Operation Indicator (cIndOp).",
+      "ibscbsPlaceIndicatorRequired": "Choose the IBS/CBS Operation Indicator (cIndOp) — it goes together with the Tax Classification (cClassTrib)."
     },
     "serviceTaxRules": {
       "state": "State of the Incidence City",

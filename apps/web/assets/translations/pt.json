@@ -1423,7 +1423,21 @@
       "noPriceLists": "Nenhuma tabela de preço cadastrada — cadastre em Tabelas de Preço para informar os preços do serviço",
       "identifierRow": "Identificador: {} · Categoria: {}",
       "activeRow": "Ativo",
-      "inactiveRow": "Inativo"
+      "inactiveRow": "Inativo",
+      "tabIbscbs": "IBS/CBS",
+      "ibscbsHelp": "A classificação IBS/CBS é usada na NFS-e a partir de 2027 (reforma tributária). Aqui o serviço só informa os códigos — os valores do IBS e da CBS são calculados pelo fisco.",
+      "nbs": "NBS do Serviço (Nomenclatura Brasileira de Serviços)",
+      "nbsLookupTitle": "Lista da NBS — Nomenclatura Brasileira de Serviços",
+      "nbsFilterHint": "Pesquise pela descrição ou pelo início do código",
+      "ibscbsClassification": "Classificação Tributária do IBS/CBS (cClassTrib)",
+      "ibscbsClassificationLookupTitle": "Lista de Classificações Tributárias do IBS/CBS (cClassTrib)",
+      "ibscbsCst": "CST do IBS/CBS",
+      "ibscbsCstHint": "Derivado da classificação tributária (3 primeiros dígitos)",
+      "ibscbsPlaceIndicator": "Indicador da Operação do IBS/CBS (cIndOp)",
+      "ibscbsPlaceIndicatorLookupTitle": "Lista de Indicadores da Operação do IBS/CBS (cIndOp)",
+      "ibscbsPairHint": "A classificação tributária e o indicador da operação são informados juntos: escolha os dois ou deixe os dois em branco.",
+      "ibscbsClassificationRequired": "Escolha a Classificação Tributária do IBS/CBS (cClassTrib) — ela é informada junto com o Indicador da Operação (cIndOp).",
+      "ibscbsPlaceIndicatorRequired": "Escolha o Indicador da Operação do IBS/CBS (cIndOp) — ele é informado junto com a Classificação Tributária (cClassTrib)."
     },
     "serviceTaxRules": {
       "state": "Estado (UF) da Cidade de Incidência",

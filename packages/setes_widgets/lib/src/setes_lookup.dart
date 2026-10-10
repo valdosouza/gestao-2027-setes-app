@@ -8,6 +8,11 @@ import 'package:flutter/material.dart';
 /// O pacote não depende de easy_localization: [title], [filterHint] e
 /// [emptyText] chegam JÁ traduzidos pelo chamador (ex.: 'lookup.countries'.tr(),
 /// 'register.filterHint'.tr(), 'register.emptyList'.tr()).
+///
+/// [itemAvatar] (opcional): texto do CircleAvatar quando o código do item
+/// NÃO é um inteiro curto — ex.: códigos oficiais com zeros à esquerda
+/// (CST '000' da classificação IBS/CBS) ou longos demais para o círculo
+/// (NBS de 9 dígitos → capítulo '1.01'). Ausente = avatar mostra [itemId].
 Future<T?> showSetesLookup<T>({
   required BuildContext context,
   required String title,
@@ -16,6 +21,7 @@ Future<T?> showSetesLookup<T>({
   required Future<List<T>> Function(String filter) onSearch,
   required int Function(T item) itemId,
   required String Function(T item) itemLabel,
+  String Function(T item)? itemAvatar,
 }) =>
     showDialog<T>(
       context: context,
@@ -29,6 +35,7 @@ Future<T?> showSetesLookup<T>({
             onSearch: onSearch,
             itemId: itemId,
             itemLabel: itemLabel,
+            itemAvatar: itemAvatar,
           ),
         ),
       ),
@@ -42,6 +49,7 @@ class _SetesLookupBody<T> extends StatefulWidget {
     required this.onSearch,
     required this.itemId,
     required this.itemLabel,
+    this.itemAvatar,
   });
 
   final String title;
@@ -50,6 +58,7 @@ class _SetesLookupBody<T> extends StatefulWidget {
   final Future<List<T>> Function(String filter) onSearch;
   final int Function(T item) itemId;
   final String Function(T item) itemLabel;
+  final String Function(T item)? itemAvatar;
 
   @override
   State<_SetesLookupBody<T>> createState() => _SetesLookupBodyState<T>();
@@ -107,7 +116,10 @@ class _SetesLookupBodyState<T> extends State<_SetesLookupBody<T>> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return ListTile(
-          leading: CircleAvatar(child: Text('${widget.itemId(item)}')),
+          leading: CircleAvatar(
+            child: Text(
+                widget.itemAvatar?.call(item) ?? '${widget.itemId(item)}'),
+          ),
           title: Text(widget.itemLabel(item)),
           onTap: () => Navigator.of(context).pop(item),
         );
