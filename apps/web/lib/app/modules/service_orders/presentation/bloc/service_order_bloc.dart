@@ -12,6 +12,7 @@ import '../../domain/usecase/service_order_fiscal_get.dart';
 import '../../domain/usecase/service_order_fiscal_pending.dart';
 import '../../domain/usecase/service_order_fiscal_refresh.dart';
 import '../../domain/usecase/service_order_fiscal_transmit_batch.dart';
+import '../../domain/usecase/service_order_fiscal_waive_cancel.dart';
 import '../../domain/usecase/service_order_fiscal_xml.dart';
 import '../../domain/usecase/service_order_get.dart';
 import '../../domain/usecase/service_order_getlist.dart';
@@ -57,6 +58,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     required this.fiscalCancel,
     required this.fiscalPending,
     required this.fiscalTransmitBatch,
+    required this.fiscalWaiveCancel,
   }) : super(const ServiceOrderListState(loading: true)) {
     on<ServiceOrderListRequested>(_onListRequested);
     on<ServiceOrderOpenRequested>(_onOpenRequested);
@@ -74,6 +76,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderFiscalXmlRequested>(_onFiscalXmlRequested);
     on<ServiceOrderFiscalDanfseRequested>(_onFiscalDanfseRequested);
     on<ServiceOrderFiscalCancelRequested>(_onFiscalCancelRequested);
+    on<ServiceOrderFiscalCancelWaiverRequested>(_onFiscalCancelWaiverRequested);
     on<ServiceOrderFiscalPendingRequested>(_onFiscalPendingRequested);
     on<ServiceOrderFiscalTransmitBatchRequested>(
         _onFiscalTransmitBatchRequested);
@@ -99,6 +102,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   final ServiceOrderFiscalCancel fiscalCancel;
   final ServiceOrderFiscalPendingList fiscalPending;
   final ServiceOrderFiscalTransmitBatch fiscalTransmitBatch;
+
+  // D-F67 — "Manter a nota" com NFS-e substituída (/api/billing/cancel-waiver)
+  final ServiceOrderFiscalWaiveCancel fiscalWaiveCancel;
 
   /// Aba ativa ('A' abertas | 'F' faturadas) e filtro atual da lista.
   String _status = 'A';
@@ -564,6 +570,45 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           await _reloadDetail(event.orderId, emit);
         }
       });
+    } finally {
+      _invoiceCancelling = false;
+    }
+  }
+
+  /// D-F67 "Manter a nota": a NFS-e foi SUBSTITUÍDA no fisco (e105102) e o
+  /// humano decide não cancelar a nota. Sucesso recarrega o detalhe — a seção
+  /// "No fisco" mostra a decisão registrada e a pendência deixa de contar
+  /// (`alreadyWaived` = já estava registrada, mensagem própria). Manter e
+  /// cancelar são decisões EXCLUSIVAS sobre a mesma nota: dividem a trava de
+  /// duplo-clique do cancelamento. 409 INVOICE_CANCEL_WAIVER_NOT_APPLICABLE =
+  /// a situação mudou fora desta tela (nota cancelada, efeito aplicado, outra
+  /// pessoa decidiu) — além da ponte, o detalhe RECARREGA para a seção não
+  /// seguir oferecendo uma decisão que não cabe mais.
+  Future<void> _onFiscalCancelWaiverRequested(
+      ServiceOrderFiscalCancelWaiverRequested event,
+      Emitter<ServiceOrderState> emit) async {
+    if (_invoiceCancelling) return;
+    _invoiceCancelling = true;
+    try {
+      final detail = _detail;
+      if (detail != null) emit(_detailState(detail, saving: true));
+      final result = await fiscalWaiveCancel(event.orderId, event.reason);
+      await result.fold(
+        (failure) async {
+          emit(ServiceOrderActionFailure(failure));
+          if (failure.code == fiscalCancelWaiverNotApplicable) {
+            await _reloadDetail(event.orderId, emit);
+          } else if (detail != null) {
+            emit(_detailState(detail));
+          }
+        },
+        (waiver) async {
+          emit(ServiceOrderActionSuccess(waiver.alreadyWaived
+              ? 'forms.serviceOrder.fiscalKeepAlready'
+              : 'forms.serviceOrder.fiscalKeepDone'));
+          await _reloadDetail(event.orderId, emit);
+        },
+      );
     } finally {
       _invoiceCancelling = false;
     }

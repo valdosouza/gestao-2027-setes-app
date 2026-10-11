@@ -47,6 +47,11 @@ class ServiceOrderFiscalRepositoryImpl implements ServiceOrderFiscalRepository {
       _guard(() => datasource.cancel(orderId, reason));
 
   @override
+  Future<Either<Failure, ServiceOrderCancelWaiverResult>> cancelWaiver(
+          int orderId, String reason) =>
+      _guard(() => datasource.cancelWaiver(orderId, reason));
+
+  @override
   Future<Either<Failure, List<ServiceOrderFiscalPending>>> pending() =>
       _guard(datasource.pending);
 

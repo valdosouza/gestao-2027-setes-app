@@ -3,9 +3,9 @@ import 'package:core/core.dart';
 import '../../domain/entity/service_order_fiscal_entity.dart';
 
 /// Datasource FISCAL da OS faturada — Onda 3 (NFS-e pelo ADN). Fala SÓ com
-/// /api/billing/fiscal* e /api/billing/transmit (endpoints de PROCESSO
-/// compartilhados, exceção nomeada `/api/billing/*` da ARQUITETURA_MODULOS).
-/// Nunca toca /api/service-orders — a OS em si é do
+/// /api/billing/fiscal*, /api/billing/transmit e /api/billing/cancel-waiver
+/// (endpoints de PROCESSO compartilhados, exceção nomeada `/api/billing/*`
+/// da ARQUITETURA_MODULOS). Nunca toca /api/service-orders — a OS em si é do
 /// [ServiceOrderDatasource].
 abstract class ServiceOrderFiscalDatasource {
   /// Transmissões + voz do fisco + disponibilidade de XML/DANFSe.
@@ -27,6 +27,13 @@ abstract class ServiceOrderFiscalDatasource {
 
   /// Cancelamento da NFS-e no fisco + C local na mesma transação.
   Future<ServiceOrderFiscalCancelResult> cancel(int orderId, String reason);
+
+  /// D-F67: "Manter a nota" — registra a decisão humana de NÃO cancelar a
+  /// nota cuja NFS-e foi SUBSTITUÍDA no fisco (e105102). 409
+  /// INVOICE_CANCEL_WAIVER_NOT_APPLICABLE, 403 (sem CANCELAR) e 400 (motivo)
+  /// chegam como [Failure] pela ponte.
+  Future<ServiceOrderCancelWaiverResult> cancelWaiver(
+      int orderId, String reason);
 
   /// Notas faturadas SEM NFS-e (para o lote "Transmitir pendentes").
   Future<List<ServiceOrderFiscalPending>> pending();
@@ -83,6 +90,16 @@ class ServiceOrderFiscalDatasourceImpl implements ServiceOrderFiscalDatasource {
       'reason': reason,
     });
     return ServiceOrderFiscalCancelResult.fromJson(_data(json));
+  }
+
+  @override
+  Future<ServiceOrderCancelWaiverResult> cancelWaiver(
+      int orderId, String reason) async {
+    final json = await client.post('/api/billing/cancel-waiver', {
+      'orderId': orderId,
+      'reason': reason,
+    });
+    return ServiceOrderCancelWaiverResult.fromJson(_data(json));
   }
 
   @override

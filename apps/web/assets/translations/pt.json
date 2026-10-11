@@ -830,7 +830,20 @@
       "fiscalBatchRefusedRow": "Ordem {}: {}",
       "listInvoiceCell": "Nota {}",
       "fiscalStateNone": "Sem NFS-e",
-      "fiscalSealAuthorized": "NFS-e {}"
+      "fiscalSealAuthorized": "NFS-e {}",
+      "fiscalSubstitutedRow": "NFS-e SUBSTITUÍDA no fisco (e105102) — a nota fica viva no ERP até você decidir: cancelar a nota ou mantê-la.",
+      "fiscalSubstitutedDecidedRow": "NFS-e SUBSTITUÍDA no fisco (e105102) — a decisão sobre a nota já foi registrada.",
+      "fiscalSubstituteAccessKey": "Chave de Acesso da NFS-e Substituta",
+      "fiscalSubstituteUnavailable": "indisponível",
+      "fiscalKeep": "Manter a nota",
+      "fiscalKeepTitle": "Manter a nota do documento {}",
+      "fiscalKeepExplain": "A NFS-e desta nota foi substituída no fisco por outra que o ERP não conhece. Manter registra a sua decisão de NÃO cancelar a nota: a nota, os títulos e a OS continuam como estão. Para desfazer a nota, use \"Cancelar nota\".",
+      "fiscalKeepReason": "Motivo para manter a nota",
+      "fiscalKeepReasonRequired": "Informe o motivo para manter a nota",
+      "fiscalKeepReasonTooLong": "Motivo deve ter até 255 caracteres",
+      "fiscalKeepDone": "Decisão registrada — a nota foi mantida no ERP",
+      "fiscalKeepAlready": "A decisão de manter esta nota já estava registrada",
+      "fiscalKeptRow": "Nota mantida em {} — motivo: {}"
     },
     "order": {
       "tabOpen": "Abertos",

@@ -220,6 +220,22 @@ class ServiceOrderFiscalCancelRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId, reason];
 }
 
+/// D-F67 "Manter a nota" (motivo já confirmado no dialog): POST
+/// /api/billing/cancel-waiver — a NFS-e foi SUBSTITUÍDA no fisco (e105102) e
+/// o humano decide NÃO cancelar a nota no ERP. O detalhe recarrega (a seção
+/// "No fisco" passa a mostrar a decisão registrada).
+class ServiceOrderFiscalCancelWaiverRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalCancelWaiverRequested({
+    required this.orderId,
+    required this.reason,
+  });
+  final int orderId;
+  final String reason;
+
+  @override
+  List<Object?> get props => [orderId, reason];
+}
+
 /// "Transmitir pendentes" (aba Faturadas), 1º passo: GET /fiscal/pending →
 /// one-shot [ServiceOrderFiscalPendingLoaded] para a página confirmar.
 class ServiceOrderFiscalPendingRequested extends ServiceOrderEvent {

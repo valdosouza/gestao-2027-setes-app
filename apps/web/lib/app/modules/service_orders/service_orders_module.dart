@@ -15,6 +15,7 @@ import 'domain/usecase/service_order_fiscal_get.dart';
 import 'domain/usecase/service_order_fiscal_pending.dart';
 import 'domain/usecase/service_order_fiscal_refresh.dart';
 import 'domain/usecase/service_order_fiscal_transmit_batch.dart';
+import 'domain/usecase/service_order_fiscal_waive_cancel.dart';
 import 'domain/usecase/service_order_fiscal_xml.dart';
 import 'domain/usecase/service_order_transmit.dart';
 import 'domain/usecase/service_order_get.dart';
@@ -90,6 +91,10 @@ class ServiceOrdersModule extends Module {
         Bind.factory<ServiceOrderFiscalTransmitBatch>((i) =>
             ServiceOrderFiscalTransmitBatch(
                 repository: i.get<ServiceOrderFiscalRepository>())),
+        // D-F67 — "Manter a nota" com NFS-e substituída no fisco
+        Bind.factory<ServiceOrderFiscalWaiveCancel>((i) =>
+            ServiceOrderFiscalWaiveCancel(
+                repository: i.get<ServiceOrderFiscalRepository>())),
         Bind.singleton<ServiceOrderBloc>((i) => ServiceOrderBloc(
               getlist:    i.get<ServiceOrderGetlist>(),
               get:        i.get<ServiceOrderGet>(),
@@ -109,6 +114,7 @@ class ServiceOrdersModule extends Module {
               fiscalCancel:  i.get<ServiceOrderFiscalCancel>(),
               fiscalPending: i.get<ServiceOrderFiscalPendingList>(),
               fiscalTransmitBatch: i.get<ServiceOrderFiscalTransmitBatch>(),
+              fiscalWaiveCancel:   i.get<ServiceOrderFiscalWaiveCancel>(),
             )),
       ];
 

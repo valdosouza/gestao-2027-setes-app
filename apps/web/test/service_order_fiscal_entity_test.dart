@@ -1,8 +1,8 @@
 // Contrato de dados da Onda 3 (NFS-e pelo ADN) no módulo service_orders:
 // parse da visão fiscal (/api/billing/fiscal/:orderId → transmissions/events),
 // vigência da transmissão, NFS-e autorizada, cancelamento em voo, pendências
-// (voz com efeito recusado — D-I10) e os resultados de transmitir/consultar/
-// cancelar/lote.
+// (voz com efeito recusado — D-I10), a substituição no fisco + decisão de
+// manter a nota (D-F67) e os resultados de transmitir/consultar/cancelar/lote.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
@@ -162,6 +162,174 @@ void main() {
       ], pending: 1);
       expect(v.hasPendingEffects, isTrue);
       expect(v.pendingEffects, 1);
+    });
+  });
+
+  // D-F67 (Valdo 2026-10-10): NFS-e cancelada POR SUBSTITUIÇÃO no fisco
+  // (e105102, fora do produto) — a nota fica viva até o humano decidir:
+  // cancelar a nota ou MANTÊ-LA (POST /api/billing/cancel-waiver).
+  group('D-F67 — substituição e decisão de manter', () {
+    const substitute = '41261012345678000199900001000000000099999999999999';
+
+    test('sem os blocos novos (API antiga ou nota comum): nada de substituição',
+        () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'transmissions': [
+          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1'},
+        ],
+        'pendingEffects': 0,
+      });
+      expect(v.substitution, isNull);
+      expect(v.cancelWaiver, isNull);
+      expect(v.isSubstituted, isFalse);
+      expect(v.substitutionDecided, isFalse);
+      expect(v.canWaiveCancel, isFalse);
+    });
+
+    test('blocos null explícitos ou de tipo errado são tolerados (viram null)',
+        () {
+      final nulls = ServiceOrderFiscalView.fromJson(
+          {'substitution': null, 'cancelWaiver': null});
+      expect(nulls.substitution, isNull);
+      expect(nulls.cancelWaiver, isNull);
+
+      final wrong = ServiceOrderFiscalView.fromJson(
+          {'substitution': 'x', 'cancelWaiver': 1});
+      expect(wrong.substitution, isNull);
+      expect(wrong.cancelWaiver, isNull);
+    });
+
+    test('substituída SEM decisão: chave da substituta + "Manter a nota" cabe',
+        () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'transmissions': [
+          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'accessKey': 'K1'},
+        ],
+        'pendingEffects': 1,
+        'substitution': {'substituteAccessKey': substitute, 'waived': false},
+        'cancelWaiver': null,
+      });
+      expect(v.isSubstituted, isTrue);
+      expect(v.substitution!.substituteAccessKey, substitute);
+      expect(v.substitution!.hasSubstituteKey, isTrue);
+      expect(v.substitution!.waived, isFalse);
+      expect(v.substitutionDecided, isFalse);
+      expect(v.canWaiveCancel, isTrue);
+      expect(v.hasPendingEffects, isTrue);
+      // a voz é C (final): o "Cancelar nota" local segue disponível
+      expect(v.blocksLocalCancel, isFalse);
+    });
+
+    test('D-F80: substituição em HOMOLOGAÇÃO não se mantém (cancela-se a nota); toda voz C esconde o Transmitir (L4)',
+        () {
+      final h = ServiceOrderFiscalView.fromJson({
+        'transmissions': [
+          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'accessKey': 'K1', 'environment': 'H'},
+        ],
+        'pendingEffects': 1,
+        'substitution': {'substituteAccessKey': null, 'waived': false},
+      });
+      expect(h.isSubstituted, isTrue);
+      expect(h.canWaiveCancel, isFalse);
+      expect(h.hasCancelVoice, isTrue);
+      final exOfficio = ServiceOrderFiscalView.fromJson({
+        'transmissions': [
+          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'lastCode': '305101', 'accessKey': 'K1'},
+        ],
+        'pendingEffects': 1,
+      });
+      expect(exOfficio.isSubstituted, isFalse);
+      expect(exOfficio.canWaiveCancel, isFalse);
+      expect(exOfficio.hasCancelVoice, isTrue);
+      final authorized = ServiceOrderFiscalView.fromJson({
+        'transmissions': [
+          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1'},
+        ],
+      });
+      expect(authorized.hasCancelVoice, isFalse);
+    });
+
+    test('XML do evento indisponível: chave null (a tela mostra "indisponível")',
+        () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'substitution': {'substituteAccessKey': null, 'waived': false},
+      });
+      expect(v.substitution!.substituteAccessKey, isNull);
+      expect(v.substitution!.hasSubstituteKey, isFalse);
+      expect(v.canWaiveCancel, isTrue);
+
+      final empty = ServiceOrderFiscalSubstitution.fromJson(
+          {'substituteAccessKey': ''});
+      expect(empty.hasSubstituteKey, isFalse);
+      expect(empty.waived, isFalse, reason: 'sem o campo = não mantida');
+    });
+
+    test('mantida: cancelWaiver lido por inteiro e o botão some', () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'pendingEffects': 0, // a substituição mantida deixa de contar
+        'substitution': {'substituteAccessKey': substitute, 'waived': true},
+        'cancelWaiver': {
+          'accessKey': 'K1',
+          'reason': 'Substituta emitida no portal pelo contador',
+          'userId': '7', // mysql2 pode devolver como string
+          'createdAt': '2026-10-10 15:42:00',
+        },
+      });
+      final w = v.cancelWaiver!;
+      expect(w.accessKey, 'K1');
+      expect(w.reason, 'Substituta emitida no portal pelo contador');
+      expect(w.userId, 7);
+      expect(w.createdAt, '2026-10-10 15:42:00');
+      expect(v.substitutionDecided, isTrue);
+      expect(v.canWaiveCancel, isFalse);
+      expect(v.hasPendingEffects, isFalse);
+    });
+
+    test('qualquer das duas leituras da API basta para dar a decisão por tomada',
+        () {
+      final soWaived = ServiceOrderFiscalView.fromJson({
+        'substitution': {'substituteAccessKey': substitute, 'waived': true},
+      });
+      expect(soWaived.canWaiveCancel, isFalse);
+
+      final soRegistro = ServiceOrderFiscalView.fromJson({
+        'substitution': {'substituteAccessKey': substitute, 'waived': false},
+        'cancelWaiver': {'accessKey': 'K1', 'reason': 'ok'},
+      });
+      expect(soRegistro.canWaiveCancel, isFalse);
+    });
+
+    test('cancelWaiver sem campos opcionais não quebra', () {
+      final w = ServiceOrderFiscalCancelWaiver.fromJson(const {});
+      expect(w.accessKey, '');
+      expect(w.reason, '');
+      expect(w.userId, isNull);
+      expect(w.createdAt, isNull);
+    });
+
+    test('resultado do POST cancel-waiver: alreadyWaived default false', () {
+      final r = ServiceOrderCancelWaiverResult.fromJson({
+        'orderId': '7223',
+        'accessKey': 'K1',
+        'createdAt': '2026-10-10 15:42:00',
+        'alreadyWaived': true,
+      });
+      expect(r.orderId, 7223);
+      expect(r.accessKey, 'K1');
+      expect(r.alreadyWaived, isTrue);
+
+      final novo = ServiceOrderCancelWaiverResult.fromJson({'orderId': 1});
+      expect(novo.alreadyWaived, isFalse);
+    });
+
+    test('igualdade: blocos novos entram no Equatable da visão', () {
+      Map<String, dynamic> json(bool waived) => {
+            'substitution': {'substituteAccessKey': substitute, 'waived': waived},
+          };
+      expect(ServiceOrderFiscalView.fromJson(json(false)),
+          ServiceOrderFiscalView.fromJson(json(false)));
+      expect(ServiceOrderFiscalView.fromJson(json(false)),
+          isNot(ServiceOrderFiscalView.fromJson(json(true))));
     });
   });
 

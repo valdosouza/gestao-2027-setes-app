@@ -830,7 +830,20 @@
       "fiscalBatchRefusedRow": "Order {}: {}",
       "listInvoiceCell": "Invoice {}",
       "fiscalStateNone": "No NFS-e",
-      "fiscalSealAuthorized": "NFS-e {}"
+      "fiscalSealAuthorized": "NFS-e {}",
+      "fiscalSubstitutedRow": "NFS-e REPLACED at the tax authority (e105102) — the invoice stays alive in the ERP until you decide: cancel the invoice or keep it.",
+      "fiscalSubstitutedDecidedRow": "NFS-e REPLACED at the tax authority (e105102) — the decision about the invoice has been recorded.",
+      "fiscalSubstituteAccessKey": "Replacement NFS-e Access Key",
+      "fiscalSubstituteUnavailable": "unavailable",
+      "fiscalKeep": "Keep invoice",
+      "fiscalKeepTitle": "Keep the invoice of document {}",
+      "fiscalKeepExplain": "The NFS-e of this invoice was replaced at the tax authority by another one the ERP does not know. Keeping records your decision NOT to cancel the invoice: the invoice, the bills and the service order stay as they are. To undo the invoice, use \"Cancel invoice\".",
+      "fiscalKeepReason": "Reason to keep the invoice",
+      "fiscalKeepReasonRequired": "Enter the reason to keep the invoice",
+      "fiscalKeepReasonTooLong": "Reason must have up to 255 characters",
+      "fiscalKeepDone": "Decision recorded — the invoice was kept in the ERP",
+      "fiscalKeepAlready": "The decision to keep this invoice was already recorded",
+      "fiscalKeptRow": "Invoice kept on {} — reason: {}"
     },
     "order": {
       "tabOpen": "Open",

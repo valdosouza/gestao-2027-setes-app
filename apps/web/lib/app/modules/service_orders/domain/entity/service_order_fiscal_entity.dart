@@ -165,6 +165,106 @@ class ServiceOrderFiscalEvent extends Equatable {
       ];
 }
 
+/// D-F67 (Valdo 2026-10-10): a NFS-e vigente foi cancelada POR SUBSTITUIÇÃO
+/// no fisco (evento e105102, feito fora do produto — no portal). Existe uma
+/// NFS-e SUBSTITUTA que o ERP não conhece; a nota NÃO é cancelada sozinha
+/// (D-F64): fica viva até o humano decidir — cancelar a nota ou mantê-la.
+/// Bloco `substitution` do GET /api/billing/fiscal/:orderId.
+class ServiceOrderFiscalSubstitution extends Equatable {
+  const ServiceOrderFiscalSubstitution({
+    this.substituteAccessKey,
+    this.waived = false,
+  });
+
+  /// Chave de acesso da NFS-e SUBSTITUTA — null = XML do evento
+  /// indisponível (a tela mostra "indisponível", nunca inventa).
+  final String? substituteAccessKey;
+
+  /// true = a decisão de MANTER a nota já foi registrada.
+  final bool waived;
+
+  bool get hasSubstituteKey =>
+      substituteAccessKey != null && substituteAccessKey!.isNotEmpty;
+
+  factory ServiceOrderFiscalSubstitution.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderFiscalSubstitution(
+        substituteAccessKey: json['substituteAccessKey']?.toString(),
+        waived:              json['waived'] == true,
+      );
+
+  @override
+  List<Object?> get props => [substituteAccessKey, waived];
+}
+
+/// D-F67: a decisão humana de MANTER a nota no ERP diante da substituição
+/// (bloco `cancelWaiver` do GET fiscal) — quem, quando e por quê.
+class ServiceOrderFiscalCancelWaiver extends Equatable {
+  const ServiceOrderFiscalCancelWaiver({
+    required this.accessKey,
+    required this.reason,
+    this.userId,
+    this.createdAt,
+  });
+
+  /// Chave da NFS-e (a substituída) sobre a qual a decisão foi tomada.
+  final String  accessKey;
+  final String  reason;
+  final int?    userId;
+  final String? createdAt;
+
+  factory ServiceOrderFiscalCancelWaiver.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderFiscalCancelWaiver(
+        accessKey: json['accessKey']?.toString() ?? '',
+        reason:    json['reason']?.toString() ?? '',
+        userId:    jsonInt(json['userId']),
+        createdAt: json['createdAt']?.toString(),
+      );
+
+  @override
+  List<Object?> get props => [accessKey, reason, userId, createdAt];
+}
+
+/// Resultado do "Manter a nota" (POST /api/billing/cancel-waiver — D-F67).
+/// [alreadyWaived] = a decisão já estava registrada (idempotente).
+class ServiceOrderCancelWaiverResult extends Equatable {
+  const ServiceOrderCancelWaiverResult({
+    required this.orderId,
+    this.accessKey,
+    this.createdAt,
+    this.alreadyWaived = false,
+  });
+
+  final int     orderId;
+  final String? accessKey;
+  final String? createdAt;
+  final bool    alreadyWaived;
+
+  factory ServiceOrderCancelWaiverResult.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderCancelWaiverResult(
+        orderId:       jsonInt(json['orderId']) ?? 0,
+        accessKey:     json['accessKey']?.toString(),
+        createdAt:     json['createdAt']?.toString(),
+        alreadyWaived: json['alreadyWaived'] == true,
+      );
+
+  @override
+  List<Object?> get props => [orderId, accessKey, createdAt, alreadyWaived];
+}
+
+/// Código do 409 do "Manter a nota" quando a decisão não cabe mais (não é
+/// substituição, nota já cancelada, efeito já aplicado) — a situação mudou
+/// fora da tela.
+const String fiscalCancelWaiverNotApplicable =
+    'INVOICE_CANCEL_WAIVER_NOT_APPLICABLE';
+
+/// Teto do motivo do "Manter a nota" (DTO da API: 1–255).
+const int fiscalCancelWaiverReasonMax = 255;
+
+/// Bloco opcional do JSON: objeto → entidade; null/ausente/outro tipo → null.
+T? _optionalBlock<T>(
+        Object? raw, T Function(Map<String, dynamic> json) fromJson) =>
+    raw is Map<String, dynamic> ? fromJson(raw) : null;
+
 /// Visão fiscal da nota da OS (GET /api/billing/fiscal/:orderId).
 class ServiceOrderFiscalView extends Equatable {
   const ServiceOrderFiscalView({
@@ -173,6 +273,8 @@ class ServiceOrderFiscalView extends Equatable {
     this.pendingEffects = 0,
     this.xmlAvailable = false,
     this.danfseAvailable = false,
+    this.substitution,
+    this.cancelWaiver,
   });
 
   /// Transmissões em ordem de tentativa (a última é a que a tela mostra).
@@ -182,9 +284,37 @@ class ServiceOrderFiscalView extends Equatable {
   final List<ServiceOrderFiscalEvent> events;
 
   /// Falas do fisco com efeito RECUSADO aqui (D-I10) — pendência visível.
+  /// D-F67: a substituição já MANTIDA deixa de contar (a API desconta).
   final int  pendingEffects;
   final bool xmlAvailable;
   final bool danfseAvailable;
+
+  /// D-F67: NFS-e vigente cancelada por SUBSTITUIÇÃO no fisco (e105102);
+  /// null = não houve substituição.
+  final ServiceOrderFiscalSubstitution? substitution;
+
+  /// D-F67: decisão de MANTER a nota já registrada; null = não há.
+  final ServiceOrderFiscalCancelWaiver? cancelWaiver;
+
+  bool get isSubstituted => substitution != null;
+
+  /// A decisão sobre a substituição já foi tomada (mantida) — por qualquer
+  /// das duas leituras da API.
+  bool get substitutionDecided =>
+      (substitution?.waived ?? false) || cancelWaiver != null;
+
+  /// "Manter a nota" cabe: substituída e ainda sem decisão registrada, em
+  /// PRODUÇÃO (D-F80: homologação não tem valor jurídico — cancela-se a nota).
+  /// O privilégio (CANCELAR) é conferido pela tela — e de novo pela API (403).
+  bool get canWaiveCancel =>
+      isSubstituted && !substitutionDecided &&
+      lastTransmission?.environment != 'H';
+
+  /// D-F67 (L4 do gate da Rodada 13): a NFS-e vigente tem voz C do fisco —
+  /// transmitir de novo é 409 garantido (substituição, de ofício ou efeito
+  /// pendente); quem resolve é o humano (cancelar a nota / mantê-la).
+  bool get hasCancelVoice =>
+      lastTransmission?.lastKind == FiscalTransmissionKind.cancelled;
 
   /// Última transmissão (a vigente ou a última encerrada); null = nunca
   /// transmitida.
@@ -222,11 +352,17 @@ class ServiceOrderFiscalView extends Equatable {
         pendingEffects:  jsonInt(json['pendingEffects']) ?? 0,
         xmlAvailable:    json['xmlAvailable'] == true,
         danfseAvailable: json['danfseAvailable'] == true,
+        substitution:    _optionalBlock(
+            json['substitution'], ServiceOrderFiscalSubstitution.fromJson),
+        cancelWaiver:    _optionalBlock(
+            json['cancelWaiver'], ServiceOrderFiscalCancelWaiver.fromJson),
       );
 
   @override
-  List<Object?> get props =>
-      [transmissions, events, pendingEffects, xmlAvailable, danfseAvailable];
+  List<Object?> get props => [
+        transmissions, events, pendingEffects, xmlAvailable, danfseAvailable,
+        substitution, cancelWaiver,
+      ];
 }
 
 /// Resultado do Transmitir (POST /api/billing/transmit — 201).

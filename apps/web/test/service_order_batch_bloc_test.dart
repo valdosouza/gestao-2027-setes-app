@@ -24,6 +24,7 @@ import 'package:setes_web/app/modules/service_orders/domain/usecase/service_orde
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_pending.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_refresh.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_transmit_batch.dart';
+import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_waive_cancel.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_xml.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_get.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_getlist.dart';
@@ -62,6 +63,7 @@ ServiceOrderBloc _bloc(ServiceOrderRepository repo,
       fiscalCancel: ServiceOrderFiscalCancel(repository: fiscalRepo ?? _FiscalRepoMock()),
       fiscalPending: ServiceOrderFiscalPendingList(repository: fiscalRepo ?? _FiscalRepoMock()),
       fiscalTransmitBatch: ServiceOrderFiscalTransmitBatch(repository: fiscalRepo ?? _FiscalRepoMock()),
+      fiscalWaiveCancel: ServiceOrderFiscalWaiveCancel(repository: fiscalRepo ?? _FiscalRepoMock()),
     );
 
 BatchInvoiceReport _reportFor(List<int> ids) => BatchInvoiceReport.fromEntries([

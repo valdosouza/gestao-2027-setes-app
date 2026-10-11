@@ -24,6 +24,7 @@ import '../../../../shared/billing/cancel_invoice_dialog.dart';
 import '../../../../shared/session/current_interface.dart';
 import '../bloc/service_order_bloc.dart';
 import 'service_order_fiscal_format.dart';
+import 'service_order_keep_invoice_dialog.dart';
 
 /// Tela de Ordens de Serviço — interface 'service-orders', grupo Serviços
 /// (Módulo Software House, Onda 4). 1ª TELA DE PROCESSO do produto — FOGE
@@ -569,6 +570,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         onFiscalDanfse: () =>
             _bloc.add(ServiceOrderFiscalDanfseRequested(state.order.id)),
         onCancelFiscal: () => _askCancelFiscal(state.order),
+        onKeepInvoice: () => _askKeepInvoice(state.order),
       );
 
   /// "Cancelar nota" da OS faturada (Q-G16 — vive no documento faturado):
@@ -589,6 +591,17 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         context, '${order.number ?? order.id}');
     if (reason == null || !mounted) return;
     _bloc.add(ServiceOrderFiscalCancelRequested(
+        orderId: order.id, reason: reason));
+  }
+
+  /// D-F67 "Manter a nota": NFS-e SUBSTITUÍDA no fisco (e105102) — dialog de
+  /// motivo irmão do cancelamento, depois o bloc chama POST
+  /// /api/billing/cancel-waiver e a seção recarrega com a decisão registrada.
+  Future<void> _askKeepInvoice(ServiceOrderFull order) async {
+    final reason =
+        await showKeepInvoiceDialog(context, '${order.number ?? order.id}');
+    if (reason == null || !mounted) return;
+    _bloc.add(ServiceOrderFiscalCancelWaiverRequested(
         orderId: order.id, reason: reason));
   }
 
@@ -800,6 +813,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
     required this.onFiscalXml,
     required this.onFiscalDanfse,
     required this.onCancelFiscal,
+    required this.onKeepInvoice,
     super.key,
   });
 
@@ -819,6 +833,9 @@ class _ServiceOrderDetailView extends StatelessWidget {
   final VoidCallback onFiscalXml;
   final VoidCallback onFiscalDanfse;
   final VoidCallback onCancelFiscal;
+
+  /// D-F67 — "Manter a nota" com NFS-e substituída no fisco.
+  final VoidCallback onKeepInvoice;
 
   ServiceOrderFull get order => state.order;
   bool get busy => state.saving;
@@ -930,6 +947,45 @@ class _ServiceOrderDetailView extends StatelessWidget {
     }
   }
 
+  /// D-F67: substituída no fisco e ainda sem decisão — nem mantida (waiver)
+  /// nem cancelada aqui (nota cancelada = o humano já decidiu cancelar).
+  bool get _substitutionUndecided =>
+      (fiscal?.canWaiveCancel ?? false) && !order.isCancelled;
+
+  /// D-F67: aviso em destaque (cor de erro, como a pendência) + chave da
+  /// NFS-e SUBSTITUTA, somente leitura com copiar. Sem a chave (XML do
+  /// evento indisponível) o campo diz "indisponível" e não oferece cópia.
+  /// O texto "até você decidir" só aparece enquanto a decisão está aberta.
+  List<Widget> _buildSubstitution(
+      BuildContext context, ServiceOrderFiscalSubstitution substitution) {
+    final theme = Theme.of(context);
+    final key = substitution.substituteAccessKey;
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: SetesText(
+          _substitutionUndecided
+              ? 'forms.serviceOrder.fiscalSubstitutedRow'.tr()
+              : 'forms.serviceOrder.fiscalSubstitutedDecidedRow'.tr(),
+          style: TextStyle(
+              color: theme.colorScheme.error, fontWeight: FontWeight.w600),
+        ),
+      ),
+      SetesTextField(
+        label: 'forms.serviceOrder.fiscalSubstituteAccessKey'.tr(),
+        controller: TextEditingController(
+            text: substitution.hasSubstituteKey
+                ? key
+                : 'forms.serviceOrder.fiscalSubstituteUnavailable'.tr()),
+        readOnly: true,
+        suffixIcon: substitution.hasSubstituteKey ? Icons.copy : null,
+        onSuffixPressed: substitution.hasSubstituteKey
+            ? () => _copy(context, key!)
+            : null,
+      ),
+    ];
+  }
+
   /// Onda 3 — seção "No fisco" (molde da seção "No banco" do boleto):
   /// apresentação vigente (tentativa, ambiente, situação, chave e nº da
   /// NFS-e com copiar, dhProc), PENDÊNCIA em vermelho (voz do fisco com
@@ -1007,6 +1063,17 @@ class _ServiceOrderDetailView extends StatelessWidget {
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
+              // D-F67: NFS-e SUBSTITUÍDA no fisco (e105102, feito no portal)
+              if (view != null && view.substitution != null)
+                ..._buildSubstitution(context, view.substitution!),
+              if (view != null && view.cancelWaiver != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SetesText('forms.serviceOrder.fiscalKeptRow'.tr(args: [
+                    fiscalDateTimeToDisplay(view.cancelWaiver!.createdAt),
+                    view.cancelWaiver!.reason,
+                  ])),
+                ),
               if (view != null) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -1017,8 +1084,12 @@ class _ServiceOrderDetailView extends StatelessWidget {
                     // 409); privilégio TRANSMITIR na interface do ramo
                     // D3/D4: nota cancelada com registro fiscal é documento
                     // encerrado — nada a transmitir (a API recusaria com 409)
+                    // D-F67: substituída no fisco = o serviço já tem a NFS-e
+                    // SUBSTITUTA; transmitir de novo emitiria uma 2ª nota
                     if (!view.hasLiveTransmission &&
                         !order.isCancelled &&
+                        !view.isSubstituted &&
+                        !view.hasCancelVoice &&
                         CurrentInterface.can('TRANSMITIR'))
                       SetesButton(
                         label: 'forms.serviceOrder.fiscalTransmit'.tr(),
@@ -1057,6 +1128,17 @@ class _ServiceOrderDetailView extends StatelessWidget {
                         kind: SetesButtonKind.secondary,
                         loading: busy,
                         onPressed: busy ? null : onCancelFiscal,
+                      ),
+                    // D-F67: decisão humana de MANTER a nota substituída — o
+                    // "Cancelar nota" da AppBar segue disponível (a outra
+                    // decisão); mesmo privilégio CANCELAR (a API reconfere — 403)
+                    if (_substitutionUndecided && CurrentInterface.can('CANCELAR'))
+                      SetesButton(
+                        label: 'forms.serviceOrder.fiscalKeep'.tr(),
+                        icon: Icons.task_alt,
+                        kind: SetesButtonKind.secondary,
+                        loading: busy,
+                        onPressed: busy ? null : onKeepInvoice,
                       ),
                   ],
                 ),
