@@ -248,6 +248,9 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   String _nbsDisplay = '';
   String? _classificationCode;
   String _classificationDisplay = '';
+  /// Vigência da classificação escolhida (D-IB29 — exibida sob o campo).
+  String? _classificationValidFrom;
+  String? _classificationValidUntil;
   String? _placeIndicatorCode;
   String _placeIndicatorDisplay = '';
 
@@ -276,6 +279,8 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     _nbsDisplay            = editing?.nbsDisplay ?? '';
     _classificationCode    = ibscbs?.classificationCode;
     _classificationDisplay = ibscbs?.classificationDisplay ?? '';
+    _classificationValidFrom  = ibscbs?.validFrom;
+    _classificationValidUntil = ibscbs?.validUntil;
     _placeIndicatorCode    = ibscbs?.placeIndicatorCode;
     _placeIndicatorDisplay = ibscbs?.placeIndicatorDisplay ?? '';
     _cst = TextEditingController(text: ibscbs?.cst ?? '');
@@ -399,12 +404,20 @@ class _ServiceFormViewState extends State<_ServiceFormView>
       onSearch: widget.datasource.ibscbsClassifications,
       itemId: (c) => int.tryParse(c.code) ?? 0,
       itemAvatar: (c) => deriveIbscbsCst(c.code),
-      itemLabel: (c) => c.display,
+      // D-IB29: a que só começa depois de hoje avisa "(vale a partir de …)" (texto da tela — i18n)
+      itemLabel: (c) {
+        final future = ibscbsFutureValidity(c.validFrom, DateTime.now());
+        return future == null
+            ? c.display
+            : '${c.display} (${future.key.tr(args: future.args)})';
+      },
     );
     if (picked != null) {
       setState(() {
         _classificationCode = picked.code;
         _classificationDisplay = picked.display;
+        _classificationValidFrom = picked.validFrom;
+        _classificationValidUntil = picked.validUntil;
         _cst.text = deriveIbscbsCst(picked.code);
       });
     }
@@ -830,6 +843,9 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   /// Tudo por lista de apoio — campos fora do Tab (lookup/readOnly).
   Widget _buildIbscbsTab() {
     final theme = Theme.of(context);
+    final validity = _classificationCode == null
+        ? null
+        : ibscbsValidity(_classificationValidFrom, _classificationValidUntil);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -864,9 +880,17 @@ class _ServiceFormViewState extends State<_ServiceFormView>
           onClear: () => setState(() {
             _classificationCode = null;
             _classificationDisplay = '';
+            _classificationValidFrom = null;
+            _classificationValidUntil = null;
             _cst.clear();
           }),
         ),
+        if (validity != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 12),
+            child: SetesText(validity.key.tr(args: validity.args),
+                style: theme.textTheme.bodySmall),
+          ),
         const SizedBox(height: 16),
         SetesTextField(
           label: 'forms.services.ibscbsCst'.tr(),

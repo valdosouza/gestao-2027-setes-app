@@ -1433,6 +1433,8 @@
       "ibscbsClassificationLookupTitle": "List of IBS/CBS Tax Classifications (cClassTrib)",
       "ibscbsCst": "IBS/CBS CST",
       "ibscbsCstHint": "Derived from the tax classification (first 3 digits)",
+      "ibscbsValidFrom": "Valid from {}",
+      "ibscbsValidRange": "Valid from {} to {}",
       "ibscbsPlaceIndicator": "IBS/CBS Operation Indicator (cIndOp)",
       "ibscbsPlaceIndicatorLookupTitle": "List of IBS/CBS Operation Indicators (cIndOp)",
       "ibscbsPairHint": "The tax classification and the operation indicator go together: choose both or leave both blank.",

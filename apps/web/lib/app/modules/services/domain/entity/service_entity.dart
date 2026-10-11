@@ -191,6 +191,8 @@ class ServiceIbscbs extends Equatable {
     required this.classificationCode,
     required this.cst,
     this.classificationName,
+    this.validFrom,
+    this.validUntil,
     required this.placeIndicatorCode,
     this.placeIndicatorDescription,
   });
@@ -201,6 +203,11 @@ class ServiceIbscbs extends Equatable {
   /// CST derivado (3 dígitos) — SÓ exibição.
   final String  cst;
   final String? classificationName;
+
+  /// Vigência da linha exibida (AAAA-MM-DD — D-IB29: a tela mostra
+  /// "vale a partir de" / "válida até").
+  final String? validFrom;
+  final String? validUntil;
 
   /// cIndOp (indicador da operação — Anexo VII) — 6 dígitos.
   final String  placeIndicatorCode;
@@ -223,6 +230,8 @@ class ServiceIbscbs extends Equatable {
       classificationCode:        classification,
       cst: _jsonCode(json['cst']) ?? deriveIbscbsCst(classification),
       classificationName:        json['classificationName'] as String?,
+      validFrom:                 json['validFrom'] as String?,
+      validUntil:                json['validUntil'] as String?,
       placeIndicatorCode:        _jsonCode(json['placeIndicatorCode']) ?? '',
       placeIndicatorDescription: json['placeIndicatorDescription'] as String?,
     );
@@ -230,7 +239,7 @@ class ServiceIbscbs extends Equatable {
 
   @override
   List<Object?> get props => [
-        classificationCode, cst, classificationName,
+        classificationCode, cst, classificationName, validFrom, validUntil,
         placeIndicatorCode, placeIndicatorDescription,
       ];
 }
@@ -364,10 +373,19 @@ class ServiceLookup extends Equatable {
 /// não um id numérico; [description] já vem formatada pela API para exibir
 /// ("código — descrição"; na classificação "CST · código — nome").
 class ServiceCodeLookup extends Equatable {
-  const ServiceCodeLookup({required this.code, this.description});
+  const ServiceCodeLookup({
+    required this.code,
+    this.description,
+    this.validFrom,
+    this.validUntil,
+  });
 
   final String  code;
   final String? description;
+
+  /// Só nas classificações (D-IB29): vigência da linha oferecida.
+  final String? validFrom;
+  final String? validUntil;
 
   String get display => description ?? code;
 
@@ -375,8 +393,10 @@ class ServiceCodeLookup extends Equatable {
       ServiceCodeLookup(
         code:        _jsonCode(json['code']) ?? '',
         description: json['description'] as String?,
+        validFrom:   json['validFrom'] as String?,
+        validUntil:  json['validUntil'] as String?,
       );
 
   @override
-  List<Object?> get props => [code, description];
+  List<Object?> get props => [code, description, validFrom, validUntil];
 }

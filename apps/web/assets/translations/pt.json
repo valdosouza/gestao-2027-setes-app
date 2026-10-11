@@ -1433,6 +1433,8 @@
       "ibscbsClassificationLookupTitle": "Lista de Classificações Tributárias do IBS/CBS (cClassTrib)",
       "ibscbsCst": "CST do IBS/CBS",
       "ibscbsCstHint": "Derivado da classificação tributária (3 primeiros dígitos)",
+      "ibscbsValidFrom": "Vale a partir de {}",
+      "ibscbsValidRange": "Vale de {} até {}",
       "ibscbsPlaceIndicator": "Indicador da Operação do IBS/CBS (cIndOp)",
       "ibscbsPlaceIndicatorLookupTitle": "Lista de Indicadores da Operação do IBS/CBS (cIndOp)",
       "ibscbsPairHint": "A classificação tributária e o indicador da operação são informados juntos: escolha os dois ou deixe os dois em branco.",

@@ -163,4 +163,44 @@ void main() {
       expect(placeIndicatorAvatar('010101'), '01');
     });
   });
+
+  // D-IB29 (Rodada 3, Valdo 2026-10-10): o cadastro aceita classificação com início
+  // futuro até a obrigação; a tela mostra "vale a partir de" (e "vale de … até …").
+  group('vigência da classificação (D-IB29)', () {
+    test('GET e lista trazem validFrom/validUntil', () {
+      final s = ServiceIbscbs.fromJson({
+        'classificationCode': '000009', 'cst': '000', 'classificationName': 'n',
+        'validFrom': '2027-01-01', 'validUntil': null,
+        'placeIndicatorCode': '100301',
+      });
+      expect(s.validFrom, '2027-01-01');
+      expect(s.validUntil, isNull);
+      final l = ServiceCodeLookup.fromJson({
+        'code': '000009', 'description': 'x', 'validFrom': '2027-01-01', 'validUntil': '2027-12-31',
+      });
+      expect([l.validFrom, l.validUntil], ['2027-01-01', '2027-12-31']);
+      expect(ServiceCodeLookup.fromJson({'code': '100301'}).validFrom, isNull);
+    });
+
+    test('texto: só início → "vale a partir de"; com fim → "vale de … até …"; sem início → nada', () {
+      final from = ibscbsValidity('2027-01-01', null)!;
+      expect(from.key, ibscbsValidFromKey);
+      expect(from.args, ['01/01/2027']);
+      final range = ibscbsValidity('2026-01-01', '2026-10-01')!;
+      expect(range.key, ibscbsValidRangeKey);
+      expect(range.args, ['01/01/2026', '01/10/2026']);
+      expect(ibscbsValidity(null, null), isNull);
+      expect(ibscbsBrDate('lixo'), isNull);
+    });
+  });
+
+  test('lista do cClassTrib: só a que começa DEPOIS de hoje leva "vale a partir de" (D-IB29)', () {
+    final today = DateTime(2026, 10, 10);
+    final future = ibscbsFutureValidity('2027-01-01', today)!;
+    expect(future.key, ibscbsValidFromKey);
+    expect(future.args, ['01/01/2027']);
+    expect(ibscbsFutureValidity('2026-01-01', today), isNull);
+    expect(ibscbsFutureValidity('2026-10-10', today), isNull);
+    expect(ibscbsFutureValidity(null, today), isNull);
+  });
 }
