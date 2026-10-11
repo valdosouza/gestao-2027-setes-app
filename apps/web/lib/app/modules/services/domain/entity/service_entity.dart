@@ -193,6 +193,9 @@ class ServiceIbscbs extends Equatable {
     this.classificationName,
     this.validFrom,
     this.validUntil,
+    this.acceptedToday,
+    this.classificationAcceptedToday,
+    this.placeIndicatorAcceptedToday,
     required this.placeIndicatorCode,
     this.placeIndicatorDescription,
   });
@@ -208,6 +211,14 @@ class ServiceIbscbs extends Equatable {
   /// "vale a partir de" / "válida até").
   final String? validFrom;
   final String? validUntil;
+
+  /// D-IB37: a classificação GRAVADA é aceita hoje na NFS-e? (null = não
+  /// avaliado) — false mostra o selo na aba.
+  final bool? acceptedToday;
+
+  /// Por COMPONENTE (o selo aponta o campo certo): cClassTrib e cIndOp.
+  final bool? classificationAcceptedToday;
+  final bool? placeIndicatorAcceptedToday;
 
   /// cIndOp (indicador da operação — Anexo VII) — 6 dígitos.
   final String  placeIndicatorCode;
@@ -232,6 +243,9 @@ class ServiceIbscbs extends Equatable {
       classificationName:        json['classificationName'] as String?,
       validFrom:                 json['validFrom'] as String?,
       validUntil:                json['validUntil'] as String?,
+      acceptedToday:             json['acceptedToday'] as bool?,
+      classificationAcceptedToday: json['classificationAcceptedToday'] as bool?,
+      placeIndicatorAcceptedToday: json['placeIndicatorAcceptedToday'] as bool?,
       placeIndicatorCode:        _jsonCode(json['placeIndicatorCode']) ?? '',
       placeIndicatorDescription: json['placeIndicatorDescription'] as String?,
     );
@@ -240,6 +254,7 @@ class ServiceIbscbs extends Equatable {
   @override
   List<Object?> get props => [
         classificationCode, cst, classificationName, validFrom, validUntil,
+        acceptedToday, classificationAcceptedToday, placeIndicatorAcceptedToday,
         placeIndicatorCode, placeIndicatorDescription,
       ];
 }

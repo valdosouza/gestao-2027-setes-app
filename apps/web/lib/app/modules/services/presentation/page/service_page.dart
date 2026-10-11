@@ -251,6 +251,11 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   /// Vigência da classificação escolhida (D-IB29 — exibida sob o campo).
   String? _classificationValidFrom;
   String? _classificationValidUntil;
+  /// D-IB37: a classificação GRAVADA é aceita hoje? (do GET; escolher na
+  /// lista = aceita; limpar = sem selo). false mostra o selo.
+  bool? _classificationAcceptedToday;
+  /// Idem para o cIndOp (o selo aponta o código que deixou de ser aceito).
+  bool? _placeIndicatorAcceptedToday;
   String? _placeIndicatorCode;
   String _placeIndicatorDisplay = '';
 
@@ -281,6 +286,10 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     _classificationDisplay = ibscbs?.classificationDisplay ?? '';
     _classificationValidFrom  = ibscbs?.validFrom;
     _classificationValidUntil = ibscbs?.validUntil;
+    // por componente; API antiga (só o par) = o selo fica na classificação
+    _classificationAcceptedToday =
+        ibscbs?.classificationAcceptedToday ?? ibscbs?.acceptedToday;
+    _placeIndicatorAcceptedToday = ibscbs?.placeIndicatorAcceptedToday;
     _placeIndicatorCode    = ibscbs?.placeIndicatorCode;
     _placeIndicatorDisplay = ibscbs?.placeIndicatorDisplay ?? '';
     _cst = TextEditingController(text: ibscbs?.cst ?? '');
@@ -418,6 +427,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
         _classificationDisplay = picked.display;
         _classificationValidFrom = picked.validFrom;
         _classificationValidUntil = picked.validUntil;
+        _classificationAcceptedToday = true; // a lista só oferece o que o cadastro aceita
         _cst.text = deriveIbscbsCst(picked.code);
       });
     }
@@ -438,6 +448,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
       setState(() {
         _placeIndicatorCode = picked.code;
         _placeIndicatorDisplay = picked.display;
+        _placeIndicatorAcceptedToday = true; // a lista só oferece o que o cadastro aceita
       });
     }
   }
@@ -841,6 +852,24 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   /// Aba IBS/CBS (fase IBS/CBS, D-IB6): o serviço PRESUME a NBS e a
   /// classificação (cClassTrib + cIndOp); o CST é derivado (só exibido).
   /// Tudo por lista de apoio — campos fora do Tab (lookup/readOnly).
+  /// D-IB37: selo sob o campo cujo código gravado deixou de ser aceito.
+  Widget _notAcceptedSeal(ThemeData theme, String i18nKey) => Padding(
+        padding: const EdgeInsets.only(top: 4, left: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                size: 18, color: theme.colorScheme.error),
+            const SizedBox(width: 6),
+            Flexible(
+              child: SetesText(i18nKey.tr(),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error)),
+            ),
+          ],
+        ),
+      );
+
   Widget _buildIbscbsTab() {
     final theme = Theme.of(context);
     final validity = _classificationCode == null
@@ -882,6 +911,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
             _classificationDisplay = '';
             _classificationValidFrom = null;
             _classificationValidUntil = null;
+            _classificationAcceptedToday = null;
             _cst.clear();
           }),
         ),
@@ -891,6 +921,9 @@ class _ServiceFormViewState extends State<_ServiceFormView>
             child: SetesText(validity.key.tr(args: validity.args),
                 style: theme.textTheme.bodySmall),
           ),
+        // D-IB37: selo — o código gravado deixou de ser aceito na NFS-e
+        if (_classificationCode != null && _classificationAcceptedToday == false)
+          _notAcceptedSeal(theme, 'forms.services.ibscbsNotAccepted'),
         const SizedBox(height: 16),
         SetesTextField(
           label: 'forms.services.ibscbsCst'.tr(),
@@ -907,8 +940,11 @@ class _ServiceFormViewState extends State<_ServiceFormView>
           onClear: () => setState(() {
             _placeIndicatorCode = null;
             _placeIndicatorDisplay = '';
+            _placeIndicatorAcceptedToday = null;
           }),
         ),
+        if (_placeIndicatorCode != null && _placeIndicatorAcceptedToday == false)
+          _notAcceptedSeal(theme, 'forms.services.ibscbsPlaceIndicatorNotAccepted'),
         const SizedBox(height: 8),
         SetesText('forms.services.ibscbsPairHint'.tr(),
             style: theme.textTheme.bodySmall),

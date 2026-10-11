@@ -203,4 +203,22 @@ void main() {
     expect(ibscbsFutureValidity('2026-10-10', today), isNull);
     expect(ibscbsFutureValidity(null, today), isNull);
   });
+
+  test('GET traz acceptedToday (D-IB37 — o selo da aba); ausente = não avaliado', () {
+    ServiceIbscbs parse(Object? v) => ServiceIbscbs.fromJson({
+          'classificationCode': '000006', 'cst': '000', 'placeIndicatorCode': '100301',
+          if (v != null) 'acceptedToday': v,
+        });
+    expect(parse(false).acceptedToday, isFalse);
+    expect(parse(true).acceptedToday, isTrue);
+    expect(parse(null).acceptedToday, isNull);
+  });
+
+  test('selo por componente (D-IB37): cada código traz o próprio aceite', () {
+    final s = ServiceIbscbs.fromJson({
+      'classificationCode': '000001', 'cst': '000', 'placeIndicatorCode': '100302',
+      'acceptedToday': false, 'classificationAcceptedToday': true, 'placeIndicatorAcceptedToday': false,
+    });
+    expect([s.acceptedToday, s.classificationAcceptedToday, s.placeIndicatorAcceptedToday], [false, true, false]);
+  });
 }
