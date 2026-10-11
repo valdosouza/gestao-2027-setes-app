@@ -95,6 +95,7 @@ class ServiceFull extends ServiceListItem {
     this.prices = const [],
     this.nbs,
     this.nbsDescription,
+    this.nbsAcceptedToday,
     this.ibscbs,
   });
 
@@ -117,6 +118,10 @@ class ServiceFull extends ServiceListItem {
   /// sem NBS) + descrição oficial (JOIN da API com o catálogo central).
   final String? nbs;
   final String? nbsDescription;
+
+  /// D-IB40: a NBS gravada segue na lista oficial? (null = sem NBS) — false
+  /// mostra o selo sob a NBS; a descrição continua exibida.
+  final bool? nbsAcceptedToday;
 
   /// Classificação IBS/CBS que o serviço presume (peça 1:1
   /// tb_service_ibscbs); null = não classificado.
@@ -146,6 +151,7 @@ class ServiceFull extends ServiceListItem {
             .toList(),
         nbs:            _jsonCode(json['nbs']),
         nbsDescription: json['nbsDescription'] as String?,
+        nbsAcceptedToday: json['nbsAcceptedToday'] as bool?,
         ibscbs: json['ibscbs'] is Map<String, dynamic>
             ? ServiceIbscbs.fromJson(json['ibscbs'] as Map<String, dynamic>)
             : null,
@@ -156,7 +162,7 @@ class ServiceFull extends ServiceListItem {
         ...super.props, financialPlansId, financialPlansDescription,
         serviceTaxRuleId, serviceTaxRuleLabel,
         promotion, highlights, published, note, prices,
-        nbs, nbsDescription, ibscbs,
+        nbs, nbsDescription, nbsAcceptedToday, ibscbs,
       ];
 }
 

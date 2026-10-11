@@ -221,4 +221,11 @@ void main() {
     });
     expect([s.acceptedToday, s.classificationAcceptedToday, s.placeIndicatorAcceptedToday], [false, true, false]);
   });
+
+  test('GET traz nbsAcceptedToday (D-IB40 — selo da NBS); ausente = sem NBS', () {
+    final out = ServiceFull.fromJson(_service({'nbs': '199999999', 'nbsDescription': 'Extinta', 'nbsAcceptedToday': false}));
+    expect(out.nbsAcceptedToday, isFalse);
+    expect(out.nbsDescription, 'Extinta');
+    expect(ServiceFull.fromJson(_service({})).nbsAcceptedToday, isNull);
+  });
 }

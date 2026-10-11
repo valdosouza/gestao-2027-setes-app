@@ -1450,6 +1450,8 @@
       "ibscbsValidRange": "Vale de {} até {}",
       "ibscbsNotAccepted": "Esta classificação não é mais aceita na NFS-e hoje — escolha outra antes de faturar",
       "ibscbsPlaceIndicatorNotAccepted": "Este indicador da operação não é mais aceito na NFS-e hoje — escolha outro antes de faturar",
+      "ibscbsNbsNotAccepted": "Esta NBS não está mais na lista oficial — escolha outra antes de faturar",
+      "ibscbsTabHasSeal": "Há código nesta aba que não é mais aceito hoje — confira antes de faturar",
       "ibscbsPlaceIndicator": "Indicador da Operação do IBS/CBS (cIndOp)",
       "ibscbsPlaceIndicatorLookupTitle": "Lista de Indicadores da Operação do IBS/CBS (cIndOp)",
       "ibscbsPairHint": "A classificação tributária e o indicador da operação são informados juntos: escolha os dois ou deixe os dois em branco.",

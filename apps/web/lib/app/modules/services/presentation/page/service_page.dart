@@ -246,6 +246,9 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   /// importa), descrição exibida. Os dois da classificação vão JUNTOS.
   String? _nbs;
   String _nbsDisplay = '';
+  /// D-IB40: a NBS gravada segue na lista oficial? (do GET; escolher outra =
+  /// aceita; limpar = sem selo) — false mostra o selo sob a NBS.
+  bool? _nbsAcceptedToday;
   String? _classificationCode;
   String _classificationDisplay = '';
   /// Vigência da classificação escolhida (D-IB29 — exibida sob o campo).
@@ -282,6 +285,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
     final ibscbs = editing?.ibscbs;
     _nbs                   = editing?.nbs;
     _nbsDisplay            = editing?.nbsDisplay ?? '';
+    _nbsAcceptedToday      = editing?.nbsAcceptedToday;
     _classificationCode    = ibscbs?.classificationCode;
     _classificationDisplay = ibscbs?.classificationDisplay ?? '';
     _classificationValidFrom  = ibscbs?.validFrom;
@@ -400,6 +404,7 @@ class _ServiceFormViewState extends State<_ServiceFormView>
       setState(() {
         _nbs = picked.code;
         _nbsDisplay = picked.display;
+        _nbsAcceptedToday = true; // a lista só oferece NBS da lista oficial
       });
     }
   }
@@ -852,6 +857,13 @@ class _ServiceFormViewState extends State<_ServiceFormView>
   /// Aba IBS/CBS (fase IBS/CBS, D-IB6): o serviço PRESUME a NBS e a
   /// classificação (cClassTrib + cIndOp); o CST é derivado (só exibido).
   /// Tudo por lista de apoio — campos fora do Tab (lookup/readOnly).
+  /// Algum selo da aba IBS/CBS ligado? (mesmas condições dos selos — o título da aba avisa
+  /// quem está em outra aba; gate socrático do delta R5)
+  bool get _ibscbsHasSeal =>
+      (_nbs != null && _nbsAcceptedToday == false) ||
+      (_classificationCode != null && _classificationAcceptedToday == false) ||
+      (_placeIndicatorCode != null && _placeIndicatorAcceptedToday == false);
+
   /// D-IB37: selo sob o campo cujo código gravado deixou de ser aceito.
   Widget _notAcceptedSeal(ThemeData theme, String i18nKey) => Padding(
         padding: const EdgeInsets.only(top: 4, left: 12),
@@ -898,8 +910,11 @@ class _ServiceFormViewState extends State<_ServiceFormView>
           onClear: () => setState(() {
             _nbs = null;
             _nbsDisplay = '';
+            _nbsAcceptedToday = null;
           }),
         ),
+        if (_nbs != null && _nbsAcceptedToday == false)
+          _notAcceptedSeal(theme, 'forms.services.ibscbsNbsNotAccepted'),
         const SizedBox(height: 16),
         SetesLookupField(
           label: _label(
@@ -966,7 +981,23 @@ class _ServiceFormViewState extends State<_ServiceFormView>
               tabs: [
                 Tab(text: 'forms.services.tabMain'.tr()),
                 Tab(text: 'forms.services.tabPrices'.tr()),
-                Tab(text: 'forms.services.tabIbscbs'.tr()),
+                _ibscbsHasSeal
+                    ? Tab(
+                        child: Tooltip(
+                          message: 'forms.services.ibscbsTabHasSeal'.tr(),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('forms.services.tabIbscbs'.tr()),
+                              const SizedBox(width: 4),
+                              Icon(Icons.warning_amber_rounded,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.error),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Tab(text: 'forms.services.tabIbscbs'.tr()),
               ],
             ),
             Expanded(
