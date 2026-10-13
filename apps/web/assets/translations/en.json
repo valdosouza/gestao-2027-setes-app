@@ -850,6 +850,8 @@
       "fiscalBatchUncertainRow": "Order {}: uncertain result — check the status at the tax authority before transmitting again",
       "fiscalBatchNotTriedRow": "Order {}: not tried — the batch stopped before it",
       "fiscalBatchNoResponse": "no response from the service — network, proxy or timeout",
+      "fiscalNoResponse": "No response from the service — network, proxy or timeout.",
+      "outcomeOfOrder": "Order {}: ",
       "fiscalBatchStoppedUncertain": "The batch stopped after consecutive uncertain results (the tax authority or the service may be down) — check the uncertain invoices before transmitting again",
       "fiscalBatchStopped": "The batch stopped: {}",
       "fiscalBatchCapped": "Up to {} invoices per batch — the rest stays for the next batch.",

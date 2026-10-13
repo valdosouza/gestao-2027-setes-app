@@ -13,6 +13,11 @@ class ServiceOrderNfseRepositoryImpl implements ServiceOrderNfseRepository {
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() run) async {
     try {
       return Right(await run());
+    } on NetworkFailure catch (failure) {
+      // D-F185 (= Q-F193 (a), Valdo 2026-10-13 — R11-SOC-05 = R11-ADV-04): sem resposta da nfse-api = a frase NEUTRA (rede, proxy ou
+      // tempo — no app WEB a página 502/503/504 do proxy sem CORS também chega aqui), a MESMA da linha do lote (D-F181): o aviso dos
+      // atos fiscais e a falha da voz na seção "No fisco". Só nas chamadas à nfse-api; o tipo (NetworkFailure) e o ref seguem
+      return Left(NetworkFailure(message: 'forms.serviceOrder.fiscalNoResponse', detail: failure.supportRef));
     } on Failure catch (failure) {
       return Left(failure);
     } catch (err) {

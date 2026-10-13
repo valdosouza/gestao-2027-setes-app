@@ -89,13 +89,15 @@ class ServiceOrderCancelPlanReady extends ServiceOrderState {
 /// nota não). [messageKey] é chave i18n; [detail] = a mensagem da API, quando
 /// há (já pronta).
 class ServiceOrderFiscalNotice extends ServiceOrderState {
-  const ServiceOrderFiscalNotice(this.messageKey, {this.args = const [], this.detail});
+  const ServiceOrderFiscalNotice(this.messageKey, {this.args = const [], this.detail, this.orderId});
   final String messageKey;
   final List<String> args;
   final String? detail;
+  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
+  final int? orderId;
 
   @override
-  List<Object?> get props => [messageKey, args, detail];
+  List<Object?> get props => [messageKey, args, detail, orderId];
 }
 
 /// One-shot (listener-only): XML autorizado da NFS-e — a página abre em
@@ -121,11 +123,13 @@ class ServiceOrderFiscalDanfseReady extends ServiceOrderState {
 /// One-shot (listener-only): avisos NÃO bloqueantes do cancelamento da
 /// NFS-e (`warnings[]` da API) — a página mostra pela ponte como aviso.
 class ServiceOrderFiscalWarnings extends ServiceOrderState {
-  const ServiceOrderFiscalWarnings(this.warnings);
+  const ServiceOrderFiscalWarnings(this.warnings, {this.orderId});
   final List<String> warnings;
+  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
+  final int? orderId;
 
   @override
-  List<Object?> get props => [warnings];
+  List<Object?> get props => [warnings, orderId];
 }
 
 /// One-shot (listener-only): notas da OS SEM NFS-e (lista fotografada — D-F145)
@@ -153,14 +157,16 @@ class ServiceOrderFiscalBatchDone extends ServiceOrderState {
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
 /// alimenta placeholders da chave (ex.: nº da fatura gerada).
 class ServiceOrderActionSuccess extends ServiceOrderState {
-  const ServiceOrderActionSuccess(this.messageKey, {this.args = const []});
+  const ServiceOrderActionSuccess(this.messageKey, {this.args = const [], this.orderId});
 
   /// Chave i18n — a página traduz.
   final String messageKey;
   final List<String> args;
+  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
+  final int? orderId;
 
   @override
-  List<Object?> get props => [messageKey, args];
+  List<Object?> get props => [messageKey, args, orderId];
 }
 
 /// Efeito one-shot de falha (listener-only, não buildável). Carrega o
@@ -169,11 +175,13 @@ class ServiceOrderActionSuccess extends ServiceOrderState {
 /// dialog de validação com a mensagem da API e o fields[] do 400 ancora a
 /// mensagem no campo apontado.
 class ServiceOrderActionFailure extends ServiceOrderState {
-  const ServiceOrderActionFailure(this.failure);
+  const ServiceOrderActionFailure(this.failure, {this.orderId});
   final Failure failure;
+  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
+  final int? orderId;
 
   @override
-  List<Object?> get props => [failure];
+  List<Object?> get props => [failure, orderId];
 }
 
 /// Efeito one-shot com o RELATÓRIO da rotina mensal (listener-only) — a

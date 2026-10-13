@@ -12,15 +12,18 @@ import 'package:setes_widgets/setes_widgets.dart';
 /// que o i18n acontece — o design system recebe textos prontos.
 
 /// Sucesso = SnackBar (R1). [messageKey] é chave i18n ('register.saved'...).
+/// [about] (já traduzido) PREFIXA a mensagem — ex.: "OS 7374: " quando o
+/// desfecho é de um ato cuja tela saiu (D-F182).
 Future<void> showSuccessFeedback(
   BuildContext context,
   String messageKey, {
   List<String>? args,
+  String? about,
 }) =>
     showSetesMessage(
       context,
       kind: SetesMessageKind.success,
-      message: messageKey.tr(args: args),
+      message: '${about ?? ''}${messageKey.tr(args: args)}',
       okLabel: 'register.ok'.tr(),
     );
 
@@ -32,7 +35,8 @@ Future<void> showSuccessFeedback(
 /// `message.tr()`: defaults do core são chaves `core.errors.*`; chave
 /// inexistente devolve a própria string — mensagens PT do backend passam
 /// intactas.
-Future<void> showFailureFeedback(BuildContext context, Failure failure) {
+/// [about]: o mesmo prefixo de [showSuccessFeedback] (D-F182).
+Future<void> showFailureFeedback(BuildContext context, Failure failure, {String? about}) {
   // D-F138 (F2b): 401 numa tela logada = sessão morta — o AppWidget já limpou
   // a sessão e foi ao login (uma reação para o app inteiro); um diálogo aqui
   // apareceria por cima do login com "token inválido". Nada a mostrar.
@@ -46,7 +50,7 @@ Future<void> showFailureFeedback(BuildContext context, Failure failure) {
       context,
       kind: SetesMessageKind.error,
       title: 'feedback.errorTitle'.tr(),
-      message: failure.message.tr(),
+      message: '${about ?? ''}${failure.message.tr()}',
       okLabel: 'register.ok'.tr(),
       refText: failure.supportRef == null
           ? null
@@ -57,7 +61,7 @@ Future<void> showFailureFeedback(BuildContext context, Failure failure) {
     context,
     kind: SetesMessageKind.validation,
     title: 'feedback.validationTitle'.tr(),
-    message: failure.message.tr(),
+    message: '${about ?? ''}${failure.message.tr()}',
     okLabel: 'register.ok'.tr(),
   );
 }

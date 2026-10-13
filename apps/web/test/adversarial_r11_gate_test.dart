@@ -17,6 +17,10 @@
 //     tem o seu FATO, que é a PROVA executável de hoje.
 // Nada aqui fala com servidor: repositórios mocktail (molde dos gates R9/R10).
 // O R11-ADV-01 deste gate é da nfse-api (`nfse-api/src/__tests__/adversarial-f2a-r11-gate.test.ts`).
+//
+// Valdo 2026-10-13 ("Q-F190 a Q-F194 - siga recomendações"): D-F182 (a MESMA OS reaberta é relida; o desfecho fora da OS leva o
+// número dela), D-F183 (trava de duplo clique POR NOTA), D-F185 (a frase neutra no repositório da nfse-api) — as provas FATO viraram
+// `[DECIDIDO …]` e os ACHADOS R11-ADV-02/03 rodam sempre (`[CORRIGIDO …]`).
 
 import 'dart:async';
 import 'dart:convert';
@@ -33,6 +37,8 @@ import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:setes_web/app/modules/service_orders/data/datasource/service_order_nfse_datasource.dart';
+import 'package:setes_web/app/modules/service_orders/data/repository/service_order_nfse_repository_impl.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_entity.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_transmit_batch.dart';
@@ -72,8 +78,8 @@ PagedResult<ServiceOrderListItem> _page(List<int> ids) => PagedResult(
 ServiceOrderState _shown(List<ServiceOrderState> states) =>
     states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).last;
 
-const _skipAchado = 'ACHADO do gate R11 — descreve o comportamento CERTO; hoje falha (ver o FATO irmão). '
-    'Rodar: flutter test --run-skipped test/adversarial_r11_gate_test.dart';
+/// D-F185: o datasource da nfse-api (a borda HTTP) — para provar o repositório.
+class _NfseDsMock extends Mock implements ServiceOrderNfseDatasource {}
 
 /// Uma resposta EM VOO do fuzzer: a chamada fica parada até o agendador decidir (ok / falha).
 class _Flight {
@@ -168,7 +174,7 @@ void main() {
       return transmit;
     }
 
-    test('[FATO — prova do R11-ADV-02] a correção do R10-ADV-03 (`_stillOnDetail` — o ato só relê se a tela que capturou AINDA é o detalhe) fecha a voz de OUTRA OS, mas também cala a releitura quando a tela de agora mostra a MESMA OS: "Transmitir" na OS A (o fisco demora), a página é recriada (resize) e o operador volta à aba Faturadas e REABRE a A — o GET da voz voltou ANTES do fim da transmissão (a voz de antes: recusada); a transmissão termina AUTORIZADA → o one-shot "NFS-e autorizada" aparece, mas a OS A na tela segue com a voz de ANTES (recusada, com o botão Transmitir) — nenhuma releitura. O mesmo no faturar (a lista recriada mostra a OS ainda em Abertas e nada a relê) e no cancelar OS', () async {
+    test('[DECIDIDO D-F182 — era o FATO do R11-ADV-02; agora a MESMA OS reaberta é RELIDA e o desfecho fora da OS leva o número dela] a correção do R10-ADV-03 (`_stillOnDetail` — o ato só relê se a tela que capturou AINDA é o detalhe) fecha a voz de OUTRA OS, mas também cala a releitura quando a tela de agora mostra a MESMA OS: "Transmitir" na OS A (o fisco demora), a página é recriada (resize) e o operador volta à aba Faturadas e REABRE a A — o GET da voz voltou ANTES do fim da transmissão (a voz de antes: recusada); a transmissão termina AUTORIZADA → o one-shot "NFS-e autorizada" aparece, mas a OS A na tela segue com a voz de ANTES (recusada, com o botão Transmitir) — nenhuma releitura. O mesmo no faturar (a lista recriada mostra a OS ainda em Abertas e nada a relê) e no cancelar OS', () async {
       final (bloc, states, sub) = await start();
       final transmit = await transmitThenReopenSame(bloc, states);
       final readsBefore = aVoiceReads;
@@ -176,8 +182,10 @@ void main() {
       transmit.complete(const Right(ServiceOrderTransmitResult(invoiceId: _aId, attempt: 2, accessKey: 'K')));
       await pumpEventQueue(times: 20);
       final shown = _shown(states) as ServiceOrderDetailState;
-      expect(states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.fiscalAuthorized'), hasLength(1));
-      expect([shown.order.id, shown.fiscal, aVoiceReads], [_aId, _aVoiceBefore, readsBefore], reason: 'a MESMA OS na tela, com a voz de antes — nada relido');
+      final authorized = states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.fiscalAuthorized');
+      expect([authorized.length, authorized.single.orderId], [1, null], reason: 'a tela é a MESMA OS — sem prefixo');
+      expect([shown.order.id, shown.fiscal, aVoiceReads > readsBefore], [_aId, _aVoiceAfter, true],
+          reason: 'D-F182: a MESMA OS reaberta é RELIDA (a voz nova)');
 
       // o faturar: a lista recriada (Abertas) chega ANTES do fim do faturamento e segue mostrando a OS faturada
       final inv = Completer<Either<Failure, ServiceOrderInvoiceResult>>();
@@ -195,12 +203,13 @@ void main() {
       await sub.cancel();
       await bloc.close();
       final list = _shown(states) as ServiceOrderListState;
-      expect(states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.invoiceGenerated'), hasLength(1));
-      expect([list.status, list.items.map((i) => i.id).contains(_newId), listCalls], ['A', true, calls],
-          reason: 'a OS FATURADA segue na aba Abertas — a lista não foi relida');
+      final generated = states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.invoiceGenerated');
+      expect([generated.length, generated.single.orderId], [1, _newId], reason: 'D-F182: na LISTA, o desfecho leva o número da OS');
+      // D-F182 deixou de fora a lista desatualizada (se corrige ao abrir a OS): ela não é relida
+      expect([list.status, list.items.map((i) => i.id).contains(_newId), listCalls], ['A', true, calls]);
     });
 
-    test('[ACHADO R11-ADV-02 LOW] o desfecho de um ato que MUDA a OS (transmitir, faturar, cancelar a OS ou a nota, item, manter a nota) relê a tela de AGORA quando ela mostra a MESMA OS (o detalhe reaberto: a voz nova; a lista: a recarga, respeitando o detalhe a caminho — D-F174) — "vale o último pedido" decide QUAL tela, não que ela fique com o dado de antes do ato. Correção sugerida: no fim do ato, se a tela capturada saiu mas `_detail?.id == orderId`, reler esse detalhe (pela geração de AGORA); se a tela é a lista e não há detalhe aberto/a caminho, recarregar a lista', () async {
+    test('[CORRIGIDO R11-ADV-02 LOW — D-F182] o desfecho de um ato que MUDA a OS (transmitir, faturar, cancelar a OS ou a nota, item, manter a nota) relê a tela de AGORA quando ela mostra a MESMA OS (o detalhe reaberto: a voz nova; a lista: a recarga, respeitando o detalhe a caminho — D-F174) — "vale o último pedido" decide QUAL tela, não que ela fique com o dado de antes do ato. Correção sugerida: no fim do ato, se a tela capturada saiu mas `_detail?.id == orderId`, reler esse detalhe (pela geração de AGORA); se a tela é a lista e não há detalhe aberto/a caminho, recarregar a lista', () async {
       final (bloc, states, sub) = await start();
       final transmit = await transmitThenReopenSame(bloc, states);
       aVoiceNow = _aVoiceAfter;
@@ -210,7 +219,7 @@ void main() {
       await bloc.close();
       final shown = _shown(states) as ServiceOrderDetailState;
       expect([shown.order.id, shown.fiscal], [_aId, _aVoiceAfter], reason: 'a OS A na tela com a voz relida (autorizada)');
-    }, skip: _skipAchado);
+    });
   });
 
   // ---------------------------------------------------------------------
@@ -218,7 +227,7 @@ void main() {
   //    OUTRA OS em silêncio
   // ---------------------------------------------------------------------
   group('R11-ADV-03 — `_transmitting`/`_invoiceCancelling` × a OUTRA OS', () {
-    test('[FATO — prova do R11-ADV-03] as travas de duplo clique do Transmitir (`_transmitting` — F2B-ADV-07) e do cancelamento/manter a nota (`_invoiceCancelling`) são do BLOC, não da nota: com a transmissão da OS A em voo (o fisco segura até 210 s) e a página recriada, o operador abre a OS B (recusada) e clica "Transmitir" — o clique é IGNORADO em silêncio: nenhum pedido à nfse-api, nenhum `saving`, nenhum aviso (o botão parece morto). O mesmo com "Cancelar nota" (saga) em voo na A e "Manter a nota" na B. A correção do R10-ADV-03 tornou explícito que o ato SOBREVIVE à tela — e a trava sobrevive com ele', () async {
+    test('[DECIDIDO D-F183 — era o FATO do R11-ADV-03; a trava agora é POR NOTA: o clique na OUTRA OS vai, e o desfecho da A sobre a B leva o número da A (D-F182)] as travas de duplo clique do Transmitir (`_transmitting` — F2B-ADV-07) e do cancelamento/manter a nota (`_invoiceCancelling`) são do BLOC, não da nota: com a transmissão da OS A em voo (o fisco segura até 210 s) e a página recriada, o operador abre a OS B (recusada) e clica "Transmitir" — o clique é IGNORADO em silêncio: nenhum pedido à nfse-api, nenhum `saving`, nenhum aviso (o botão parece morto). O mesmo com "Cancelar nota" (saga) em voo na A e "Manter a nota" na B. A correção do R10-ADV-03 tornou explícito que o ato SOBREVIVE à tela — e a trava sobrevive com ele', () async {
       final transmitA = Completer<Either<Failure, ServiceOrderTransmitResult>>();
       when(() => nfse.getView(_aId)).thenAnswer((_) async => const Right(_aVoiceBefore));
       when(() => nfse.transmit(_aId)).thenAnswer((_) => transmitA.future);
@@ -235,10 +244,13 @@ void main() {
       final at = states.length;
       bloc.add(const ServiceOrderTransmitRequested(_bId));                               // o clique na OS B
       await pumpEventQueue(times: 20);
-      verifyNever(() => nfse.transmit(_bId));
-      expect(states.sublist(at), isEmpty, reason: 'nem saving, nem aviso — o clique sumiu');
+      verify(() => nfse.transmit(_bId)).called(1);                                       // D-F183: o clique da OUTRA nota vai
+      expect(states.sublist(at).whereType<ServiceOrderDetailState>().any((s) => s.saving), isTrue);
+      final atA = states.length;
       transmitA.complete(const Left(Failure(message: 'x', statusCode: 422, code: 'FISCAL_DPS_REJECTED')));
       await pumpEventQueue(times: 20);
+      // D-F182: a recusa da A chega com a B na tela — leva o número da A
+      expect(states.sublist(atA).whereType<ServiceOrderActionFailure>().single.orderId, _aId);
 
       // o cancelamento (saga sem o fisco) em voo na A × "Manter a nota" na B
       final localCancel = Completer<Either<Failure, ServiceOrderInvoiceCancelResult>>();
@@ -252,18 +264,16 @@ void main() {
       await pumpEventQueue(times: 20);
       bloc.add(const ServiceOrderViewRequested(_bId));
       await pumpEventQueue(times: 20);
-      final at2 = states.length;
       bloc.add(const ServiceOrderFiscalCancelWaiverRequested(orderId: _bId, reason: 'manter'));
       await pumpEventQueue(times: 20);
-      verifyNever(() => invoice.cancelWaiver(_bId, any()));
-      expect(states.sublist(at2), isEmpty);
+      verify(() => invoice.cancelWaiver(_bId, any())).called(1);                        // D-F183: a decisão sobre OUTRA nota vai
       localCancel.complete(const Left(Failure(message: 'x', statusCode: 409)));
       await pumpEventQueue(times: 20);
       await sub.cancel();
       await bloc.close();
     });
 
-    test('[ACHADO R11-ADV-03 LOW] o clique num ato da OUTRA OS nunca some em silêncio: ou vai (a trava da NOTA na nfse-api/ERP barra o duplo envio da mesma nota — a trava do bloc é só o duplo clique da MESMA nota), ou o operador lê por quê. Correção sugerida: a trava de duplo clique POR NOTA (`Set<int>` com o orderId) — ou um aviso "outra transmissão em andamento"', () async {
+    test('[CORRIGIDO R11-ADV-03 LOW — D-F183] o clique num ato da OUTRA OS nunca some em silêncio: ou vai (a trava da NOTA na nfse-api/ERP barra o duplo envio da mesma nota — a trava do bloc é só o duplo clique da MESMA nota), ou o operador lê por quê. Correção sugerida: a trava de duplo clique POR NOTA (`Set<int>` com o orderId) — ou um aviso "outra transmissão em andamento"', () async {
       final transmitA = Completer<Either<Failure, ServiceOrderTransmitResult>>();
       when(() => nfse.getView(_aId)).thenAnswer((_) async => const Right(_aVoiceBefore));
       when(() => nfse.transmit(_aId)).thenAnswer((_) => transmitA.future);
@@ -290,7 +300,31 @@ void main() {
       await sub.cancel();
       await bloc.close();
       expect(sent > 0 || told, isTrue);
-    }, skip: _skipAchado);
+    });
+
+    test('D-F183: o 2º clique na MESMA nota com a 1ª transmissão no ar segue IGNORADO (a trava por nota é a do duplo clique)', () async {
+      final transmitA = Completer<Either<Failure, ServiceOrderTransmitResult>>();
+      when(() => nfse.getView(_aId)).thenAnswer((_) async => const Right(_aVoiceBefore));
+      var sent = 0;
+      when(() => nfse.transmit(_aId)).thenAnswer((_) {
+        sent++;
+        return transmitA.future;
+      });
+      final (bloc, states, sub) = await start();
+      bloc.add(const ServiceOrderViewRequested(_aId));
+      await pumpEventQueue(times: 20);
+      bloc.add(const ServiceOrderTransmitRequested(_aId));
+      bloc.add(const ServiceOrderTransmitRequested(_aId));
+      await pumpEventQueue(times: 20);
+      expect(sent, 1);
+      transmitA.complete(const Left(Failure(message: 'x', statusCode: 422)));
+      await pumpEventQueue(times: 20);
+      bloc.add(const ServiceOrderTransmitRequested(_aId));                               // a trava soltou: o próximo clique vai
+      await pumpEventQueue(times: 20);
+      await sub.cancel();
+      await bloc.close();
+      expect(sent, 2);
+    });
   });
 
   // ---------------------------------------------------------------------
@@ -298,7 +332,7 @@ void main() {
   //    frase de conexão
   // ---------------------------------------------------------------------
   group('D-F181 × o ato avulso', () {
-    test('[FATO — prova do R11-ADV-04 LOW; base da Q-F190-ADV-04] a frase NEUTRA da D-F181 vale só na linha do lote: o ATO avulso (Transmitir/Reconferir/Cancelar no fisco) com a MESMA falha — a página 502/504 do proxy sem CORS no app WEB, que chega como `NetworkFailure` (R10-ADV-04) — mostra "O fisco não deu uma resposta conclusiva…" + "Falha de conexão com o servidor" (`core.errors.network`): a frase de conexão que a D-F181 tirou da linha', () async {
+    test('[DECIDIDO D-F185 — o repositório da nfse-api troca a mensagem da NetworkFailure pela frase NEUTRA (o tipo e o ref seguem); o bloc com repositório falso (abaixo) segue recebendo a falha CRUA — a prova do repositório é o teste seguinte] era o FATO do R11-ADV-04: a frase NEUTRA da D-F181 valia só na linha do lote: o ATO avulso (Transmitir/Reconferir/Cancelar no fisco) com a MESMA falha — a página 502/504 do proxy sem CORS no app WEB, que chega como `NetworkFailure` (R10-ADV-04) — mostra "O fisco não deu uma resposta conclusiva…" + "Falha de conexão com o servidor" (`core.errors.network`): a frase de conexão que a D-F181 tirou da linha', () async {
       when(() => nfse.getView(_aId)).thenAnswer((_) async => const Right(_aVoiceBefore));
       when(() => nfse.transmit(_aId)).thenAnswer((_) async =>
           const Left(NetworkFailure(detail: 'ClientException: XMLHttpRequest error., uri=https://nfse.setes.example/v1/nfse/invoices/7374/transmit')));
@@ -312,9 +346,27 @@ void main() {
       final notice = states.whereType<ServiceOrderFiscalNotice>().single;
       expect([notice.messageKey, notice.detail], ['forms.serviceOrder.fiscalOutcomeUnknown', 'core.errors.network']);
       expect(notice.detail!.tr(), 'Falha de conexão com o servidor');
-      // a chave neutra só tem UM uso: a linha do lote
+      // a chave neutra da LINHA do lote segue com UM uso na página
       final uses = RegExp('fiscalBatchNoResponse').allMatches(File(_pageSrc).readAsStringSync()).length;
       expect(uses, 1);
+    });
+
+    test('D-F185: o repositório da nfse-api (todas as chamadas à nfse-api — os atos fiscais e a voz da seção "No fisco") devolve a falta de resposta com a frase NEUTRA; o tipo (NetworkFailure: desfecho desconhecido num ato, linha "rede" no lote) e o ref seguem', () async {
+      final ds = _NfseDsMock();
+      when(() => ds.transmit(_aId)).thenThrow(const NetworkFailure(detail: 'ClientException: XMLHttpRequest error.'));
+      when(() => ds.getView(_aId)).thenThrow(const NetworkFailure());
+      final repo = ServiceOrderNfseRepositoryImpl(datasource: ds);
+      for (final r in [await repo.transmit(_aId), await repo.getView(_aId)]) {
+        final f = r.fold((f) => f, (_) => null)!;
+        expect([f is NetworkFailure, f.message, isUnknownAuthorityOutcome(f)], [true, 'forms.serviceOrder.fiscalNoResponse', true]);
+      }
+      final f = (await repo.transmit(_aId)).fold((f) => f, (_) => null)!;
+      expect(f.supportRef, 'ClientException: XMLHttpRequest error.');
+      for (final lang in ['pt', 'en']) {
+        final j = jsonDecode(File('assets/translations/$lang.json').readAsStringSync()) as Map<String, dynamic>;
+        expect(((j['forms'] as Map)['serviceOrder'] as Map)['fiscalNoResponse'], isA<String>());
+      }
+      expect('forms.serviceOrder.fiscalNoResponse'.tr(), 'Sem resposta do serviço — rede, proxy ou tempo.');
     });
   });
 

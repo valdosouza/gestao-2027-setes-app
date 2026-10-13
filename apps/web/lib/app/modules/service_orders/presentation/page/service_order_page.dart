@@ -105,6 +105,22 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     super.dispose();
   }
 
+  /// D-F184 (= Q-F192 (a), Valdo 2026-10-13 — R11-SOC-03): a DECISÃO que o
+  /// operador confirmou num diálogo vai ao bloc se ELE está vivo — não pelo
+  /// `mounted` da página: os diálogos abrem no Navigator raiz e sobrevivem à
+  /// página recriada (cruzar 1100 px — D-F160); o bloc é o singleton do
+  /// módulo e só fecha no onDispose (R5-ADV-07: `add` num bloc fechado lança
+  /// StateError). O servidor confere tudo de novo (o plano relido — D-F149).
+  /// Entre DOIS diálogos encadeados a página ainda precisa estar montada (o 2º
+  /// abre pelo contexto dela).
+  void _dispatch(ServiceOrderEvent event) {
+    if (!_bloc.isClosed) _bloc.add(event);
+  }
+
+  /// D-F182: o prefixo "OS N: " do desfecho de um ato cuja tela saiu.
+  String _about(int? orderId) =>
+      orderId == null ? '' : 'forms.serviceOrder.outcomeOfOrder'.tr(args: ['$orderId']);
+
   // -------------------------------------------------------------------
   // Ações da lista
   // -------------------------------------------------------------------
@@ -121,12 +137,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       itemId: (c) => c.id,
       itemLabel: (c) => c.display,
     );
-    // R5-ADV-07: a tela pode ter saído durante o diálogo — o bloc fechado
-    // pelo onDispose (D-F156) lança StateError no add
-    if (!mounted) return;
-    if (picked != null) {
-      _bloc.add(ServiceOrderOpenRequested(picked.id));
-    }
+    // R5-ADV-07 + D-F184: a página pode ter sido recriada durante o diálogo —
+    // a escolha vai se o bloc está vivo
+    if (picked != null) _dispatch(ServiceOrderOpenRequested(picked.id));
   }
 
   /// Rotina Mensal: dialog Mês/Ano → POST /monthly-run (o relatório volta
@@ -136,9 +149,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       context: context,
       builder: (_) => const _MonthlyRunDialog(),
     );
-    if (!mounted) return; // R5-ADV-07
+    // R5-ADV-07 + D-F184
     if (competence != null) {
-      _bloc.add(ServiceOrderMonthlyRunRequested(
+      _dispatch(ServiceOrderMonthlyRunRequested(
           year: competence.$1, month: competence.$2));
     }
   }
@@ -375,8 +388,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       builder: (_) =>
           _InvoiceDialog(datasource: _datasource, batchCount: ids.length),
     );
-    if (input == null || !mounted) return;
-    _bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: ids, input: input));
+    if (input == null) return;
+    _dispatch(ServiceOrderBatchInvoiceRequested(orderIds: ids, input: input));   // D-F184
   }
 
   /// RELATÓRIO do lote — informativo próprio (mesmo tratamento da rotina
@@ -563,27 +576,27 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         title: widget.title,
         state: state,
         datasource: _datasource,
-        onBack: () => _bloc.add(const ServiceOrderBackToListPressed()),
+        onBack: () => _dispatch(const ServiceOrderBackToListPressed()),
         onCancel: () =>
-            _bloc.add(ServiceOrderCancelRequested(state.order.id)),
-        onItemSave: (itemId, input) => _bloc.add(ServiceOrderItemSaveRequested(
+            _dispatch(ServiceOrderCancelRequested(state.order.id)),
+        onItemSave: (itemId, input) => _dispatch(ServiceOrderItemSaveRequested(
             orderId: state.order.id, itemId: itemId, input: input)),
-        onItemRemove: (itemId) => _bloc.add(ServiceOrderItemRemoveRequested(
+        onItemRemove: (itemId) => _dispatch(ServiceOrderItemRemoveRequested(
             orderId: state.order.id, itemId: itemId)),
-        onInvoice: (input) => _bloc.add(ServiceOrderInvoiceRequested(
+        onInvoice: (input) => _dispatch(ServiceOrderInvoiceRequested(
             orderId: state.order.id, input: input)),
         // D-F140: todo cancelamento passa pelo PLANO (Cancelar nota, Cancelar
         // NFS-e, Aplicar o cancelamento — um fluxo só)
         onCancelInvoice: () =>
-            _bloc.add(ServiceOrderCancelFlowRequested(state.order.id)),
+            _dispatch(ServiceOrderCancelFlowRequested(state.order.id)),
         onTransmit: () =>
-            _bloc.add(ServiceOrderTransmitRequested(state.order.id)),
+            _dispatch(ServiceOrderTransmitRequested(state.order.id)),
         onFiscalRefresh: () =>
-            _bloc.add(ServiceOrderFiscalRefreshRequested(state.order.id)),
+            _dispatch(ServiceOrderFiscalRefreshRequested(state.order.id)),
         onFiscalXml: () =>
-            _bloc.add(ServiceOrderFiscalXmlRequested(state.order.id)),
+            _dispatch(ServiceOrderFiscalXmlRequested(state.order.id)),
         onFiscalDanfse: () =>
-            _bloc.add(ServiceOrderFiscalDanfseRequested(state.order.id)),
+            _dispatch(ServiceOrderFiscalDanfseRequested(state.order.id)),
         onKeepInvoice: () => _askKeepInvoice(state.order),
       );
 
@@ -618,8 +631,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         return;
       }
       final reason = await showCancelInvoiceDialog(context, number);
-      if (reason == null || !mounted) return;
-      _bloc.add(ServiceOrderCancelConfirmed(
+      if (reason == null) return;
+      _dispatch(ServiceOrderCancelConfirmed(   // D-F184
           orderId: plan.orderId, reason: reason, atAuthority: false));
       return;
     }
@@ -631,10 +644,11 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           message: 'forms.serviceOrder.cancelAtAuthorityAsk'.tr(args: [number]),
           yesLabel: 'forms.serviceOrder.fiscalCancel'.tr(),
         );
+        // entre os dois diálogos a página precisa estar montada (o 2º abre pelo contexto dela)
         if (decision != SetesDecision.yes || !mounted) return;
         final reason = await showCancelInvoiceDialog(context, number);
-        if (reason == null || !mounted) return;
-        _bloc.add(ServiceOrderCancelConfirmed(
+        if (reason == null) return;
+        _dispatch(ServiceOrderCancelConfirmed(   // D-F184
             orderId: plan.orderId, reason: reason, atAuthority: true));
         return;
       case FiscalBarrierKind.reconfirm:
@@ -643,8 +657,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           message: '${fiscalMessages.join('\n')}\n\n${'forms.serviceOrder.fiscalReconfirmAsk'.tr()}',
           yesLabel: 'forms.serviceOrder.fiscalReconfirm'.tr(),
         );
-        if (decision == SetesDecision.yes && mounted) {
-          _bloc.add(ServiceOrderFiscalReconfirmRequested(plan.orderId));
+        if (decision == SetesDecision.yes) {
+          _dispatch(ServiceOrderFiscalReconfirmRequested(plan.orderId));   // D-F184
         }
         return;
       case FiscalBarrierKind.inFlight:
@@ -662,8 +676,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   Future<void> _askKeepInvoice(ServiceOrderFull order) async {
     final reason =
         await showKeepInvoiceDialog(context, '${order.number ?? order.id}');
-    if (reason == null || !mounted) return;
-    _bloc.add(ServiceOrderFiscalCancelWaiverRequested(
+    if (reason == null) return;
+    _dispatch(ServiceOrderFiscalCancelWaiverRequested(   // D-F184
         orderId: order.id, reason: reason));
   }
 
@@ -707,8 +721,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       message: '${'forms.serviceOrder.fiscalTransmitPendingAsk'.tr(args: ['${pending.length}'])}$capped',
       yesLabel: 'forms.serviceOrder.fiscalTransmit'.tr(),
     );
-    if (decision != SetesDecision.yes || !mounted) return;
-    _bloc.add(ServiceOrderFiscalTransmitBatchRequested(
+    if (decision != SetesDecision.yes) return;
+    _dispatch(ServiceOrderFiscalTransmitBatchRequested(   // D-F184
         [for (final p in pending) p.orderId]));
   }
 
@@ -797,7 +811,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderFiscalWarnings) {
-            showInfoFeedback(context, state.warnings.map((w) => '• $w').join('\n'));
+            showInfoFeedback(context, '${_about(state.orderId)}${state.warnings.map((w) => '• $w').join('\n')}');
             return;
           }
           if (state is ServiceOrderFiscalPendingLoaded) {
@@ -813,7 +827,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderFiscalNotice) {
-            final text = state.messageKey.tr(args: state.args);
+            final text = '${_about(state.orderId)}${state.messageKey.tr(args: state.args)}';
             // F2B-ADV-14: o detalhe pode ser chave i18n (core.errors.*)
             showInfoFeedback(context,
                 state.detail == null || state.detail!.isEmpty ? text : '$text\n${state.detail!.tr()}');
@@ -821,17 +835,19 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           }
           if (state is ServiceOrderActionSuccess) {
             showSuccessFeedback(context, state.messageKey,
-                args: state.args.isEmpty ? null : state.args);
+                args: state.args.isEmpty ? null : state.args, about: _about(state.orderId));
             return;
           }
-          final failure = (state as ServiceOrderActionFailure).failure;
+          final failureState = state as ServiceOrderActionFailure;
+          final failure = failureState.failure;
+          final about = _about(failureState.orderId);
           if (failure.code == 'INVOICE_CANCEL_BLOCKED' &&
               failure.fields.isNotEmpty) {
             // Q-P4: um código, fields[] tipado com o que resolver antes
             final lines =
                 failure.fields.map((f) => '• ${f.message}').join('\n');
             showValidationFeedback(context,
-                '${'forms.serviceOrder.cancelInvoiceBlocked'.tr()}\n$lines');
+                '$about${'forms.serviceOrder.cancelInvoiceBlocked'.tr()}\n$lines');
           } else if (failure.code == 'FISCAL_DPS_REJECTED' &&
               failure.fields.isNotEmpty) {
             // Onda 3: fields[] = códigos E0xxx do fisco, um por linha
@@ -839,12 +855,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 .map((f) => '• ${[f.field, f.message].where((s) => s.isNotEmpty).join(': ')}')
                 .join('\n');
             showValidationFeedback(context,
-                '${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
+                '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
           } else if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
             // recusa de critério da pesquisa avançada cai no else (aviso "critério removido")
-            showValidationFeedback(context, failure.fields.first.message.tr());
+            showValidationFeedback(context, '$about${failure.fields.first.message.tr()}');
           } else {
-            showFailureFeedback(context, failure);
+            showFailureFeedback(context, failure, about: about);
           }
         },
         buildWhen: (_, current) =>
