@@ -54,10 +54,6 @@ abstract class ServiceOrderDatasource {
   /// (D12); sem ele, ou com contratos que divergem no dia, o 5º dia útil.
   Future<String> expirationSuggestion(int year, int month, {int? orderId});
 
-  /// Cancela a NOTA da OS faturada (Q-G16): POST /api/billing/cancel —
-  /// endpoint de PROCESSO compartilhado com a venda; a OS volta a aberta.
-  Future<ServiceOrderInvoiceCancelResult> cancelInvoice(int orderId, String reason);
-
   /// Clientes para o lookup do Abrir OS.
   Future<List<ServiceCustomerLookup>> customers(String filter);
 
@@ -141,17 +137,6 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
         '/api/service-orders/$orderId/invoice', input.toJson());
     return ServiceOrderInvoiceResult.fromJson(
         json['data'] as Map<String, dynamic>);
-  }
-
-  @override
-  Future<ServiceOrderInvoiceCancelResult> cancelInvoice(
-      int orderId, String reason) async {
-    final json = await client.post('/api/billing/cancel', {
-      'orderId': orderId,
-      'reason': reason,
-    });
-    return ServiceOrderInvoiceCancelResult.fromJson(
-        json['data'] as Map<String, dynamic>? ?? const {});
   }
 
   @override

@@ -33,6 +33,10 @@ Future<void> showSuccessFeedback(
 /// inexistente devolve a própria string — mensagens PT do backend passam
 /// intactas.
 Future<void> showFailureFeedback(BuildContext context, Failure failure) {
+  // D-F138 (F2b): 401 numa tela logada = sessão morta — o AppWidget já limpou
+  // a sessão e foi ao login (uma reação para o app inteiro); um diálogo aqui
+  // apareceria por cima do login com "token inválido". Nada a mostrar.
+  if (failure is UnauthorizedFailure) return Future.value();
   final technical = failure.supportRef != null ||
       (failure.statusCode ?? 0) >= 500 ||
       failure is NetworkFailure;

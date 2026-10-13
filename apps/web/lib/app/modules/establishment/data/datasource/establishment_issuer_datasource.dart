@@ -2,8 +2,12 @@ import 'package:core/core.dart';
 
 import '../../domain/entity/establishment_issuer_entity.dart';
 
-/// Datasource DEDICADO do sub-recurso EMISSOR FISCAL do estabelecimento
-/// (/api/establishment/issuer — Onda 3). Consumido pela seção autônoma da
+/// Datasource DEDICADO do EMISSOR FISCAL do estabelecimento — F2b (D-F4/
+/// D-F137): fala com a nfse-api (`/v1/emitter*` — [NfseApiClient], o MESMO
+/// token do login); o A1 nunca passa pelo ERP. Só a habilitação SE (a
+/// nfse-api recusa 55/65 — 422). Ato do ADMIN (403 ADMIN_REQUIRED); antes da
+/// virada as escritas dão 409 FISCAL_CUTOVER_PENDING (a mensagem passa
+/// direto — D-F143). Consumido pela seção autônoma da
 /// aba "Emissor fiscal" (mesmo padrão do Canal API da conta bancária): a
 /// seção carrega/salva por aqui e fala com a ponte de feedback; o bloc do
 /// form NÃO entra, porque a habilitação e o certificado têm ciclo próprio
@@ -13,7 +17,7 @@ import '../../domain/entity/establishment_issuer_entity.dart';
 abstract class EstablishmentIssuerDatasource {
   Future<EstablishmentIssuerView> get();
 
-  /// Cria/atualiza a habilitação do [model] ('SE' | '55' | '65').
+  /// Cria/atualiza a habilitação do [model] (só 'SE' — D-F137).
   Future<EstablishmentIssuerView> saveIssuer(String model,
       {required String environment, required String serie});
 
@@ -38,9 +42,9 @@ class EstablishmentIssuerDatasourceImpl
     implements EstablishmentIssuerDatasource {
   const EstablishmentIssuerDatasourceImpl({required this.client});
 
-  final ApiClient client;
+  final NfseApiClient client;
 
-  static const _base = '/api/establishment/issuer';
+  static const _base = '/v1/emitter';
 
   Map<String, dynamic> _data(Map<String, dynamic> json) =>
       json['data'] as Map<String, dynamic>? ?? const {};
@@ -57,14 +61,14 @@ class EstablishmentIssuerDatasourceImpl
   @override
   Future<EstablishmentIssuerView> saveIssuer(String model,
           {required String environment, required String serie}) async =>
-      _view(await client.put('$_base/$model', {
+      _view(await client.put('$_base/issuers/$model', {
         'environment': environment,
         'serie': serie.trim(),
       }));
 
   @override
   Future<void> removeIssuer(String model) async {
-    await client.delete('$_base/$model');
+    await client.delete('$_base/issuers/$model');
   }
 
   @override

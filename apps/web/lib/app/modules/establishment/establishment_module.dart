@@ -28,7 +28,7 @@ class EstablishmentModule extends Module {
         // seção autônoma que consome este datasource direto (ciclo próprio,
         // fora do bloc do form — molde bank_account_channel_section).
         Bind.lazySingleton<EstablishmentIssuerDatasource>((i) =>
-            EstablishmentIssuerDatasourceImpl(client: i.get<ApiClient>())),
+            EstablishmentIssuerDatasourceImpl(client: i.get<NfseApiClient>())),
         Bind.lazySingleton<EstablishmentRepository>((i) =>
             EstablishmentRepositoryImpl(
                 datasource: i.get<EstablishmentDatasource>())),

@@ -3,16 +3,21 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../shared/search/search_criteria_datasource.dart';
 import 'data/datasource/service_order_datasource.dart';
-import 'data/datasource/service_order_fiscal_datasource.dart';
-import 'data/repository/service_order_fiscal_repository_impl.dart';
+import 'data/datasource/service_order_invoice_datasource.dart';
+import 'data/datasource/service_order_nfse_datasource.dart';
+import 'data/repository/service_order_invoice_repository_impl.dart';
+import 'data/repository/service_order_nfse_repository_impl.dart';
 import 'data/repository/service_order_repository_impl.dart';
-import 'domain/repository/service_order_fiscal_repository.dart';
+import 'domain/repository/service_order_invoice_repository.dart';
+import 'domain/repository/service_order_nfse_repository.dart';
 import 'domain/repository/service_order_repository.dart';
+import 'domain/usecase/service_order_cancel_plan_get.dart';
 import 'domain/usecase/service_order_delete.dart';
-import 'domain/usecase/service_order_fiscal_cancel.dart';
 import 'domain/usecase/service_order_fiscal_danfse.dart';
+import 'domain/usecase/service_order_fiscal_effect_get.dart';
 import 'domain/usecase/service_order_fiscal_get.dart';
 import 'domain/usecase/service_order_fiscal_pending.dart';
+import 'domain/usecase/service_order_fiscal_reconfirm.dart';
 import 'domain/usecase/service_order_fiscal_refresh.dart';
 import 'domain/usecase/service_order_fiscal_transmit_batch.dart';
 import 'domain/usecase/service_order_fiscal_waive_cancel.dart';
@@ -35,6 +40,12 @@ import 'presentation/page/service_order_page.dart';
 /// TELA DE PROCESSO do produto — ciclo mensal de faturamento (OS aberta
 /// acumulando itens → rotina mensal → Gerar Faturamento). Gêmeo do
 /// /api/service-orders na setes-api.
+///
+/// F2b (D-F4/D-F139): a NFS-e da OS faturada fala com a nfse-api por um
+/// datasource DEDICADO ([ServiceOrderNfseDatasource] — [NfseApiClient]); os
+/// fatos do ERP sobre a nota (plano, efeito, cancelar, manter) pelo
+/// [ServiceOrderInvoiceDatasource] (/api/billing — exceção nomeada). Nunca
+/// cruzam; a saga do cancelamento compõe os dois REPOSITÓRIOS.
 class ServiceOrdersModule extends Module {
   @override
   List<Bind> get binds => [
@@ -63,38 +74,52 @@ class ServiceOrdersModule extends Module {
             repository: i.get<ServiceOrderRepository>())),
         Bind.factory<ServiceOrderInvoice>((i) =>
             ServiceOrderInvoice(repository: i.get<ServiceOrderRepository>())),
-        Bind.factory<ServiceOrderCancelInvoice>((i) => ServiceOrderCancelInvoice(
-            repository: i.get<ServiceOrderRepository>())),
         Bind.factory<ServiceOrderBatchInvoice>((i) => ServiceOrderBatchInvoice(
             repository: i.get<ServiceOrderRepository>())),
-        // Onda 3 — NFS-e pelo ADN: datasource dedicado (/api/billing/fiscal*)
-        Bind.lazySingleton<ServiceOrderFiscalDatasource>((i) =>
-            ServiceOrderFiscalDatasourceImpl(client: i.get<ApiClient>())),
-        Bind.lazySingleton<ServiceOrderFiscalRepository>((i) =>
-            ServiceOrderFiscalRepositoryImpl(
-                datasource: i.get<ServiceOrderFiscalDatasource>())),
+        // F2b — a NFS-e na nfse-api (D-F4: datasource dedicado, NfseApiClient)
+        Bind.lazySingleton<ServiceOrderNfseDatasource>((i) =>
+            ServiceOrderNfseDatasourceImpl(client: i.get<NfseApiClient>())),
+        Bind.lazySingleton<ServiceOrderNfseRepository>((i) =>
+            ServiceOrderNfseRepositoryImpl(
+                datasource: i.get<ServiceOrderNfseDatasource>())),
+        // F2b — os fatos do ERP sobre a nota (/api/billing — D-F115)
+        Bind.lazySingleton<ServiceOrderInvoiceDatasource>((i) =>
+            ServiceOrderInvoiceDatasourceImpl(client: i.get<ApiClient>())),
+        Bind.lazySingleton<ServiceOrderInvoiceRepository>((i) =>
+            ServiceOrderInvoiceRepositoryImpl(
+                datasource: i.get<ServiceOrderInvoiceDatasource>())),
         Bind.factory<ServiceOrderFiscalGet>((i) => ServiceOrderFiscalGet(
-            repository: i.get<ServiceOrderFiscalRepository>())),
+            repository: i.get<ServiceOrderNfseRepository>())),
+        Bind.factory<ServiceOrderFiscalEffectGet>((i) =>
+            ServiceOrderFiscalEffectGet(
+                repository: i.get<ServiceOrderInvoiceRepository>())),
+        Bind.factory<ServiceOrderCancelPlanGet>((i) => ServiceOrderCancelPlanGet(
+            repository: i.get<ServiceOrderInvoiceRepository>())),
         Bind.factory<ServiceOrderTransmit>((i) => ServiceOrderTransmit(
-            repository: i.get<ServiceOrderFiscalRepository>())),
+            repository: i.get<ServiceOrderNfseRepository>())),
         Bind.factory<ServiceOrderFiscalRefresh>((i) => ServiceOrderFiscalRefresh(
-            repository: i.get<ServiceOrderFiscalRepository>())),
+            repository: i.get<ServiceOrderNfseRepository>())),
+        Bind.factory<ServiceOrderFiscalReconfirm>((i) =>
+            ServiceOrderFiscalReconfirm(
+                repository: i.get<ServiceOrderNfseRepository>())),
         Bind.factory<ServiceOrderFiscalXml>((i) => ServiceOrderFiscalXml(
-            repository: i.get<ServiceOrderFiscalRepository>())),
+            repository: i.get<ServiceOrderNfseRepository>())),
         Bind.factory<ServiceOrderFiscalDanfse>((i) => ServiceOrderFiscalDanfse(
-            repository: i.get<ServiceOrderFiscalRepository>())),
-        Bind.factory<ServiceOrderFiscalCancel>((i) => ServiceOrderFiscalCancel(
-            repository: i.get<ServiceOrderFiscalRepository>())),
-        Bind.factory<ServiceOrderFiscalPendingList>((i) =>
-            ServiceOrderFiscalPendingList(
-                repository: i.get<ServiceOrderFiscalRepository>())),
-        Bind.factory<ServiceOrderFiscalTransmitBatch>((i) =>
-            ServiceOrderFiscalTransmitBatch(
-                repository: i.get<ServiceOrderFiscalRepository>())),
-        // D-F67 — "Manter a nota" com NFS-e substituída no fisco
+            repository: i.get<ServiceOrderNfseRepository>())),
+        // D-F139: a SAGA do cancelamento compõe os DOIS repositórios
+        Bind.factory<ServiceOrderCancelInvoice>((i) => ServiceOrderCancelInvoice(
+              nfse: i.get<ServiceOrderNfseRepository>(),
+              invoice: i.get<ServiceOrderInvoiceRepository>(),
+            )),
         Bind.factory<ServiceOrderFiscalWaiveCancel>((i) =>
             ServiceOrderFiscalWaiveCancel(
-                repository: i.get<ServiceOrderFiscalRepository>())),
+                repository: i.get<ServiceOrderInvoiceRepository>())),
+        Bind.factory<ServiceOrderFiscalPendingList>((i) =>
+            ServiceOrderFiscalPendingList(
+                repository: i.get<ServiceOrderNfseRepository>())),
+        Bind.factory<ServiceOrderFiscalTransmitBatch>((i) =>
+            ServiceOrderFiscalTransmitBatch(
+                repository: i.get<ServiceOrderNfseRepository>())),
         Bind.singleton<ServiceOrderBloc>((i) => ServiceOrderBloc(
               getlist:    i.get<ServiceOrderGetlist>(),
               get:        i.get<ServiceOrderGet>(),
@@ -104,14 +129,16 @@ class ServiceOrdersModule extends Module {
               itemDelete: i.get<ServiceOrderItemDelete>(),
               monthlyRun: i.get<ServiceOrderMonthlyRun>(),
               invoice:    i.get<ServiceOrderInvoice>(),
-              cancelInvoice: i.get<ServiceOrderCancelInvoice>(),
               batchInvoice:  i.get<ServiceOrderBatchInvoice>(),
               fiscalGet:     i.get<ServiceOrderFiscalGet>(),
+              fiscalEffectGet: i.get<ServiceOrderFiscalEffectGet>(),
+              cancelPlanGet: i.get<ServiceOrderCancelPlanGet>(),
+              cancelInvoice: i.get<ServiceOrderCancelInvoice>(),
               transmit:      i.get<ServiceOrderTransmit>(),
               fiscalRefresh: i.get<ServiceOrderFiscalRefresh>(),
+              fiscalReconfirm: i.get<ServiceOrderFiscalReconfirm>(),
               fiscalXml:     i.get<ServiceOrderFiscalXml>(),
               fiscalDanfse:  i.get<ServiceOrderFiscalDanfse>(),
-              fiscalCancel:  i.get<ServiceOrderFiscalCancel>(),
               fiscalPending: i.get<ServiceOrderFiscalPendingList>(),
               fiscalTransmitBatch: i.get<ServiceOrderFiscalTransmitBatch>(),
               fiscalWaiveCancel:   i.get<ServiceOrderFiscalWaiveCancel>(),

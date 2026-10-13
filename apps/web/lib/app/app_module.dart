@@ -13,8 +13,16 @@ import 'shared/users/datasource/user_datasource.dart';
 class AppModule extends Module {
   @override
   List<Bind> get binds => [
-        // Singleton: uma sessão HTTP/JWT para o app inteiro
-        Bind.singleton<ApiClient>((_) => ApiClient()),
+        // D-F138 (F2b): UM token do produto (ProductToken) para as N APIs —
+        // cada API tem o seu cliente (base de URL própria), todos leem o
+        // token daqui a cada requisição; 401 com token = sessão morta (o
+        // AppWidget volta ao login — uma vez, para todas as APIs)
+        Bind.singleton<ProductToken>((_) => ProductToken()),
+        Bind.singleton<ApiClient>((i) => ApiClient(session: i.get<ProductToken>())),
+        // D-F4: a nfse-api (NFS-e) é falada DIRETO pelo app — datasource
+        // da nfse-api pede NfseApiClient, nunca o ApiClient do setes-api
+        Bind.singleton<NfseApiClient>(
+            (i) => NfseApiClient(session: i.get<ProductToken>())),
         Bind.singleton<LocalPrefs>((_) => LocalPrefs()),
         // Engine de campos configuráveis (Fase 2, decisão 7): toda tela de
         // cadastro consulta a config resolvida na montagem — bind global.

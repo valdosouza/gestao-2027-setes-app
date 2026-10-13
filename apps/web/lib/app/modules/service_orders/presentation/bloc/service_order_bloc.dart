@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entity/service_order_entity.dart';
 import '../../domain/entity/service_order_fiscal_entity.dart';
+import '../../domain/usecase/service_order_cancel_plan_get.dart';
 import '../../domain/usecase/service_order_delete.dart';
-import '../../domain/usecase/service_order_fiscal_cancel.dart';
 import '../../domain/usecase/service_order_fiscal_danfse.dart';
+import '../../domain/usecase/service_order_fiscal_effect_get.dart';
 import '../../domain/usecase/service_order_fiscal_get.dart';
 import '../../domain/usecase/service_order_fiscal_pending.dart';
+import '../../domain/usecase/service_order_fiscal_reconfirm.dart';
 import '../../domain/usecase/service_order_fiscal_refresh.dart';
 import '../../domain/usecase/service_order_fiscal_transmit_batch.dart';
 import '../../domain/usecase/service_order_fiscal_waive_cancel.dart';
@@ -48,14 +50,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     required this.itemDelete,
     required this.monthlyRun,
     required this.invoice,
-    required this.cancelInvoice,
     required this.batchInvoice,
     required this.fiscalGet,
+    required this.fiscalEffectGet,
+    required this.cancelPlanGet,
+    required this.cancelInvoice,
     required this.transmit,
     required this.fiscalRefresh,
+    required this.fiscalReconfirm,
     required this.fiscalXml,
     required this.fiscalDanfse,
-    required this.fiscalCancel,
     required this.fiscalPending,
     required this.fiscalTransmitBatch,
     required this.fiscalWaiveCancel,
@@ -69,13 +73,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderItemRemoveRequested>(_onItemRemoveRequested);
     on<ServiceOrderMonthlyRunRequested>(_onMonthlyRunRequested);
     on<ServiceOrderInvoiceRequested>(_onInvoiceRequested);
-    on<ServiceOrderInvoiceCancelRequested>(_onInvoiceCancelRequested);
     on<ServiceOrderBatchInvoiceRequested>(_onBatchInvoiceRequested);
     on<ServiceOrderTransmitRequested>(_onTransmitRequested);
     on<ServiceOrderFiscalRefreshRequested>(_onFiscalRefreshRequested);
+    on<ServiceOrderFiscalReconfirmRequested>(_onFiscalReconfirmRequested);
     on<ServiceOrderFiscalXmlRequested>(_onFiscalXmlRequested);
     on<ServiceOrderFiscalDanfseRequested>(_onFiscalDanfseRequested);
-    on<ServiceOrderFiscalCancelRequested>(_onFiscalCancelRequested);
+    on<ServiceOrderCancelFlowRequested>(_onCancelFlowRequested);
+    on<ServiceOrderCancelConfirmed>(_onCancelConfirmed);
     on<ServiceOrderFiscalCancelWaiverRequested>(_onFiscalCancelWaiverRequested);
     on<ServiceOrderFiscalPendingRequested>(_onFiscalPendingRequested);
     on<ServiceOrderFiscalTransmitBatchRequested>(
@@ -90,16 +95,20 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   final ServiceOrderItemDelete itemDelete;
   final ServiceOrderMonthlyRun monthlyRun;
   final ServiceOrderInvoice invoice;
-  final ServiceOrderCancelInvoice cancelInvoice;
   final ServiceOrderBatchInvoice batchInvoice;
 
-  // Onda 3 — NFS-e pelo ADN (/api/billing/fiscal*)
+  // F2b — a NFS-e na nfse-api (D-F4) e os fatos do ERP sobre a nota (D-F115)
   final ServiceOrderFiscalGet fiscalGet;
+  final ServiceOrderFiscalEffectGet fiscalEffectGet;
+  final ServiceOrderCancelPlanGet cancelPlanGet;
+
+  /// D-F139: a SAGA do cancelamento (composição dos dois repositórios).
+  final ServiceOrderCancelInvoice cancelInvoice;
   final ServiceOrderTransmit transmit;
   final ServiceOrderFiscalRefresh fiscalRefresh;
+  final ServiceOrderFiscalReconfirm fiscalReconfirm;
   final ServiceOrderFiscalXml fiscalXml;
   final ServiceOrderFiscalDanfse fiscalDanfse;
-  final ServiceOrderFiscalCancel fiscalCancel;
   final ServiceOrderFiscalPendingList fiscalPending;
   final ServiceOrderFiscalTransmitBatch fiscalTransmitBatch;
 
@@ -123,11 +132,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// saving/falha sem nova consulta.
   ServiceOrderFull? _detail;
 
-  /// Visão fiscal da nota da OS FATURADA (Onda 3) — carregada junto com o
-  /// detalhe; null na OS aberta. [_fiscalFailure] guarda o motivo quando o
-  /// GET fiscal falhou (a OS continua legível).
+  /// A seção "No fisco" da OS FATURADA (F2b — D-F139): DUAS fontes e DUAS
+  /// falhas — a voz (nfse-api) e o efeito na nota (ERP); null na OS aberta.
   ServiceOrderFiscalView? _fiscal;
   Failure? _fiscalFailure;
+  ServiceOrderFiscalEffect? _effect;
+  Failure? _effectFailure;
 
   /// Estado buildável do detalhe a partir do cache — os re-emits de
   /// saving/falha não perdem a visão fiscal.
@@ -138,12 +148,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         saving: saving,
         fiscal: _fiscal,
         fiscalFailure: _fiscalFailure,
+        effect: _effect,
+        effectFailure: _effectFailure,
       );
 
   Future<void> _reloadList(Emitter<ServiceOrderState> emit) async {
     _detail = null;
     _fiscal = null;
     _fiscalFailure = null;
+    _effect = null;
+    _effectFailure = null;
     emit(ServiceOrderListState(
         loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await getlist(_status, _filter,
@@ -201,17 +215,24 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     );
   }
 
-  /// Onda 3: a OS FATURADA tem nota — busca a visão fiscal dela. A falha do
-  /// GET fiscal NÃO derruba o detalhe nem vira dialog: fica no estado e a
-  /// seção "No fisco" mostra o motivo (endpoint fora/ainda não montado).
+  /// A OS FATURADA tem nota — busca as DUAS fontes da seção "No fisco" EM
+  /// PARALELO (D-F139): a voz do fisco (nfse-api) e o efeito na nota (ERP).
+  /// Uma falha não derruba o detalhe nem a outra fonte — fica no estado e a
+  /// seção mostra cada uma pelo que é.
   Future<void> _loadFiscal(ServiceOrderFull order) async {
     _fiscal = null;
     _fiscalFailure = null;
+    _effect = null;
+    _effectFailure = null;
     if (order.isOpen) return;
-    final result = await fiscalGet(order.id);
-    result.fold(
+    final results = await Future.wait([fiscalGet(order.id), fiscalEffectGet(order.id)]);
+    (results[0] as Either<Failure, ServiceOrderFiscalView>).fold(
       (failure) => _fiscalFailure = failure,
       (view) => _fiscal = view,
+    );
+    (results[1] as Either<Failure, ServiceOrderFiscalEffect>).fold(
+      (failure) => _effectFailure = failure,
+      (effect) => _effect = effect,
     );
   }
 
@@ -405,38 +426,6 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     await _reloadList(emit);
   }
 
-  /// "Cancelar nota" (Q-G16): a nota some e a OS volta a ABERTA — a lista
-  /// reabre na aba Abertas, página 1 (fluxo do processo).
-  Future<void> _onInvoiceCancelRequested(
-      ServiceOrderInvoiceCancelRequested event,
-      Emitter<ServiceOrderState> emit) async {
-    if (_invoiceCancelling) return; // duplo-clique
-    _invoiceCancelling = true;
-    final detail = _detail;
-    if (detail != null) {
-      emit(_detailState(detail, saving: true));
-    }
-    final result = await cancelInvoice(event.orderId, event.reason);
-    _invoiceCancelling = false;
-    await result.fold(
-      (failure) async {
-        emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
-      },
-      (cancelResult) async {
-        emit(ServiceOrderActionSuccess(
-          'forms.serviceOrder.invoiceCancelled',
-          args: [cancelResult.invoiceNumber],
-        ));
-        _status = 'A';
-        _page = 1;
-        await _reloadList(emit);
-      },
-    );
-  }
-
-  bool _invoiceCancelling = false;
-
   Future<void> _onInvoiceRequested(
       ServiceOrderInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
@@ -465,13 +454,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   }
 
   // -------------------------------------------------------------------
-  // Onda 3 — NFS-e pelo ADN
+  // F2b — a NFS-e na nfse-api + os fatos do ERP (D-F139…D-F145)
   // -------------------------------------------------------------------
 
   /// Ação fiscal de detalhe: marca saving, roda [run], falha vai INTEIRA ao
-  /// one-shot (422 FISCAL_DPS_REJECTED com E0xxx em fields[], 409/503
-  /// legíveis) e o detalhe volta como estava; sucesso passa o resultado a
-  /// [onSuccess], que decide o feedback e se recarrega detalhe ou lista.
+  /// one-shot e o detalhe volta como estava; sucesso passa o resultado a
+  /// [onSuccess], que decide o feedback e se recarrega.
   Future<void> _fiscalAction<T>(
     Emitter<ServiceOrderState> emit,
     Future<Either<Failure, T>> Function() run,
@@ -489,41 +477,79 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     );
   }
 
-  /// Transmitir: sucesso 'A' = autorizada com a chave; 'S' = enviado (a
-  /// consulta fecha depois). Detalhe recarrega — a voz entra na linha do
-  /// tempo.
-  Future<void> _onTransmitRequested(ServiceOrderTransmitRequested event,
-          Emitter<ServiceOrderState> emit) =>
-      _fiscalAction(emit, () => transmit(event.orderId), (result) async {
-        emit(result.authorized
-            ? ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized',
-                args: [result.accessKey ?? ''])
-            : ServiceOrderActionSuccess('forms.serviceOrder.fiscalSent',
-                args: ['${result.attempt}']));
-        await _reloadDetail(event.orderId, emit);
-      });
+  /// Desfecho DESCONHECIDO de um ato no fisco (502/503/rede — D-F139): nunca
+  /// "não aconteceu". Aviso "resultado incerto — consulte" e o detalhe RELÊ (a
+  /// tentativa pode estar em voo). Devolve true quando tratou.
+  Future<bool> _unknownOutcome(Failure failure, int orderId, Emitter<ServiceOrderState> emit) async {
+    if (!isUnknownAuthorityOutcome(failure)) return false;
+    emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalOutcomeUnknown', detail: failure.message));
+    await _reloadDetail(orderId, emit);
+    return true;
+  }
 
-  /// Consultar: `changed` diz se a linha do tempo mudou; autorizada mostra a
-  /// chave. Recarrega o detalhe nos dois casos (lastQueriedAt muda sempre).
-  Future<void> _onFiscalRefreshRequested(
-          ServiceOrderFiscalRefreshRequested event,
+  /// Transmitir (nfse-api): 201 = autorizada com a chave. Recusa (422/409) vai
+  /// à ponte; desfecho desconhecido relê. Nunca reenvia sozinho.
+  Future<void> _onTransmitRequested(ServiceOrderTransmitRequested event,
+      Emitter<ServiceOrderState> emit) async {
+    final detail = _detail;
+    if (detail != null) emit(_detailState(detail, saving: true));
+    final result = await transmit(event.orderId);
+    await result.fold(
+      (failure) async {
+        if (await _unknownOutcome(failure, event.orderId, emit)) return;
+        emit(ServiceOrderActionFailure(failure));
+        await _reloadDetail(event.orderId, emit);   // a tentativa R/F entra na linha do tempo
+      },
+      (r) async {
+        emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [r.accessKey ?? '']));
+        await _reloadDetail(event.orderId, emit);
+      },
+    );
+  }
+
+  /// Consultar (nfse-api): `changed` diz se a linha do tempo mudou. Recarrega
+  /// nos dois casos (o "consultado em" muda sempre).
+  Future<void> _onFiscalRefreshRequested(ServiceOrderFiscalRefreshRequested event,
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, () => fiscalRefresh(event.orderId), (result) async {
         if (!result.changed) {
-          emit(const ServiceOrderActionSuccess(
-              'forms.serviceOrder.fiscalRefreshUnchanged'));
-        } else if (result.authorized) {
-          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized',
-              args: [result.accessKey ?? '']));
+          emit(const ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshUnchanged'));
+        } else if (result.kind == FiscalTransmissionKind.authorized ||
+            result.kind == FiscalTransmissionKind.notCancelled) {
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [result.accessKey ?? '']));
         } else {
-          emit(const ServiceOrderActionSuccess(
-              'forms.serviceOrder.fiscalRefreshChanged'));
+          emit(const ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshChanged'));
         }
         await _reloadDetail(event.orderId, emit);
       });
 
-  /// XML autorizado: one-shot [ServiceOrderFiscalXmlReady] — a página abre
-  /// em nova aba; o detalhe volta como estava.
+  /// Reconferir (nfse-api — D-F109): o veredito só escolhe a FRASE
+  /// (`nao-exigida` ≠ "pode cancelar"); o detalhe relê e o próximo
+  /// "Cancelar nota" lê o PLANO de novo (quem decide).
+  Future<void> _onFiscalReconfirmRequested(ServiceOrderFiscalReconfirmRequested event,
+      Emitter<ServiceOrderState> emit) async {
+    final detail = _detail;
+    if (detail != null) emit(_detailState(detail, saving: true));
+    final result = await fiscalReconfirm(event.orderId);
+    await result.fold(
+      (failure) async {
+        if (await _unknownOutcome(failure, event.orderId, emit)) return;
+        emit(ServiceOrderActionFailure(failure));
+        if (detail != null) emit(_detailState(detail));
+      },
+      (r) async {
+        final key = r.found
+            ? 'forms.serviceOrder.fiscalReconfirmFound'
+            : r.verdict == 'provada'
+                ? 'forms.serviceOrder.fiscalReconfirmProven'
+                : 'forms.serviceOrder.fiscalReconfirmNotProven';
+        emit(ServiceOrderFiscalNotice(key, detail: r.verdict));
+        await _reloadDetail(event.orderId, emit);
+      },
+    );
+  }
+
+  /// XML: one-shot [ServiceOrderFiscalXmlReady] — a página abre em nova aba.
   Future<void> _onFiscalXmlRequested(ServiceOrderFiscalXmlRequested event,
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, () => fiscalXml(event.orderId), (xml) async {
@@ -532,9 +558,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         if (detail != null) emit(_detailState(detail));
       });
 
-  /// DANFSe: one-shot [ServiceOrderFiscalDanfseReady] (molde BankSlipPdfReady).
-  Future<void> _onFiscalDanfseRequested(
-          ServiceOrderFiscalDanfseRequested event,
+  /// DANFSe: one-shot [ServiceOrderFiscalDanfseReady].
+  Future<void> _onFiscalDanfseRequested(ServiceOrderFiscalDanfseRequested event,
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, () => fiscalDanfse(event.orderId), (base64) async {
         emit(ServiceOrderFiscalDanfseReady(base64));
@@ -542,50 +567,63 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         if (detail != null) emit(_detailState(detail));
       });
 
-  /// Cancelar NFS-e: 'C' = fisco aceitou e a nota local cancelou na mesma
-  /// transação — a OS volta a ABERTA (fluxo do "Cancelar nota": lista na
-  /// aba Abertas, página 1); 'K' = pedido em voo — o detalhe recarrega
-  /// bloqueado até a consulta reconciliar. `warnings[]` vão num one-shot
-  /// próprio depois do sucesso. Mesma trava de duplo-clique do cancelamento
-  /// local.
-  Future<void> _onFiscalCancelRequested(
-      ServiceOrderFiscalCancelRequested event,
+  /// 1º passo de todo cancelamento (D-F140): o PLANO do ERP → one-shot; a
+  /// página decide pelo plano. Falha (403 sem CANCELAR, 409 não faturada,
+  /// 503 voz indisponível) vai à ponte.
+  Future<void> _onCancelFlowRequested(ServiceOrderCancelFlowRequested event,
+          Emitter<ServiceOrderState> emit) =>
+      _fiscalAction(emit, () => cancelPlanGet(event.orderId), (plan) async {
+        final detail = _detail;
+        if (detail != null) emit(_detailState(detail));
+        emit(ServiceOrderCancelPlanReady(plan));
+      });
+
+  /// 2º passo: a SAGA (D-F139). Trava de duplo-clique compartilhada com o
+  /// "manter a nota" (decisões EXCLUSIVAS sobre a mesma nota). Depois de tudo
+  /// o detalhe RELÊ — o destino vem do status relido (com registro fiscal a
+  /// OS fica 'C'; sem, volta a aberta), nunca de uma aba fixa.
+  Future<void> _onCancelConfirmed(ServiceOrderCancelConfirmed event,
       Emitter<ServiceOrderState> emit) async {
     if (_invoiceCancelling) return;
     _invoiceCancelling = true;
     try {
-      await _fiscalAction(emit, () => fiscalCancel(event.orderId, event.reason),
-          (result) async {
-        emit(ServiceOrderActionSuccess(result.cancelled
-            ? 'forms.serviceOrder.fiscalCancelled'
-            : 'forms.serviceOrder.fiscalCancelInFlight'));
-        if (result.warnings.isNotEmpty) {
-          emit(ServiceOrderFiscalWarnings(result.warnings));
-        }
-        if (result.cancelled) {
-          _status = 'A';
-          _page = 1;
-          await _reloadList(emit);
-        } else {
+      final detail = _detail;
+      if (detail != null) emit(_detailState(detail, saving: true));
+      final result = await cancelInvoice(event.orderId, event.reason, atAuthority: event.atAuthority);
+      await result.fold(
+        (saga) async {
+          final f = saga.failure;
+          if (saga.stage == CancelSagaStage.authority) {
+            if (await _unknownOutcome(f, event.orderId, emit)) return;
+            emit(ServiceOrderActionFailure(f));
+          } else if (saga.authorityCancelled) {
+            // o fisco CANCELOU e a nota não: o efeito fica `apply` — a seção
+            // oferece "Aplicar o cancelamento na nota" (retomada por derivação)
+            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalLocalCancelPending', detail: f.message));
+          } else if (f.code == FiscalCodes.invoiceNotCancellable) {
+            // a situação mudou (ex.: outra tela já cancelou): diz e relê
+            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', detail: f.message));
+          } else {
+            emit(ServiceOrderActionFailure(f));
+          }
           await _reloadDetail(event.orderId, emit);
-        }
-      });
+        },
+        (outcome) async {
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.invoiceCancelled', args: [outcome.result.invoiceNumber]));
+          if (outcome.warnings.isNotEmpty) emit(ServiceOrderFiscalWarnings(outcome.warnings));
+          await _reloadDetail(event.orderId, emit);
+        },
+      );
     } finally {
       _invoiceCancelling = false;
     }
   }
 
-  /// D-F67 "Manter a nota": a NFS-e foi SUBSTITUÍDA no fisco (e105102) e o
-  /// humano decide não cancelar a nota. Sucesso recarrega o detalhe — a seção
-  /// "No fisco" mostra a decisão registrada e a pendência deixa de contar
-  /// (`alreadyWaived` = já estava registrada, mensagem própria). Manter e
-  /// cancelar são decisões EXCLUSIVAS sobre a mesma nota: dividem a trava de
-  /// duplo-clique do cancelamento. 409 INVOICE_CANCEL_WAIVER_NOT_APPLICABLE =
-  /// a situação mudou fora desta tela (nota cancelada, efeito aplicado, outra
-  /// pessoa decidiu) — além da ponte, o detalhe RECARREGA para a seção não
-  /// seguir oferecendo uma decisão que não cabe mais.
-  Future<void> _onFiscalCancelWaiverRequested(
-      ServiceOrderFiscalCancelWaiverRequested event,
+  bool _invoiceCancelling = false;
+
+  /// D-F67 "Manter a nota" (efeito `decide`). 409 NOT_APPLICABLE = a situação
+  /// mudou fora desta tela — além da ponte, o detalhe RELÊ.
+  Future<void> _onFiscalCancelWaiverRequested(ServiceOrderFiscalCancelWaiverRequested event,
       Emitter<ServiceOrderState> emit) async {
     if (_invoiceCancelling) return;
     _invoiceCancelling = true;
@@ -596,7 +634,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       await result.fold(
         (failure) async {
           emit(ServiceOrderActionFailure(failure));
-          if (failure.code == fiscalCancelWaiverNotApplicable) {
+          if (failure.code == FiscalCodes.cancelWaiverNotApplicable) {
             await _reloadDetail(event.orderId, emit);
           } else if (detail != null) {
             emit(_detailState(detail));
@@ -614,15 +652,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     }
   }
 
-  /// 1º passo do lote: lista as pendentes e devolve no one-shot — quem
-  /// confirma é a página (askDecision). A lista fica em loading enquanto
-  /// isso (o botão da AppBar é gated pelo loading).
-  Future<void> _onFiscalPendingRequested(
-      ServiceOrderFiscalPendingRequested event,
+  /// 1º passo do lote: a lista FOTOGRAFADA (todas as páginas, só da OS —
+  /// D-F145) → one-shot para a página confirmar.
+  Future<void> _onFiscalPendingRequested(ServiceOrderFiscalPendingRequested event,
       Emitter<ServiceOrderState> emit) async {
     if (_fiscalBatchRunning) return;
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
+    emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await fiscalPending();
     await result.fold(
       (failure) async {
@@ -636,64 +671,23 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     );
   }
 
-  /// 2º passo do lote (confirmado). H1 da Rodada 5: UM lote por vez — o 2º
-  /// disparo enquanto o 1º roda é ignorado (a AppBar continua viva e o
-  /// lote leva tempo sob contenção do fisco). Fatiamento em blocos de
-  /// [fiscalTransmitChunkSize] em SEQUÊNCIA, relatórios agregados; bloco
-  /// que falha inteiro DEPOIS de outro já transmitido vira linhas
-  /// "recusadas" com o motivo (o relatório do que já foi ao fisco não pode
-  /// se perder); só a falha do PRIMEIRO bloco sobe como [Failure].
-  Future<void> _onFiscalTransmitBatchRequested(
-      ServiceOrderFiscalTransmitBatchRequested event,
+  /// 2º passo (confirmado): UM lote por vez; o lote roda no app, 1 nota por
+  /// vez, e PARA em erro sistêmico (usecase). Bloc fechado = parar sem
+  /// relatório (o que já foi ao fisco está na lista).
+  Future<void> _onFiscalTransmitBatchRequested(ServiceOrderFiscalTransmitBatchRequested event,
       Emitter<ServiceOrderState> emit) async {
     if (_fiscalBatchRunning) return;
     _fiscalBatchRunning = true;
     try {
-      await _runFiscalBatch(event, emit);
+      emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
+      final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed);
+      if (isClosed) return;
+      emit(ServiceOrderFiscalBatchDone(report));
+      await _reloadList(emit);
     } finally {
       _fiscalBatchRunning = false;
     }
   }
 
   bool _fiscalBatchRunning = false;
-
-  Future<void> _runFiscalBatch(ServiceOrderFiscalTransmitBatchRequested event,
-      Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
-    final ids = event.orderIds.toSet().toList();
-    final parts = <FiscalTransmitBatchReport>[];
-    Failure? aborted;
-    for (var start = 0; start < ids.length; start += fiscalTransmitChunkSize) {
-      if (isClosed) return;
-      final chunk = ids.sublist(
-          start, (start + fiscalTransmitChunkSize).clamp(0, ids.length));
-      final result = await fiscalTransmitBatch(chunk);
-      final stop = result.fold<bool>(
-        (failure) {
-          aborted = failure;
-          parts.add(FiscalTransmitBatchReport.fromEntries([
-            for (final id in ids.sublist(start))
-              FiscalTransmitBatchRow.aborted(
-                  orderId: id, message: failure.message),
-          ]));
-          return true;
-        },
-        (report) {
-          parts.add(report);
-          return false;
-        },
-      );
-      if (stop) break;
-    }
-    if (isClosed) return;
-    final failure = aborted;
-    if (failure != null && parts.length == 1) {
-      emit(ServiceOrderActionFailure(failure));
-      await _reloadList(emit);
-      return;
-    }
-    emit(ServiceOrderFiscalBatchDone(FiscalTransmitBatchReport.merge(parts)));
-    await _reloadList(emit);
-  }
 }

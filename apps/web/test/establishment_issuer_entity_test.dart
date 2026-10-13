@@ -105,7 +105,7 @@ void main() {
   group('EstablishmentIssuerView', () {
     final view = EstablishmentIssuerView.fromJson({
       'issuers': [
-        {'model': 'SE', 'environment': 'H', 'serie': '1', 'enabled': true, 'authority': 'ADN'},
+        {'model': 'SE', 'environment': 'H', 'serie': '1', 'enabled': true, 'authority': 'ADN', 'cutoverAt': '2026-11-20 00:00:00'},
         {'model': '55', 'environment': 'P', 'serie': '3', 'enabled': false, 'authority': 'SEFAZ'},
       ],
       'certificate': {
@@ -127,11 +127,23 @@ void main() {
       expect(view.certificate.certificateInfo!.notAfterDate, '2027-01-01');
     });
 
-    test('badge: enabled × linha com enabled false da API × sem linha', () {
+    test('badge pelos FATOS (F2b): enabled · aguardando a migração (cutoverAt nulo) · sem certificado (virada feita, A1 inválido) · sem linha', () {
       expect(view.badgeFor('SE'), IssuerBadge.enabled);
-      expect(view.badgeFor('55'), IssuerBadge.noCertificate,
-          reason: 'o badge segue o enabled DERIVADO pela API, não recalcula');
+      EstablishmentIssuerView only(Map<String, dynamic> row) => EstablishmentIssuerView.fromJson({'issuers': [row]});
+      expect(only({'model': 'SE', 'enabled': false, 'cutoverAt': null}).badgeFor('SE'), IssuerBadge.awaitingCutover,
+          reason: 'antes da virada "sem certificado" mentia — o enabled da nfse-api também exige a virada');
+      expect(only({'model': 'SE', 'enabled': false, 'cutoverAt': '2026-11-20 00:00:00'}).badgeFor('SE'), IssuerBadge.noCertificate);
       expect(view.badgeFor('65'), IssuerBadge.notConfigured);
+    });
+
+    test('D-F137: a aba só oferece a NFS-e (SE); D-F146/contrato: série de 1 a 49999', () {
+      expect(kIssuerModels, ['SE']);
+      for (final ok in ['1', '00001', '49999']) {
+        expect(issuerSerieValid(ok), isTrue, reason: ok);
+      }
+      for (final bad in ['', '0', '00000', '50000', '99999', '123456', 'A1', '-1']) {
+        expect(issuerSerieValid(bad), isFalse, reason: bad);
+      }
     });
 
     test('payload vazio não quebra: certificate vem vazio, nunca null', () {

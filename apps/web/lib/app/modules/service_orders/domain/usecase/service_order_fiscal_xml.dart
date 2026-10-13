@@ -1,14 +1,13 @@
 import 'package:core/core.dart';
 import 'package:dartz/dartz.dart';
 
-import '../repository/service_order_fiscal_repository.dart';
+import '../repository/service_order_nfse_repository.dart';
 
-/// XML autorizado da NFS-e (GET /api/billing/fiscal/:orderId/xml) — texto;
-/// a tela abre em nova aba.
+/// XML da NFS-e (nfse-api — GET /v1/nfse/invoices/{id}/xml).
 class ServiceOrderFiscalXml {
   const ServiceOrderFiscalXml({required this.repository});
 
-  final ServiceOrderFiscalRepository repository;
+  final ServiceOrderNfseRepository repository;
 
   Future<Either<Failure, String>> call(int orderId) => repository.xml(orderId);
 }

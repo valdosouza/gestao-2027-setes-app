@@ -1,9 +1,9 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
-/// EMISSOR FISCAL do estabelecimento (Onda 3 — NFS-e pelo Padrão Nacional,
-/// prompt_onda3_nfse_adn.md §3.A + prompt_onda_nfe_sefaz.md §9.3):
-/// espelho de GET /api/establishment/issuer. Duas coisas distintas viajam
+/// EMISSOR FISCAL do estabelecimento — espelho de GET /v1/emitter da
+/// nfse-api (F2b, D-F4/D-F137; antes /api/establishment/issuer do ERP). Duas
+/// coisas distintas viajam
 /// no mesmo envelope:
 ///
 /// - [EstablishmentIssuer]: a HABILITAÇÃO por modelo (linha de
@@ -14,8 +14,24 @@ import 'package:equatable/equatable.dart';
 ///   (P) e a todos os modelos. O que a tela vê é só presença + validade +
 ///   CNPJ lidos do arquivo — o .pfx e a senha NUNCA voltam.
 
-/// Modelos de documento que a tela oferece (65 fica fora — onda do PDV).
-const kIssuerModels = ['SE', '55'];
+/// Modelos de documento que a tela oferece — D-F137 (= Q-F145 (a), Valdo
+/// 2026-10-13): só a NFS-e (SE), pela nfse-api. O 55 saiu da aba (a nfse-api
+/// recusa 55/65 e a nfe-api não existe ainda); a série do 55 segue
+/// só-leitura no ERP (D-F112) até o 1º cliente de mercadoria.
+const kIssuerModels = ['SE'];
+
+/// Faixa da série do DPS aceita pela nfse-api (1–49999; 50000+ é do emissor
+/// nacional) — o app recusa ANTES, com a mesma regra da API.
+const kIssuerSerieMin = 1;
+const kIssuerSerieMax = 49999;
+
+/// A série digitada está na forma e na faixa do contrato da nfse-api.
+bool issuerSerieValid(String serie) {
+  final s = serie.trim();
+  if (!RegExp(r'^\d{1,5}$').hasMatch(s)) return false;
+  final n = int.parse(s);
+  return n >= kIssuerSerieMin && n <= kIssuerSerieMax;
+}
 
 /// Ambientes de EMISSÃO da habilitação por modelo: H = homologação ·
 /// P = produção. O certificado não é por ambiente (D-N31).
@@ -128,6 +144,7 @@ class EstablishmentIssuer extends Equatable {
     this.serie = '',
     this.enabled = false,
     this.authority = '',
+    this.cutoverAt,
   });
 
   /// 'SE' NFS-e nacional · '55' NF-e · '65' NFC-e.
@@ -145,6 +162,10 @@ class EstablishmentIssuer extends Equatable {
   /// 'ADN' | 'SEFAZ' — quem recebe o documento (derivado do modelo).
   final String authority;
 
+  /// D-F39: desde quando a nfse-api emite por esta habilitação; null =
+  /// RÉPLICA do ERP (a virada ainda não aconteceu — só leitura).
+  final String? cutoverAt;
+
   factory EstablishmentIssuer.fromJson(Map<String, dynamic> json) =>
       EstablishmentIssuer(
         model:       '${json['model'] ?? ''}',
@@ -152,10 +173,11 @@ class EstablishmentIssuer extends Equatable {
         serie:       '${json['serie'] ?? ''}',
         enabled:     json['enabled'] == true,
         authority:   json['authority'] as String? ?? '',
+        cutoverAt:   json['cutoverAt']?.toString(),
       );
 
   @override
-  List<Object?> get props => [model, environment, serie, enabled, authority];
+  List<Object?> get props => [model, environment, serie, enabled, authority, cutoverAt];
 }
 
 /// Envelope de GET /api/establishment/issuer e de PUT /issuer/:model
@@ -183,10 +205,17 @@ class EstablishmentIssuerView extends Equatable {
   /// Estado exibido pelo badge do modelo: `enabled` (habilitado) ·
   /// `noCertificate` (linha existe mas o estabelecimento não tem
   /// certificado válido) · `notConfigured` (sem linha).
+  ///
+  /// F2b (parecer do guardião): o `enabled` da nfse-api = virada feita E A1
+  /// vigente — "sem certificado" derivado de `!enabled` mentia antes da
+  /// virada. O selo vem dos FATOS: `awaitingCutover` = a emissão ainda é do
+  /// ERP (cutoverAt nulo).
   IssuerBadge badgeFor(String model) {
     final issuer = issuerFor(model);
     if (issuer == null) return IssuerBadge.notConfigured;
-    return issuer.enabled ? IssuerBadge.enabled : IssuerBadge.noCertificate;
+    if (issuer.enabled) return IssuerBadge.enabled;
+    if (issuer.cutoverAt == null) return IssuerBadge.awaitingCutover;
+    return IssuerBadge.noCertificate;
   }
 
   factory EstablishmentIssuerView.fromJson(Map<String, dynamic> json) {
@@ -207,4 +236,4 @@ class EstablishmentIssuerView extends Equatable {
   List<Object?> get props => [issuers, certificate];
 }
 
-enum IssuerBadge { enabled, noCertificate, notConfigured }
+enum IssuerBadge { enabled, awaitingCutover, noCertificate, notConfigured }

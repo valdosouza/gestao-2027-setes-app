@@ -1,49 +1,63 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
-/// Entidades FISCAIS do módulo service_orders — Onda 3 (NFS-e pelo Padrão
-/// Nacional, prompt_onda3_nfse_adn.md §3 B/C/E). Espelho do
-/// /api/billing/fiscal/:orderId: a nota da OS faturada ganha N TRANSMISSÕES
-/// do DPS (1 ramo × N tentativas — reapresentar = attempt + 1, nunca UPDATE)
-/// e a VOZ DO FISCO em linha do tempo (append-only). O estado fiscal é
-/// DERIVADO do último evento da última transmissão — nunca coluna.
+/// Entidades FISCAIS do módulo service_orders — F2b (o app é cliente DIRETO
+/// da nfse-api — D-F4; `prompt_apis_fiscais_isoladas.md` §22.14/§22.16).
+///
+/// DUAS fontes, DUAS falhas (D-F139, parecer do guardião): a VOZ do fisco vem
+/// da nfse-api (`GET /v1/nfse/invoices/{id}` → [ServiceOrderFiscalView]); o
+/// EFEITO dela na nota e o PLANO de cancelamento vêm do ERP (setes-api —
+/// `GET /api/billing/:orderId/fiscal-effect` → [ServiceOrderFiscalEffect],
+/// `GET /api/billing/:orderId/cancel-plan` → [ServiceOrderCancelPlan]).
+///
+/// O app NUNCA decide fato fiscal (D-F142): nada aqui deriva "autorizada",
+/// "viva", "registro fiscal" ou "pode cancelar" de colunas — o estado vem do
+/// servidor (`state`, `currentAttempt`, `effect`, a barreira do plano); o kind
+/// é só RÓTULO na linha do tempo.
 ///
 /// Identidade: 1 pedido = 1 nota com o MESMO id (notas-mercadoria-servico,
-/// D1) — o `invoiceId` que a API devolve é o `orderId` da OS.
+/// D1) — o `invoiceId` da nfse-api é o `orderId` da OS.
 
-/// Kinds da voz do fisco (`tb_invoice_service_transmission_event.kind`) —
-/// NOSSA leitura da resposta, nunca o código cru (que vai em authorityCode).
+/// Kinds da voz do fisco — só para RÓTULO (D-F142). N = o cancelamento NÃO
+/// aconteceu e a NFS-e segue autorizada (D-N17).
 abstract final class FiscalTransmissionKind {
-  /// Enviado (DPS recebido, sem desfecho ainda).
   static const sent = 'S';
-
-  /// Autorizada (NFS-e resultou: chave 50, número, protocolo).
   static const authorized = 'A';
-
-  /// Rejeitada (DPS recusado pelo fisco — nova tentativa = attempt + 1).
   static const rejected = 'R';
-
-  /// Cancelada (evento de cancelamento aceito pelo fisco).
   static const cancelled = 'C';
-
-  /// Cancelamento EM VOO (pedido ambíguo — bloqueia até reconciliar).
   static const cancelInFlight = 'K';
-
-  /// Falha explícita (transporte/assinatura — sem voz do fisco).
   static const failed = 'F';
-
-  /// Kinds que ENCERRAM a transmissão — a partir deles cabe nova tentativa.
-  static const finals = {rejected, cancelled, failed};
+  static const notCancelled = 'N';
 }
 
-/// Uma transmissão do DPS ao ADN (espelho de
-/// tb_invoice_service_transmission). Campos write-once chegam na
-/// autorização/consulta e nunca mudam; [lastKind]/[lastCode]/[lastMessage]/
-/// [lastDh] resumem o ÚLTIMO evento desta tentativa.
+/// Estado da NFS-e (o `state` DERIVADO pelo núcleo — `fiscalStateOf`). Valor
+/// fora desta lista (API mais nova que o build) = desconhecido: neutro, sem
+/// ação.
+abstract final class NfseState {
+  static const none = 'none';
+  static const inFlight = 'in_flight';
+  static const processing = 'processing';
+  static const authorized = 'authorized';
+  static const denied = 'denied';
+  static const rejected = 'rejected';
+  static const failed = 'failed';
+  static const cancelled = 'cancelled';
+  static const cancelInFlight = 'cancel_in_flight';
+
+  /// D-F130 (selo da LISTA de OS): a voz do fisco ilegível agora no ERP.
+  static const unavailable = 'unavailable';
+
+  /// Estados em que cabe transmitir (de novo): nunca transmitida, ou a última
+  /// tentativa fechou sem NFS-e (R/F). O servidor reconfere (409).
+  static const transmittable = {none, rejected, failed};
+}
+
+/// Uma tentativa ao fisco (linha de `transmissions` da nfse-api). Os campos
+/// do último evento resumem a tentativa — só para EXIBIÇÃO.
 class ServiceOrderFiscalTransmission extends Equatable {
   const ServiceOrderFiscalTransmission({
     required this.attempt,
-    this.environment = 'P',
+    this.environment,
     this.dpsId,
     this.accessKey,
     this.nfseNumber,
@@ -56,45 +70,25 @@ class ServiceOrderFiscalTransmission extends Equatable {
     this.lastDh,
   });
 
-  final int     attempt;
+  final int attempt;
 
-  /// 'H' produção restrita (homologação) · 'P' produção — CONGELADO.
-  final String  environment;
+  /// 'H' produção restrita (homologação) · 'P' produção — só rótulo.
+  final String? environment;
   final String? dpsId;
-
-  /// Chave de acesso da NFS-e (50 posições) — write-once na autorização.
   final String? accessKey;
   final String? nfseNumber;
-
-  /// Data/hora do processamento no fisco (ISO).
   final String? dhProc;
   final String? createdAt;
-
-  /// D-I20 (Onda 2): o fato "nós olhamos o fisco" — write-many.
   final String? lastQueriedAt;
   final String? lastKind;
   final String? lastCode;
   final String? lastMessage;
   final String? lastDh;
 
-  /// Vigente = último evento NÃO final (ou envio em andamento). Enquanto
-  /// há transmissão vigente a API recusa nova (409 FISCAL_ALREADY_AUTHORIZED /
-  /// FISCAL_TRANSMISSION_IN_PROGRESS) — a tela esconde o Transmitir.
-  bool get isLive =>
-      !FiscalTransmissionKind.finals.contains(lastKind ?? '');
-
-  bool get isAuthorized => lastKind == FiscalTransmissionKind.authorized;
-
-  bool get cancelInFlight => lastKind == FiscalTransmissionKind.cancelInFlight;
-
-  /// Enviado mas sem DPS registrado nem resposta (envio interrompido).
-  bool get inFlight => dpsId == null && lastKind == null;
-
   factory ServiceOrderFiscalTransmission.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalTransmission(
         attempt:       jsonInt(json['attempt']) ?? 0,
-        // gate (LOW): sem o campo, o lado CONSERVADOR é produção (bloqueia o cancelamento local)
-        environment:   json['environment'] as String? ?? 'P',
+        environment:   json['environment'] as String?,
         dpsId:         json['dpsId']?.toString(),
         accessKey:     json['accessKey']?.toString(),
         nfseNumber:    json['nfseNumber']?.toString(),
@@ -114,10 +108,7 @@ class ServiceOrderFiscalTransmission extends Equatable {
       ];
 }
 
-/// Uma fala do fisco sobre uma transmissão (append-only — espelho de
-/// tb_invoice_service_transmission_event). [invoiceEvent] liga a causa ao
-/// EFEITO na nota (evento C de tb_invoice_event); voz com efeito (C) sem
-/// invoiceEvent = efeito recusado pelas nossas regras — pendência (D-I10).
+/// Uma fala do fisco (linha de `events` da nfse-api) — append-only.
 class ServiceOrderFiscalEvent extends Equatable {
   const ServiceOrderFiscalEvent({
     required this.attempt,
@@ -127,22 +118,22 @@ class ServiceOrderFiscalEvent extends Equatable {
     this.message,
     this.dh,
     this.source,
-    this.invoiceEvent,
     this.createdAt,
   });
 
-  final int     attempt;
-  final int     event;
-  final String  kind;
+  final int attempt;
+  final int event;
+  final String kind;
 
-  /// Código CRU do fisco (E0xxx...).
+  /// Código CRU do fisco (E0xxx, tpEvento do cancelamento…).
   final String? authorityCode;
   final String? message;
+
+  /// Instante da VOZ do fisco (null nos fatos nossos — K da reserva, N).
   final String? dh;
 
-  /// 'P' resposta direta ao nosso pedido · 'Q' consulta.
+  /// 'P' resposta direta · 'Q' consulta.
   final String? source;
-  final int?    invoiceEvent;
   final String? createdAt;
 
   factory ServiceOrderFiscalEvent.fromJson(Map<String, dynamic> json) =>
@@ -154,50 +145,134 @@ class ServiceOrderFiscalEvent extends Equatable {
         message:       json['message'] as String?,
         dh:            json['dh']?.toString(),
         source:        json['source'] as String?,
-        invoiceEvent:  jsonInt(json['invoiceEvent']),
         createdAt:     json['createdAt']?.toString(),
       );
 
   @override
-  List<Object?> get props => [
-        attempt, event, kind, authorityCode, message, dh, source,
-        invoiceEvent, createdAt,
-      ];
+  List<Object?> get props =>
+      [attempt, event, kind, authorityCode, message, dh, source, createdAt];
 }
 
-/// D-F67 (Valdo 2026-10-10): a NFS-e vigente foi cancelada POR SUBSTITUIÇÃO
-/// no fisco (evento e105102, feito fora do produto — no portal). Existe uma
-/// NFS-e SUBSTITUTA que o ERP não conhece; a nota NÃO é cancelada sozinha
-/// (D-F64): fica viva até o humano decidir — cancelar a nota ou mantê-la.
-/// Bloco `substitution` do GET /api/billing/fiscal/:orderId.
+/// D-F67/D-F76: a NFS-e vigente foi cancelada por SUBSTITUIÇÃO no fisco
+/// (e105102) — existe uma SUBSTITUTA que o ERP não conhece. A decisão humana
+/// (manter × cancelar) é do ERP: vem em [ServiceOrderFiscalEffect].
 class ServiceOrderFiscalSubstitution extends Equatable {
-  const ServiceOrderFiscalSubstitution({
-    this.substituteAccessKey,
-    this.waived = false,
-  });
+  const ServiceOrderFiscalSubstitution({this.substituteAccessKey});
 
-  /// Chave de acesso da NFS-e SUBSTITUTA — null = XML do evento
-  /// indisponível (a tela mostra "indisponível", nunca inventa).
+  /// Chave da SUBSTITUTA — null = XML do evento indisponível (a tela diz
+  /// "indisponível", nunca inventa).
   final String? substituteAccessKey;
-
-  /// true = a decisão de MANTER a nota já foi registrada.
-  final bool waived;
 
   bool get hasSubstituteKey =>
       substituteAccessKey != null && substituteAccessKey!.isNotEmpty;
 
   factory ServiceOrderFiscalSubstitution.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalSubstitution(
-        substituteAccessKey: json['substituteAccessKey']?.toString(),
-        waived:              json['waived'] == true,
+          substituteAccessKey: json['substituteAccessKey']?.toString());
+
+  @override
+  List<Object?> get props => [substituteAccessKey];
+}
+
+T? _optionalBlock<T>(
+        Object? raw, T Function(Map<String, dynamic> json) fromJson) =>
+    raw is Map<String, dynamic> ? fromJson(raw) : null;
+
+/// A VOZ do fisco sobre a nota (nfse-api — `GET /v1/nfse/invoices/{id}`).
+class ServiceOrderFiscalView extends Equatable {
+  const ServiceOrderFiscalView({
+    this.state = NfseState.none,
+    this.currentAttempt,
+    this.transmissions = const [],
+    this.events = const [],
+    this.localCancelPending = false,
+    this.substitution,
+    this.xmlAvailable = false,
+    this.danfseAvailable = false,
+  });
+
+  /// Estado derivado pelo núcleo (D-F142) — a tela escolhe os botões por ele.
+  final String state;
+
+  /// D-F142: a tentativa VIGENTE (`currentOf` do núcleo — a registrada pelo
+  /// fisco, senão a última). null = nunca transmitida nesta vida.
+  final int? currentAttempt;
+  final List<ServiceOrderFiscalTransmission> transmissions;
+  final List<ServiceOrderFiscalEvent> events;
+
+  /// Voz C do fisco sem o C local (a nfse-api diz; o ERP dá o efeito exato).
+  final bool localCancelPending;
+  final ServiceOrderFiscalSubstitution? substitution;
+  final bool xmlAvailable;
+  final bool danfseAvailable;
+
+  /// A tentativa vigente — pelo número que o SERVIDOR escolheu (nunca
+  /// `transmissions.last`: a registrada pode não ser a última).
+  ServiceOrderFiscalTransmission? get current {
+    for (final t in transmissions) {
+      if (t.attempt == currentAttempt) return t;
+    }
+    return null;
+  }
+
+  bool get isSubstituted => substitution != null;
+
+  bool get canTransmitState => NfseState.transmittable.contains(state);
+
+  factory ServiceOrderFiscalView.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderFiscalView(
+        state:          json['state'] as String? ?? NfseState.none,
+        currentAttempt: jsonInt(json['currentAttempt']),
+        transmissions: (json['transmissions'] as List<dynamic>? ?? [])
+            .map((e) => ServiceOrderFiscalTransmission.fromJson(
+                e as Map<String, dynamic>))
+            .toList(),
+        events: (json['events'] as List<dynamic>? ?? [])
+            .map((e) =>
+                ServiceOrderFiscalEvent.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        localCancelPending: json['localCancelPending'] == true,
+        substitution: _optionalBlock(
+            json['substitution'], ServiceOrderFiscalSubstitution.fromJson),
+        xmlAvailable:    json['xmlAvailable'] == true,
+        danfseAvailable: json['danfseAvailable'] == true,
       );
 
   @override
-  List<Object?> get props => [substituteAccessKey, waived];
+  List<Object?> get props => [
+        state, currentAttempt, transmissions, events, localCancelPending,
+        substitution, xmlAvailable, danfseAvailable,
+      ];
 }
 
-/// D-F67: a decisão humana de MANTER a nota no ERP diante da substituição
-/// (bloco `cancelWaiver` do GET fiscal) — quem, quando e por quê.
+/// D-F114: o EFEITO da voz do fisco na nota — classificação do ERP.
+enum FiscalEffect {
+  /// Nada a fazer.
+  none,
+
+  /// O fisco cancelou — falta aplicar o cancelamento na nota (D-F140: o humano
+  /// confirma pelo plano; o app nunca aplica sozinho).
+  apply,
+
+  /// NFS-e SUBSTITUÍDA no fisco (produção) — o humano decide: manter × cancelar.
+  decide,
+
+  /// O fisco cancelou (de ofício, ou substituição em homologação) — cancele a nota.
+  cancel,
+
+  /// Valor que este build não conhece (API mais nova) — neutro, sem ação.
+  unknown;
+
+  static FiscalEffect parse(Object? raw) => switch (raw) {
+        'none' => FiscalEffect.none,
+        'apply' => FiscalEffect.apply,
+        'decide' => FiscalEffect.decide,
+        'cancel' => FiscalEffect.cancel,
+        _ => FiscalEffect.unknown,
+      };
+}
+
+/// D-F67/D-F81: a decisão humana de MANTER a nota (quem, quando e por quê).
 class ServiceOrderFiscalCancelWaiver extends Equatable {
   const ServiceOrderFiscalCancelWaiver({
     required this.accessKey,
@@ -206,10 +281,9 @@ class ServiceOrderFiscalCancelWaiver extends Equatable {
     this.createdAt,
   });
 
-  /// Chave da NFS-e (a substituída) sobre a qual a decisão foi tomada.
-  final String  accessKey;
-  final String  reason;
-  final int?    userId;
+  final String accessKey;
+  final String reason;
+  final int? userId;
   final String? createdAt;
 
   factory ServiceOrderFiscalCancelWaiver.fromJson(Map<String, dynamic> json) =>
@@ -224,8 +298,177 @@ class ServiceOrderFiscalCancelWaiver extends Equatable {
   List<Object?> get props => [accessKey, reason, userId, createdAt];
 }
 
+/// O EFEITO na nota (ERP — `GET /api/billing/:orderId/fiscal-effect`).
+class ServiceOrderFiscalEffect extends Equatable {
+  const ServiceOrderFiscalEffect({
+    this.effect = FiscalEffect.none,
+    this.invoiceCancelled = false,
+    this.cancelWaiver,
+  });
+
+  final FiscalEffect effect;
+  final bool invoiceCancelled;
+
+  /// A decisão "manter a nota" VIGENTE — null = não há.
+  final ServiceOrderFiscalCancelWaiver? cancelWaiver;
+
+  factory ServiceOrderFiscalEffect.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderFiscalEffect(
+        effect:           FiscalEffect.parse(json['effect']),
+        invoiceCancelled: json['invoiceCancelled'] == true,
+        cancelWaiver: _optionalBlock(
+            json['cancelWaiver'], ServiceOrderFiscalCancelWaiver.fromJson),
+      );
+
+  @override
+  List<Object?> get props => [effect, invoiceCancelled, cancelWaiver];
+}
+
+/// D-F141: a barreira fiscal TIPADA do plano — a AÇÃO que a tela oferece.
+enum FiscalBarrierKind {
+  /// NFS-e autorizada no fisco (produção) — cancele a NFS-e no fisco primeiro.
+  authorized,
+
+  /// Transmissão em andamento — aguarde a voz do fisco.
+  inFlight,
+
+  /// Pedido de cancelamento sem resposta — consulte a NFS-e no fisco.
+  cancelInFlight,
+
+  /// Envio interrompido sem prova de que a NFS-e não existe — reconfira.
+  reconfirm,
+
+  /// Valor que este build não conhece — mostra a mensagem, sem ação.
+  unknown;
+
+  static FiscalBarrierKind parse(Object? raw) => switch (raw) {
+        'authorized' => FiscalBarrierKind.authorized,
+        'in-flight' => FiscalBarrierKind.inFlight,
+        'cancel-in-flight' => FiscalBarrierKind.cancelInFlight,
+        'reconfirm' => FiscalBarrierKind.reconfirm,
+        _ => FiscalBarrierKind.unknown,
+      };
+}
+
+class FiscalBarrier extends Equatable {
+  const FiscalBarrier({required this.kind, this.reason, this.attempt});
+
+  final FiscalBarrierKind kind;
+
+  /// Motivo do veredito da reconferência (só em [FiscalBarrierKind.reconfirm]).
+  final String? reason;
+  final int? attempt;
+
+  factory FiscalBarrier.fromJson(Map<String, dynamic> json) => FiscalBarrier(
+        kind:    FiscalBarrierKind.parse(json['kind']),
+        reason:  json['reason']?.toString(),
+        attempt: jsonInt(json['attempt']),
+      );
+
+  @override
+  List<Object?> get props => [kind, reason, attempt];
+}
+
+/// Um bloqueio do plano (título baixado, boleto, cheque, devolução, OS do
+/// cliente aberta, fisco) — a mensagem é a do servidor.
+class CancelPlanBlock extends Equatable {
+  const CancelPlanBlock({
+    required this.field,
+    required this.message,
+    this.ref = '',
+    this.barrier,
+  });
+
+  final String field;
+  final String message;
+  final String ref;
+
+  /// Só no bloco `fiscal` (D-F141).
+  final FiscalBarrier? barrier;
+
+  factory CancelPlanBlock.fromJson(Map<String, dynamic> json) =>
+      CancelPlanBlock(
+        field:   json['field']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+        ref:     json['ref']?.toString() ?? '',
+        barrier: _optionalBlock(json['barrier'], FiscalBarrier.fromJson),
+      );
+
+  @override
+  List<Object?> get props => [field, message, ref, barrier];
+}
+
+/// O PLANO de cancelamento (ERP — `GET /api/billing/:orderId/cancel-plan`):
+/// o MESMO cálculo do POST (D-F128). A tela decide o próximo passo só por
+/// ele: cancelável → motivo → cancelar; só a barreira `authorized` → cancelar
+/// a NFS-e no fisco e depois a nota; `reconfirm` → reconferir; o resto →
+/// mostrar os bloqueios.
+class ServiceOrderCancelPlan extends Equatable {
+  const ServiceOrderCancelPlan({
+    required this.orderId,
+    this.invoiceNumber,
+    this.cancellable = false,
+    this.blocks = const [],
+    this.fiscalRecord = false,
+    this.touchesCash = false,
+    this.cashierOpen,
+  });
+
+  final int orderId;
+  final String? invoiceNumber;
+  final bool cancellable;
+  final List<CancelPlanBlock> blocks;
+
+  /// D3/D4: com registro fiscal a nota FICA (evento C) e o pedido vira 'C'.
+  final bool fiscalRecord;
+  final bool touchesCash;
+
+  /// D16 do operador (F2A3-SOC-12): null quando o cancelamento não toca o caixa.
+  final bool? cashierOpen;
+
+  /// A barreira fiscal do plano (null = o fisco não barra).
+  FiscalBarrier? get fiscalBarrier {
+    for (final b in blocks) {
+      if (b.field == 'fiscal') return b.barrier;
+    }
+    return null;
+  }
+
+  /// Bloqueios que NÃO são do fisco (título, boleto, cheque…).
+  List<CancelPlanBlock> get localBlocks =>
+      blocks.where((b) => b.field != 'fiscal').toList();
+
+  /// O único impedimento é a NFS-e autorizada no fisco (e o caixa, se tocar,
+  /// está aberto): cancelar no fisco e depois a nota é seguro — o local não
+  /// vai recusar por outro motivo (R-B4).
+  bool get onlyAuthorityStands =>
+      localBlocks.isEmpty &&
+      fiscalBarrier?.kind == FiscalBarrierKind.authorized &&
+      cashierOpen != false;
+
+  factory ServiceOrderCancelPlan.fromJson(Map<String, dynamic> json) {
+    final effects = json['effects'] as Map<String, dynamic>? ?? const {};
+    return ServiceOrderCancelPlan(
+      orderId:       jsonInt(json['orderId']) ?? 0,
+      invoiceNumber: json['invoiceNumber']?.toString(),
+      cancellable:   json['cancellable'] == true,
+      blocks: (json['blocks'] as List<dynamic>? ?? [])
+          .map((e) => CancelPlanBlock.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      fiscalRecord: json['fiscalRecord'] == true,
+      touchesCash:  effects['touchesCash'] == true,
+      cashierOpen:  effects['cashierOpen'] is bool ? effects['cashierOpen'] as bool : null,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        orderId, invoiceNumber, cancellable, blocks, fiscalRecord, touchesCash,
+        cashierOpen,
+      ];
+}
+
 /// Resultado do "Manter a nota" (POST /api/billing/cancel-waiver — D-F67).
-/// [alreadyWaived] = a decisão já estava registrada (idempotente).
 class ServiceOrderCancelWaiverResult extends Equatable {
   const ServiceOrderCancelWaiverResult({
     required this.orderId,
@@ -234,10 +477,10 @@ class ServiceOrderCancelWaiverResult extends Equatable {
     this.alreadyWaived = false,
   });
 
-  final int     orderId;
+  final int orderId;
   final String? accessKey;
   final String? createdAt;
-  final bool    alreadyWaived;
+  final bool alreadyWaived;
 
   factory ServiceOrderCancelWaiverResult.fromJson(Map<String, dynamic> json) =>
       ServiceOrderCancelWaiverResult(
@@ -251,154 +494,58 @@ class ServiceOrderCancelWaiverResult extends Equatable {
   List<Object?> get props => [orderId, accessKey, createdAt, alreadyWaived];
 }
 
-/// Código do 409 do "Manter a nota" quando a decisão não cabe mais (não é
-/// substituição, nota já cancelada, efeito já aplicado) — a situação mudou
-/// fora da tela.
-const String fiscalCancelWaiverNotApplicable =
-    'INVOICE_CANCEL_WAIVER_NOT_APPLICABLE';
+/// Códigos que MUDAM o comportamento da tela (D-F144); o resto passa a
+/// mensagem da API pela ponte.
+abstract final class FiscalCodes {
+  static const cancelWaiverNotApplicable = 'INVOICE_CANCEL_WAIVER_NOT_APPLICABLE';
+  static const invoiceCancelBlocked = 'INVOICE_CANCEL_BLOCKED';
+  static const invoiceNotCancellable = 'INVOICE_NOT_CANCELLABLE';
+  static const dpsRejected = 'FISCAL_DPS_REJECTED';
+  static const authorityUnknown = 'FISCAL_AUTHORITY_UNKNOWN_RESPONSE';
+  static const authorityUnavailable = 'FISCAL_AUTHORITY_UNAVAILABLE';
+  static const resourceBusy = 'RESOURCE_BUSY';
+  static const cutoverPending = 'FISCAL_CUTOVER_PENDING';
+  static const voiceUnavailable = 'FISCAL_VOICE_UNAVAILABLE';
+}
+
+/// Desfecho DESCONHECIDO de um ato no fisco (D-F139: nunca "não aconteceu"):
+/// resposta ambígua (502), fisco fora (503) ou a rede caiu no meio — a
+/// tentativa pode estar em voo; a tela RELÊ e oferece "Consultar".
+bool isUnknownAuthorityOutcome(Failure failure) =>
+    failure is NetworkFailure ||
+    failure.code == FiscalCodes.authorityUnknown ||
+    failure.code == FiscalCodes.authorityUnavailable;
 
 /// Teto do motivo do "Manter a nota" (DTO da API: 1–255).
 const int fiscalCancelWaiverReasonMax = 255;
 
-/// Bloco opcional do JSON: objeto → entidade; null/ausente/outro tipo → null.
-T? _optionalBlock<T>(
-        Object? raw, T Function(Map<String, dynamic> json) fromJson) =>
-    raw is Map<String, dynamic> ? fromJson(raw) : null;
-
-/// Visão fiscal da nota da OS (GET /api/billing/fiscal/:orderId).
-class ServiceOrderFiscalView extends Equatable {
-  const ServiceOrderFiscalView({
-    this.transmissions = const [],
-    this.events = const [],
-    this.pendingEffects = 0,
-    this.xmlAvailable = false,
-    this.danfseAvailable = false,
-    this.substitution,
-    this.cancelWaiver,
-  });
-
-  /// Transmissões em ordem de tentativa (a última é a que a tela mostra).
-  final List<ServiceOrderFiscalTransmission> transmissions;
-
-  /// Voz do fisco em ordem cronológica.
-  final List<ServiceOrderFiscalEvent> events;
-
-  /// Falas do fisco com efeito RECUSADO aqui (D-I10) — pendência visível.
-  /// D-F67: a substituição já MANTIDA deixa de contar (a API desconta).
-  final int  pendingEffects;
-  final bool xmlAvailable;
-  final bool danfseAvailable;
-
-  /// D-F67: NFS-e vigente cancelada por SUBSTITUIÇÃO no fisco (e105102);
-  /// null = não houve substituição.
-  final ServiceOrderFiscalSubstitution? substitution;
-
-  /// D-F67: decisão de MANTER a nota já registrada; null = não há.
-  final ServiceOrderFiscalCancelWaiver? cancelWaiver;
-
-  bool get isSubstituted => substitution != null;
-
-  /// A decisão sobre a substituição já foi tomada (mantida) — por qualquer
-  /// das duas leituras da API.
-  bool get substitutionDecided =>
-      (substitution?.waived ?? false) || cancelWaiver != null;
-
-  /// "Manter a nota" cabe: substituída e ainda sem decisão registrada, em
-  /// PRODUÇÃO (D-F80: homologação não tem valor jurídico — cancela-se a nota).
-  /// O privilégio (CANCELAR) é conferido pela tela — e de novo pela API (403).
-  bool get canWaiveCancel =>
-      isSubstituted && !substitutionDecided &&
-      lastTransmission?.environment != 'H';
-
-  /// D-F67 (L4 do gate da Rodada 13): a NFS-e vigente tem voz C do fisco —
-  /// transmitir de novo é 409 garantido (substituição, de ofício ou efeito
-  /// pendente); quem resolve é o humano (cancelar a nota / mantê-la).
-  bool get hasCancelVoice =>
-      lastTransmission?.lastKind == FiscalTransmissionKind.cancelled;
-
-  /// Última transmissão (a vigente ou a última encerrada); null = nunca
-  /// transmitida.
-  ServiceOrderFiscalTransmission? get lastTransmission =>
-      transmissions.isEmpty ? null : transmissions.last;
-
-  /// Há transmissão VIGENTE (esconde o Transmitir).
-  bool get hasLiveTransmission => lastTransmission?.isLive ?? false;
-
-  /// NFS-e AUTORIZADA vigente — habilita "Cancelar NFS-e" e esconde o
-  /// "Cancelar nota" local (a API recusaria com FISCAL_CANCEL_REQUIRED).
-  bool get isAuthorized => lastTransmission?.isAuthorized ?? false;
-
-  /// Cancelamento em voo (K): nada pode ser feito até a consulta reconciliar.
-  bool get cancelInFlight => lastTransmission?.cancelInFlight ?? false;
-
-  /// O cancelamento LOCAL ("Cancelar nota") fica bloqueado enquanto o fisco
-  /// tem a última palavra: nota autorizada ou cancelamento em voo. Q-CA5b:
-  /// autorizada em HOMOLOGAÇÃO não tem valor jurídico — o local fica liberado.
-  bool get blocksLocalCancel =>
-      (isAuthorized && lastTransmission?.environment != 'H') || cancelInFlight;
-
-  bool get hasPendingEffects => pendingEffects > 0;
-
-  factory ServiceOrderFiscalView.fromJson(Map<String, dynamic> json) =>
-      ServiceOrderFiscalView(
-        transmissions: (json['transmissions'] as List<dynamic>? ?? [])
-            .map((e) => ServiceOrderFiscalTransmission.fromJson(
-                e as Map<String, dynamic>))
-            .toList(),
-        events: (json['events'] as List<dynamic>? ?? [])
-            .map((e) =>
-                ServiceOrderFiscalEvent.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        pendingEffects:  jsonInt(json['pendingEffects']) ?? 0,
-        xmlAvailable:    json['xmlAvailable'] == true,
-        danfseAvailable: json['danfseAvailable'] == true,
-        substitution:    _optionalBlock(
-            json['substitution'], ServiceOrderFiscalSubstitution.fromJson),
-        cancelWaiver:    _optionalBlock(
-            json['cancelWaiver'], ServiceOrderFiscalCancelWaiver.fromJson),
-      );
-
-  @override
-  List<Object?> get props => [
-        transmissions, events, pendingEffects, xmlAvailable, danfseAvailable,
-        substitution, cancelWaiver,
-      ];
-}
-
-/// Resultado do Transmitir (POST /api/billing/transmit — 201).
+/// Resultado do Transmitir (nfse-api — 201 só com A).
 class ServiceOrderTransmitResult extends Equatable {
   const ServiceOrderTransmitResult({
     required this.invoiceId,
     this.attempt = 0,
-    this.dpsId,
     this.accessKey,
-    this.kind,
+    this.nfseNumber,
   });
 
-  final int     invoiceId;
-  final int     attempt;
-  final String? dpsId;
+  final int invoiceId;
+  final int attempt;
   final String? accessKey;
-
-  /// Kind da voz que fechou a transmissão (S/A) — R vem como 422.
-  final String? kind;
-
-  bool get authorized => kind == FiscalTransmissionKind.authorized;
+  final String? nfseNumber;
 
   factory ServiceOrderTransmitResult.fromJson(Map<String, dynamic> json) =>
       ServiceOrderTransmitResult(
-        invoiceId: jsonInt(json['invoiceId']) ?? 0,
-        attempt:   jsonInt(json['attempt']) ?? 0,
-        dpsId:     json['dpsId']?.toString(),
-        accessKey: json['accessKey']?.toString(),
-        kind:      json['kind'] as String?,
+        invoiceId:  jsonInt(json['invoiceId']) ?? 0,
+        attempt:    jsonInt(json['attempt']) ?? 0,
+        accessKey:  json['accessKey']?.toString(),
+        nfseNumber: json['nfseNumber']?.toString(),
       );
 
   @override
-  List<Object?> get props => [invoiceId, attempt, dpsId, accessKey, kind];
+  List<Object?> get props => [invoiceId, attempt, accessKey, nfseNumber];
 }
 
-/// Resultado do Consultar (POST /api/billing/fiscal/:orderId/refresh).
+/// Resultado do Consultar (nfse-api — `POST …/refresh`).
 class ServiceOrderFiscalRefreshResult extends Equatable {
   const ServiceOrderFiscalRefreshResult({
     this.changed = false,
@@ -406,12 +553,12 @@ class ServiceOrderFiscalRefreshResult extends Equatable {
     this.accessKey,
   });
 
-  /// true = a consulta trouxe voz nova (a linha do tempo mudou).
-  final bool    changed;
+  /// true = a consulta trouxe voz nova.
+  final bool changed;
+
+  /// Kind da voz nova — só para escolher a mensagem.
   final String? kind;
   final String? accessKey;
-
-  bool get authorized => kind == FiscalTransmissionKind.authorized;
 
   factory ServiceOrderFiscalRefreshResult.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalRefreshResult(
@@ -424,41 +571,64 @@ class ServiceOrderFiscalRefreshResult extends Equatable {
   List<Object?> get props => [changed, kind, accessKey];
 }
 
-/// Resultado do Cancelar NFS-e (POST /api/billing/fiscal/cancel): 'C' =
-/// fisco aceitou e a nota local também cancelou (a OS volta a aberta); 'K' =
-/// pedido em voo (503 do fisco — consulta reconcilia). [warnings] são avisos
-/// não bloqueantes que a tela mostra pela ponte.
+/// Resultado do Reconferir (nfse-api — `POST …/reconfirm`, D-F109). O
+/// [verdict] só escolhe a FRASE (`nao-exigida` ≠ "pode cancelar") — quem
+/// decide é o plano relido.
+class ServiceOrderFiscalReconfirmResult extends Equatable {
+  const ServiceOrderFiscalReconfirmResult({
+    this.needed = false,
+    this.found = false,
+    this.verdict,
+  });
+
+  final bool needed;
+
+  /// true = o fisco TEM a NFS-e — reconciliada como autorizada.
+  final bool found;
+  final String? verdict;
+
+  factory ServiceOrderFiscalReconfirmResult.fromJson(Map<String, dynamic> json) =>
+      ServiceOrderFiscalReconfirmResult(
+        needed:  json['needed'] == true,
+        found:   json['found'] == true,
+        verdict: json['verdict']?.toString(),
+      );
+
+  @override
+  List<Object?> get props => [needed, found, verdict];
+}
+
+/// Resultado do cancelamento NO FISCO (nfse-api — `POST …/cancel`). O efeito
+/// na nota é o PRÓXIMO passo (`POST /api/billing/cancel` no ERP — D-F28).
 class ServiceOrderFiscalCancelResult extends Equatable {
   const ServiceOrderFiscalCancelResult({
     required this.invoiceId,
-    this.kind = FiscalTransmissionKind.cancelled,
+    this.atAuthority = true,
     this.warnings = const [],
   });
 
-  final int          invoiceId;
-  final String       kind;
-  final List<String> warnings;
+  final int invoiceId;
 
-  bool get cancelled => kind == FiscalTransmissionKind.cancelled;
-  bool get inFlight => kind == FiscalTransmissionKind.cancelInFlight;
+  /// false = a voz C já existia (idempotente).
+  final bool atAuthority;
+  final List<String> warnings;
 
   factory ServiceOrderFiscalCancelResult.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalCancelResult(
-        invoiceId: jsonInt(json['invoiceId']) ?? 0,
-        kind:      json['kind'] as String? ?? FiscalTransmissionKind.cancelled,
-        warnings:  (json['warnings'] as List<dynamic>? ?? [])
+        invoiceId:   jsonInt(json['invoiceId']) ?? 0,
+        atAuthority: json['atAuthority'] != false,
+        warnings: (json['warnings'] as List<dynamic>? ?? [])
             .map((w) => w.toString())
             .where((w) => w.isNotEmpty)
             .toList(),
       );
 
   @override
-  List<Object?> get props => [invoiceId, kind, warnings];
+  List<Object?> get props => [invoiceId, atAuthority, warnings];
 }
 
-/// Nota da OS faturada SEM NFS-e (GET /api/billing/fiscal/pending). Como
-/// 1 pedido = 1 nota com o MESMO id, [invoiceId] é o orderId que o lote
-/// transmite.
+/// Nota da OS faturada SEM NFS-e (nfse-api — `GET /v1/nfse/invoices/pending`
+/// com `interfaceKey=service-orders` — D-F145).
 class ServiceOrderFiscalPending extends Equatable {
   const ServiceOrderFiscalPending({
     required this.invoiceId,
@@ -466,11 +636,10 @@ class ServiceOrderFiscalPending extends Equatable {
     this.dtEmission,
   });
 
-  final int     invoiceId;
+  final int invoiceId;
   final String? number;
   final String? dtEmission;
 
-  /// Identidade compartilhada nota × pedido (D1 de notas-mercadoria-serviço).
   int get orderId => invoiceId;
 
   factory ServiceOrderFiscalPending.fromJson(Map<String, dynamic> json) =>
@@ -484,92 +653,66 @@ class ServiceOrderFiscalPending extends Equatable {
   List<Object?> get props => [invoiceId, number, dtEmission];
 }
 
-/// Uma linha do relatório do lote de transmissão (POST /transmit-batch):
-/// o resultado REAL de cada ordem — recusada traz código/mensagem do fisco
-/// ou da nossa regra.
+/// Teto da lista FOTOGRAFADA do lote (D-F145): o lote percorre as páginas
+/// até este número de notas — o resto fica para o próximo lote.
+const int fiscalBatchMaxNotes = 500;
+
+/// Uma linha do relatório do lote (o lote roda NO APP — D-F145: 1 nota por vez).
 class FiscalTransmitBatchRow extends Equatable {
   const FiscalTransmitBatchRow({
     required this.orderId,
     required this.ok,
-    this.kind,
     this.code = '',
     this.message = '',
   });
 
-  /// Linha que a TELA fabrica quando um bloco nem chegou à API (D27 do lote
-  /// de faturamento: bloco que falha inteiro depois de outro já ter rodado
-  /// não pode apagar o relatório do que já foi transmitido).
+  /// Nota que NÃO foi tentada porque o lote PAROU (erro sistêmico antes dela).
   const FiscalTransmitBatchRow.aborted(
       {required this.orderId, required this.message})
       : ok = false,
-        kind = null,
         code = abortedCode;
 
   static const abortedCode = 'BATCH_ABORTED';
 
-  final int     orderId;
-  final bool    ok;
-  final String? kind;
-  final String  code;
-  final String  message;
-
-  factory FiscalTransmitBatchRow.fromJson(Map<String, dynamic> json) =>
-      FiscalTransmitBatchRow(
-        orderId: jsonInt(json['orderId']) ?? 0,
-        ok:      json['ok'] == true,
-        kind:    json['kind'] as String?,
-        code:    json['code']?.toString() ?? '',
-        message: json['message']?.toString() ?? '',
-      );
+  final int orderId;
+  final bool ok;
+  final String code;
+  final String message;
 
   @override
-  List<Object?> get props => [orderId, ok, kind, code, message];
+  List<Object?> get props => [orderId, ok, code, message];
 }
 
-/// Teto de ordens por REQUISIÇÃO no /transmit-batch (contrato da API). A
-/// tela fatia em blocos deste tamanho e agrega ([FiscalTransmitBatchReport.merge]).
-const int fiscalTransmitChunkSize = 50;
-
-/// Relatório do lote de transmissão — a API responde 200 mesmo com recusas
-/// parciais; os contadores são SEMPRE recontados das linhas.
+/// Relatório do lote — contadores SEMPRE recontados das linhas.
 class FiscalTransmitBatchReport extends Equatable {
   const FiscalTransmitBatchReport({
     this.transmitted = 0,
     this.refused = 0,
     this.rows = const [],
+    this.stoppedBy,
   });
 
   final int transmitted;
   final int refused;
   final List<FiscalTransmitBatchRow> rows;
 
+  /// O erro SISTÊMICO que parou o lote (null = rodou até o fim).
+  final Failure? stoppedBy;
+
   int get requested => rows.length;
 
   List<FiscalTransmitBatchRow> get refusedRows =>
       rows.where((r) => !r.ok).toList();
 
-  factory FiscalTransmitBatchReport.fromJson(Map<String, dynamic> json) =>
-      FiscalTransmitBatchReport.fromEntries(
-        (json['rows'] as List<dynamic>? ?? [])
-            .map((e) =>
-                FiscalTransmitBatchRow.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
-
   factory FiscalTransmitBatchReport.fromEntries(
-          List<FiscalTransmitBatchRow> rows) =>
+          List<FiscalTransmitBatchRow> rows, {Failure? stoppedBy}) =>
       FiscalTransmitBatchReport(
         transmitted: rows.where((r) => r.ok).length,
         refused:     rows.where((r) => !r.ok).length,
         rows:        List.unmodifiable(rows),
+        stoppedBy:   stoppedBy,
       );
 
-  /// Agrega os relatórios dos blocos na ORDEM em que rodaram.
-  static FiscalTransmitBatchReport merge(
-          Iterable<FiscalTransmitBatchReport> parts) =>
-      FiscalTransmitBatchReport.fromEntries(
-          [for (final p in parts) ...p.rows]);
-
   @override
-  List<Object?> get props => [transmitted, refused, rows];
+  List<Object?> get props => [transmitted, refused, rows, stoppedBy];
 }

@@ -207,11 +207,9 @@ class _EstablishmentIssuerSectionState
   // Habilitação por modelo
   // ------------------------------------------------------------------
 
-  static final _serieRegex = RegExp(r'^\d{1,5}$');
-
   Future<void> _saveIssuer(String model) async {
     final serie = _serie[model]!.text.trim();
-    if (!_serieRegex.hasMatch(serie)) {
+    if (!issuerSerieValid(serie)) {
       await showValidationFeedback(
           context, 'forms.establishment.issuerSerieInvalid'.tr());
       _serieFocus[model]!.requestFocus();
@@ -251,7 +249,6 @@ class _EstablishmentIssuerSectionState
 
   String _modelLabel(String model) => switch (model) {
         'SE' => 'forms.establishment.issuerModelSE'.tr(),
-        '55' => 'forms.establishment.issuerModel55'.tr(),
         _ => model,
       };
 
@@ -348,6 +345,11 @@ class _EstablishmentIssuerSectionState
           'forms.establishment.issuerBadgeEnabled'.tr(),
           scheme.primaryContainer,
           scheme.onPrimaryContainer,
+        ),
+      IssuerBadge.awaitingCutover => (
+          'forms.establishment.issuerBadgeAwaitingCutover'.tr(),
+          scheme.tertiaryContainer,
+          scheme.onTertiaryContainer,
         ),
       IssuerBadge.noCertificate => (
           'forms.establishment.issuerBadgeNoCertificate'.tr(),

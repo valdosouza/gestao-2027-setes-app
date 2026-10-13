@@ -2,12 +2,12 @@ import 'package:easy_localization/easy_localization.dart';
 
 import '../../domain/entity/service_order_fiscal_entity.dart';
 
-/// Rótulos traduzidos da seção "No fisco" (Onda 3 — NFS-e pelo ADN):
-/// kind da voz do fisco, origem da fala e ambiente da transmissão. Molde do
-/// bank_slip_format.dart; chaves em forms.serviceOrder.fiscal*.
+/// Rótulos traduzidos da seção "No fisco" — kind da voz (só RÓTULO — D-F142),
+/// estado da NFS-e (o `state` do servidor), origem da fala e ambiente. Chaves
+/// em forms.serviceOrder.fiscal*.
 
-/// Situação da transmissão pelo kind do ÚLTIMO evento; null = enviado sem
-/// resposta (em andamento).
+/// Rótulo do kind de UMA fala do fisco (linha do tempo); null = enviado sem
+/// resposta. Kind desconhecido passa cru (API mais nova que o build).
 String fiscalKindLabel(String? kind) => switch (kind) {
       FiscalTransmissionKind.sent => 'forms.serviceOrder.fiscalKindSent'.tr(),
       FiscalTransmissionKind.authorized =>
@@ -19,6 +19,9 @@ String fiscalKindLabel(String? kind) => switch (kind) {
       FiscalTransmissionKind.cancelInFlight =>
         'forms.serviceOrder.fiscalKindCancelInFlight'.tr(),
       FiscalTransmissionKind.failed => 'forms.serviceOrder.fiscalKindFailed'.tr(),
+      // D-N17: o cancelamento NÃO aconteceu — a NFS-e segue autorizada
+      FiscalTransmissionKind.notCancelled =>
+        'forms.serviceOrder.fiscalKindNotCancelled'.tr(),
       null => 'forms.serviceOrder.fiscalKindInFlight'.tr(),
       _ => kind,
     };
@@ -30,10 +33,12 @@ String fiscalSourceLabel(String? source) => switch (source) {
       _ => source ?? '',
     };
 
-/// Ambiente da transmissão (H produção restrita · P produção).
-String fiscalEnvironmentLabel(String environment) => environment == 'P'
-    ? 'forms.serviceOrder.fiscalEnvProduction'.tr()
-    : 'forms.serviceOrder.fiscalEnvRestricted'.tr();
+/// Ambiente da tentativa (H produção restrita · P produção) — só rótulo.
+String fiscalEnvironmentLabel(String? environment) => switch (environment) {
+      'P' => 'forms.serviceOrder.fiscalEnvProduction'.tr(),
+      'H' => 'forms.serviceOrder.fiscalEnvRestricted'.tr(),
+      _ => '',
+    };
 
 /// Data/hora do fisco (ISO 'yyyy-MM-ddTHH:mm:ss...') → 'dd/MM/yyyy HH:mm';
 /// só data → 'dd/MM/yyyy'; formato desconhecido passa intacto.
@@ -46,20 +51,23 @@ String fiscalDateTimeToDisplay(String? iso) {
   return m.group(4) == null ? date : '$date ${m.group(4)}:${m.group(5)}';
 }
 
-/// Selo fiscal da linha da lista (situação da transmissão VIGENTE, vinda da
-/// API — o mesmo leitor da seção "No fisco"). Autorizada com número mostra o
-/// nº da NFS-e; homologação é sempre sinalizada (não vale como documento).
+/// Rótulo do ESTADO da NFS-e (o `state` derivado pelo servidor) — na linha da
+/// lista e na seção. Autorizada com número mostra o nº; homologação é sempre
+/// sinalizada (não vale como documento). `unavailable` = a voz do fisco
+/// ilegível agora (D-F130 — a lista não cai). Estado desconhecido = neutro.
 String fiscalSealLabel(String state, {String? nfseNumber, String? environment}) {
   final base = switch (state) {
-    'none' => 'forms.serviceOrder.fiscalStateNone'.tr(),
-    'authorized' => (nfseNumber == null || nfseNumber.isEmpty)
+    NfseState.none => 'forms.serviceOrder.fiscalStateNone'.tr(),
+    NfseState.authorized => (nfseNumber == null || nfseNumber.isEmpty)
         ? 'forms.serviceOrder.fiscalKindAuthorized'.tr()
         : 'forms.serviceOrder.fiscalSealAuthorized'.tr(args: [nfseNumber]),
-    'rejected' => 'forms.serviceOrder.fiscalKindRejected'.tr(),
-    'failed' => 'forms.serviceOrder.fiscalKindFailed'.tr(),
-    'cancelled' => 'forms.serviceOrder.fiscalKindCancelled'.tr(),
-    'cancel_in_flight' => 'forms.serviceOrder.fiscalKindCancelInFlight'.tr(),
-    _ => 'forms.serviceOrder.fiscalKindInFlight'.tr(),
+    NfseState.rejected => 'forms.serviceOrder.fiscalKindRejected'.tr(),
+    NfseState.failed => 'forms.serviceOrder.fiscalKindFailed'.tr(),
+    NfseState.cancelled => 'forms.serviceOrder.fiscalKindCancelled'.tr(),
+    NfseState.cancelInFlight => 'forms.serviceOrder.fiscalKindCancelInFlight'.tr(),
+    NfseState.inFlight || NfseState.processing => 'forms.serviceOrder.fiscalKindInFlight'.tr(),
+    NfseState.unavailable => 'forms.serviceOrder.fiscalStateUnavailable'.tr(),
+    _ => 'forms.serviceOrder.fiscalStateUnknown'.tr(),
   };
   return environment == 'H'
       ? '$base · ${'forms.serviceOrder.fiscalEnvRestricted'.tr()}'

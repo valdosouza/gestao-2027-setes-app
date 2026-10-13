@@ -1,10 +1,12 @@
-// Lote "Transmitir pendentes" (Onda 3 — NFS-e pelo ADN) no ServiceOrderBloc:
-// o que este teste fixa é (1) UM lote por vez — H1 do gate socrático da
-// Rodada 5: o 2º disparo enquanto o 1º roda é IGNORADO, nada duplo no fisco —,
-// (2) o fatiamento em blocos de 50 em SEQUÊNCIA com relatório agregado, (3)
-// bloco que falha inteiro depois de outro já transmitido não apaga o
-// relatório do que já foi ao fisco, e (4) o passo 1 (pendentes) devolve a
-// lista no one-shot para a página confirmar.
+// "Transmitir notas sem NFS-e" (F2b — D-F145 = Q-F153 (a), Valdo 2026-10-13):
+// o lote roda NO APP contra a nfse-api, que não tem lote no servidor. O que
+// este teste fixa é (1) o passo 1 FOTOGRAFA a lista — todas as páginas, sem
+// repetir nota que "andou" de página, até o teto, e página que falha no meio
+// = falha inteira; (2) UMA nota por vez, na ordem, e erro DA NOTA vira linha
+// do relatório sem parar o lote; (3) erro SISTÊMICO (sessão, privilégio,
+// certificado, virada pendente, N desfechos desconhecidos seguidos) PARA o
+// lote e o resto entra como "não tentada"; (4) UM lote por vez no bloc — o 2º
+// disparo enquanto o 1º roda é IGNORADO (H1 do gate socrático da Rodada 5).
 
 import 'dart:async';
 
@@ -14,72 +16,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:setes_web/app/shared/search/search_criterion.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
-import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_fiscal_repository.dart';
-import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_repository.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_batch_invoice.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_cancel_invoice.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_delete.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_cancel.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_danfse.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_get.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_pending.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_refresh.dart';
 import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_transmit_batch.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_waive_cancel.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_fiscal_xml.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_get.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_getlist.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_invoice.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_item_delete.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_item_save.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_monthly_run.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_post.dart';
-import 'package:setes_web/app/modules/service_orders/domain/usecase/service_order_transmit.dart';
 import 'package:setes_web/app/modules/service_orders/presentation/bloc/service_order_bloc.dart';
 
-class _RepoMock extends Mock implements ServiceOrderRepository {}
+import 'support/service_order_bloc_factory.dart';
 
-class _FiscalRepoMock extends Mock implements ServiceOrderFiscalRepository {}
-
-ServiceOrderBloc _bloc(ServiceOrderRepository repo,
-        ServiceOrderFiscalRepository fiscal) =>
-    ServiceOrderBloc(
-      getlist: ServiceOrderGetlist(repository: repo),
-      get: ServiceOrderGet(repository: repo),
-      post: ServiceOrderPost(repository: repo),
-      delete: ServiceOrderDelete(repository: repo),
-      itemSave: ServiceOrderItemSave(repository: repo),
-      itemDelete: ServiceOrderItemDelete(repository: repo),
-      monthlyRun: ServiceOrderMonthlyRun(repository: repo),
-      invoice: ServiceOrderInvoice(repository: repo),
-      cancelInvoice: ServiceOrderCancelInvoice(repository: repo),
-      batchInvoice: ServiceOrderBatchInvoice(repository: repo),
-      fiscalGet: ServiceOrderFiscalGet(repository: fiscal),
-      transmit: ServiceOrderTransmit(repository: fiscal),
-      fiscalRefresh: ServiceOrderFiscalRefresh(repository: fiscal),
-      fiscalXml: ServiceOrderFiscalXml(repository: fiscal),
-      fiscalDanfse: ServiceOrderFiscalDanfse(repository: fiscal),
-      fiscalCancel: ServiceOrderFiscalCancel(repository: fiscal),
-      fiscalPending: ServiceOrderFiscalPendingList(repository: fiscal),
-      fiscalTransmitBatch: ServiceOrderFiscalTransmitBatch(repository: fiscal),
-      fiscalWaiveCancel: ServiceOrderFiscalWaiveCancel(repository: fiscal),
-    );
-
-FiscalTransmitBatchReport _reportFor(List<int> ids) =>
-    FiscalTransmitBatchReport.fromEntries([
-      for (final id in ids) FiscalTransmitBatchRow(orderId: id, ok: true, kind: 'A'),
-    ]);
+const _authorized = ServiceOrderTransmitResult(invoiceId: 0, attempt: 1, accessKey: 'K');
 
 List<int> _ids(int n) => List.generate(n, (i) => i + 1);
 
+PagedResult<ServiceOrderFiscalPending> _page(List<int> ids, {required int page, required int total, int pageSize = 2}) =>
+    PagedResult(
+      items: [for (final id in ids) ServiceOrderFiscalPending(invoiceId: id, number: '$id')],
+      page: page,
+      pageSize: pageSize,
+      total: total,
+    );
+
 /// Dispara [event] e devolve os estados emitidos até a lista recarregar
 /// (o bloc SEMPRE termina com a lista carregada, com ou sem relatório).
-Future<List<ServiceOrderState>> _run(
-    ServiceOrderBloc bloc, ServiceOrderEvent event) async {
+Future<List<ServiceOrderState>> _run(ServiceOrderBloc bloc, ServiceOrderEvent event) async {
   final states = <ServiceOrderState>[];
   final sub = bloc.stream.listen(states.add);
-  final done = bloc.stream
-      .firstWhere((s) => s is ServiceOrderListState && !s.loading);
+  final done = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
   bloc.add(event);
   await done;
   await sub.cancel();
@@ -88,8 +48,8 @@ Future<List<ServiceOrderState>> _run(
 }
 
 void main() {
-  late _RepoMock repo;
-  late _FiscalRepoMock fiscal;
+  late ServiceOrderRepoMock repo;
+  late NfseRepoMock nfse;
 
   setUpAll(() {
     registerFallbackValue(<int>[]);
@@ -97,8 +57,8 @@ void main() {
   });
 
   setUp(() {
-    repo = _RepoMock();
-    fiscal = _FiscalRepoMock();
+    repo = ServiceOrderRepoMock();
+    nfse = NfseRepoMock();
     when(() => repo.getList(any(), any(),
             page: any(named: 'page'),
             pageSize: any(named: 'pageSize'),
@@ -106,86 +66,185 @@ void main() {
         .thenAnswer((_) async => const Right(PagedResult.empty()));
   });
 
-  void transmiteTudo() =>
-      when(() => fiscal.transmitBatch(any())).thenAnswer((inv) async =>
-          Right(_reportFor(inv.positionalArguments[0] as List<int>)));
+  void transmiteTudo() => when(() => nfse.transmit(any())).thenAnswer((_) async => const Right(_authorized));
 
-  List<List<int>> chamadas() =>
-      verify(() => fiscal.transmitBatch(captureAny()))
-          .captured
-          .cast<List<int>>();
+  List<int> transmitidas() => verify(() => nfse.transmit(captureAny())).captured.cast<int>();
 
-  group('passo 1 — pendentes', () {
-    test('devolve a lista no one-shot para a página confirmar e recarrega a lista',
-        () async {
-      when(fiscal.pending).thenAnswer((_) async => const Right([
-            ServiceOrderFiscalPending(invoiceId: 10, number: '1'),
-            ServiceOrderFiscalPending(invoiceId: 11, number: '2'),
-          ]));
+  group('passo 1 — a lista fotografada (todas as páginas, sem repetir, até o teto)', () {
+    test('lê as páginas até a última e devolve a união sem repetição', () async {
+      when(() => nfse.pending(page: 1, pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => Right(_page([10, 11], page: 1, total: 5)));
+      when(() => nfse.pending(page: 2, pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => Right(_page([11, 12], page: 2, total: 5))); // a 11 "andou"
+      when(() => nfse.pending(page: 3, pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => Right(_page([13], page: 3, total: 5)));
 
-      final states = await _run(
-          _bloc(repo, fiscal), const ServiceOrderFiscalPendingRequested());
+      final r = await ServiceOrderFiscalPendingList(repository: nfse, pageSize: 2)();
 
-      final loaded = states.whereType<ServiceOrderFiscalPendingLoaded>().single;
-      expect(loaded.pending.map((p) => p.orderId), [10, 11]);
-      verifyNever(() => fiscal.transmitBatch(any()));
+      expect(r.getOrElse(() => []).map((p) => p.invoiceId), [10, 11, 12, 13]);
+      verifyNever(() => nfse.pending(page: 4, pageSize: any(named: 'pageSize')));
     });
 
-    test('falha do GET pendentes sobe como Failure (ponte trata)', () async {
-      when(fiscal.pending).thenAnswer((_) async =>
-          const Left(Failure(message: 'Sem privilégio', statusCode: 403)));
+    test('para no teto do lote (fiscalBatchMaxNotes) — o resto fica para o próximo', () async {
+      when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize'))).thenAnswer((inv) async {
+        final page = inv.namedArguments[#page] as int;
+        final base = (page - 1) * 100;
+        return Right(_page(List.generate(100, (i) => base + i + 1), page: page, total: 10000, pageSize: 100));
+      });
 
-      final states = await _run(
-          _bloc(repo, fiscal), const ServiceOrderFiscalPendingRequested());
+      final r = await ServiceOrderFiscalPendingList(repository: nfse)();
+
+      expect(r.getOrElse(() => []).length, fiscalBatchMaxNotes);
+    });
+
+    test('página que falha no meio = falha inteira (lista pela metade enganaria a confirmação)', () async {
+      when(() => nfse.pending(page: 1, pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => Right(_page([10, 11], page: 1, total: 4)));
+      when(() => nfse.pending(page: 2, pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => const Left(NetworkFailure()));
+
+      final r = await ServiceOrderFiscalPendingList(repository: nfse, pageSize: 2)();
+
+      expect(r.isLeft(), isTrue);
+    });
+
+    test('bloc: devolve a lista no one-shot para a página confirmar e recarrega a lista', () async {
+      when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize')))
+          .thenAnswer((_) async => Right(_page([10, 11], page: 1, total: 2)));
+
+      final states = await _run(buildServiceOrderBloc(repo: repo, nfse: nfse), const ServiceOrderFiscalPendingRequested());
+
+      expect(states.whereType<ServiceOrderFiscalPendingLoaded>().single.pending.map((p) => p.orderId), [10, 11]);
+      verifyNever(() => nfse.transmit(any()));
+    });
+
+    test('bloc: falha do GET pendentes sobe como Failure (ponte trata)', () async {
+      when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize'))).thenAnswer(
+          (_) async => const Left(Failure(message: 'Sem privilégio', statusCode: 403)));
+
+      final states = await _run(buildServiceOrderBloc(repo: repo, nfse: nfse), const ServiceOrderFiscalPendingRequested());
 
       expect(states.whereType<ServiceOrderFiscalPendingLoaded>(), isEmpty);
-      expect(states.whereType<ServiceOrderActionFailure>().single.failure.statusCode,
-          403);
+      expect(states.whereType<ServiceOrderActionFailure>().single.failure.statusCode, 403);
     });
   });
 
-  group('fatiamento do lote (teto 50 por requisição)', () {
-    test('120 ordens → 3 blocos (50/50/20), em sequência, e UM relatório agregado',
-        () async {
+  group('passo 2 — uma nota por vez, erro da nota não para o lote', () {
+    test('transmite na ordem, ids repetidos contam uma vez, relatório agregado', () async {
       transmiteTudo();
 
-      final states = await _run(_bloc(repo, fiscal),
-          ServiceOrderFiscalTransmitBatchRequested(_ids(120)));
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)([3, 1, 2, 1, 3]);
 
-      final blocos = chamadas();
-      expect(blocos.map((c) => c.length), [50, 50, 20]);
-      expect(blocos[1].first, 51);
+      expect(transmitidas(), [3, 1, 2]);
+      expect(r.requested, 3);
+      expect(r.transmitted, 3);
+      expect(r.refused, 0);
+      expect(r.stoppedBy, isNull);
+    });
+
+    test('recusa do fisco (422) e regra (409) viram linha e o lote SEGUE', () async {
+      when(() => nfse.transmit(any())).thenAnswer((inv) async => switch (inv.positionalArguments[0] as int) {
+            2 => const Left(Failure(message: 'E0116 IM obrigatória', statusCode: 422, code: FiscalCodes.dpsRejected)),
+            3 => const Left(Failure(message: 'Nota em uso', statusCode: 409, code: FiscalCodes.resourceBusy)),
+            _ => const Right(_authorized),
+          });
+
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(4));
+
+      expect(transmitidas(), [1, 2, 3, 4]);
+      expect(r.transmitted, 2);
+      expect(r.refused, 2);
+      expect(r.rows[1].code, FiscalCodes.dpsRejected);
+      expect(r.rows[1].message, 'E0116 IM obrigatória');
+      expect(r.stoppedBy, isNull);
+    });
+
+    test('desfecho desconhecido isolado não para o lote (o contador zera no sucesso)', () async {
+      when(() => nfse.transmit(any())).thenAnswer((inv) async => (inv.positionalArguments[0] as int).isEven
+          ? const Left(Failure(message: 'ambíguo', statusCode: 502, code: FiscalCodes.authorityUnknown))
+          : const Right(_authorized));
+
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(6));
+
+      expect(transmitidas().length, 6);
+      expect(r.stoppedBy, isNull);
+    });
+  });
+
+  group('passo 2 — erro SISTÊMICO para o lote (o resto = não tentada)', () {
+    final sistemicos = <String, Failure>{
+      'sessão (401)': const UnauthorizedFailure(),
+      'privilégio/licença (403)': const Failure(message: 'Sem privilégio', statusCode: 403, code: 'PRIVILEGE_REQUIRED'),
+      'certificado': const Failure(message: 'A1 vencido', statusCode: 409, code: 'FISCAL_CERT_EXPIRED'),
+      'habilitação ausente': const Failure(message: 'Sem habilitação', statusCode: 409, code: 'FISCAL_ISSUER_MISSING'),
+      'virada pendente (D-F143)': const Failure(message: 'Emissão ainda pelo ERP', statusCode: 409, code: FiscalCodes.cutoverPending),
+      'cofre sem chave': const Failure(message: 'Cofre', statusCode: 503, code: 'FISCAL_MASTER_KEY_UNAVAILABLE'),
+    };
+    for (final e in sistemicos.entries) {
+      test('${e.key} na 2ª nota → para; 3ª e 4ª abortadas com a mensagem do motivo', () async {
+        when(() => nfse.transmit(any()))
+            .thenAnswer((inv) async => inv.positionalArguments[0] == 2 ? Left(e.value) : const Right(_authorized));
+
+        final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(4));
+
+        expect(transmitidas(), [1, 2]);
+        expect(r.requested, 4);
+        expect(r.transmitted, 1);
+        expect(r.stoppedBy, e.value);
+        expect(r.rows[2].code, FiscalTransmitBatchRow.abortedCode);
+        expect(r.rows[3].orderId, 4);
+        expect(r.rows[3].message, e.value.message);
+      });
+    }
+
+    test('3 desfechos desconhecidos SEGUIDOS (fisco fora) → para; não insiste nota a nota', () async {
+      when(() => nfse.transmit(any())).thenAnswer((inv) async => (inv.positionalArguments[0] as int) == 1
+          ? const Right(_authorized)
+          : const Left(NetworkFailure()));
+
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(10));
+
+      expect(transmitidas(), [1, 2, 3, 4]);
+      expect(r.stoppedBy, isA<NetworkFailure>());
+      expect(r.requested, 10);
+      expect(r.rows.skip(4).every((row) => row.code == FiscalTransmitBatchRow.abortedCode), isTrue);
+    });
+
+    test('shouldStop (tela fechou) para antes da próxima nota', () async {
+      var stop = false;
+      when(() => nfse.transmit(any())).thenAnswer((_) async {
+        stop = true;
+        return const Right(_authorized);
+      });
+
+      await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(5), shouldStop: () => stop);
+
+      expect(transmitidas(), [1]);
+    });
+  });
+
+  group('bloc — um lote por vez (H1 do gate socrático da Rodada 5)', () {
+    test('relatório chega no one-shot e a lista recarrega', () async {
+      transmiteTudo();
+
+      final states = await _run(
+          buildServiceOrderBloc(repo: repo, nfse: nfse), ServiceOrderFiscalTransmitBatchRequested(_ids(3)));
+
       final done = states.whereType<ServiceOrderFiscalBatchDone>().single;
-      expect(done.report.requested, 120);
-      expect(done.report.transmitted, 120);
-      expect(done.report.refused, 0);
+      expect(done.report.transmitted, 3);
       expect(states.whereType<ServiceOrderActionFailure>(), isEmpty);
     });
 
-    test('ids repetidos contam uma vez antes de fatiar', () async {
-      transmiteTudo();
-
-      final states = await _run(_bloc(repo, fiscal),
-          const ServiceOrderFiscalTransmitBatchRequested([1, 2, 2, 3, 1]));
-
-      expect(chamadas().single, [1, 2, 3]);
-      expect(states.whereType<ServiceOrderFiscalBatchDone>().single.report.requested, 3);
-    });
-  });
-
-  group('um lote por vez (H1 do gate socrático da Rodada 5)', () {
-    test('2º disparo enquanto o 1º ainda roda é IGNORADO — nenhuma chamada extra, um relatório só',
-        () async {
+    test('2º disparo enquanto o 1º ainda roda é IGNORADO — nenhuma chamada extra, um relatório só', () async {
       final gate = Completer<void>();
-      when(() => fiscal.transmitBatch(any())).thenAnswer((inv) async {
-        await gate.future; // segura o 1º lote "no fisco"
-        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
+      when(() => nfse.transmit(any())).thenAnswer((_) async {
+        await gate.future; // segura a 1ª nota "no fisco"
+        return const Right(_authorized);
       });
-      final bloc = _bloc(repo, fiscal);
+      final bloc = buildServiceOrderBloc(repo: repo, nfse: nfse);
       final states = <ServiceOrderState>[];
       final sub = bloc.stream.listen(states.add);
-      final done = bloc.stream
-          .firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
 
       bloc.add(ServiceOrderFiscalTransmitBatchRequested(_ids(3)));
       await Future<void>.delayed(Duration.zero);
@@ -199,50 +258,9 @@ void main() {
       await sub.cancel();
       await bloc.close();
 
-      expect(chamadas().length, 1);
+      expect(transmitidas(), [1, 2, 3]);
       expect(states.whereType<ServiceOrderFiscalBatchDone>().length, 1);
-      verifyNever(fiscal.pending);
-    });
-  });
-
-  group('bloco que falha inteiro', () {
-    test('2º bloco falha → o 1º NÃO se perde: relatório agregado com as demais como recusadas',
-        () async {
-      var chamada = 0;
-      when(() => fiscal.transmitBatch(any())).thenAnswer((inv) async {
-        chamada++;
-        if (chamada == 2) {
-          return const Left(Failure(message: 'Fisco indisponível', statusCode: 503));
-        }
-        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
-      });
-
-      final states = await _run(_bloc(repo, fiscal),
-          ServiceOrderFiscalTransmitBatchRequested(_ids(120)));
-
-      expect(chamadas().length, 2); // o 3º não é tentado
-      expect(states.whereType<ServiceOrderActionFailure>(), isEmpty);
-      final r = states.whereType<ServiceOrderFiscalBatchDone>().single.report;
-      expect(r.requested, 120);
-      expect(r.transmitted, 50);
-      expect(r.refused, 70);
-      expect(r.rows[50].orderId, 51);
-      expect(r.rows[50].code, FiscalTransmitBatchRow.abortedCode);
-      expect(r.rows[50].message, 'Fisco indisponível');
-    });
-
-    test('1º bloco falha → nada transmitido: sobe como Failure', () async {
-      when(() => fiscal.transmitBatch(any())).thenAnswer((_) async =>
-          const Left(Failure(message: 'Sem privilégio', statusCode: 403,
-              code: 'PRIVILEGE_REQUIRED')));
-
-      final states = await _run(_bloc(repo, fiscal),
-          ServiceOrderFiscalTransmitBatchRequested(_ids(120)));
-
-      expect(chamadas().length, 1);
-      expect(states.whereType<ServiceOrderFiscalBatchDone>(), isEmpty);
-      expect(states.whereType<ServiceOrderActionFailure>().single.failure.code,
-          'PRIVILEGE_REQUIRED');
+      verifyNever(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize')));
     });
   });
 }

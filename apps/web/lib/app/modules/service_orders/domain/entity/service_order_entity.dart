@@ -554,8 +554,10 @@ class ServicePaymentTypeLookup extends Equatable {
 
 
 /// Resultado do "Cancelar nota" da OS (POST /api/billing/cancel — Q-G16 do
-/// cancelamento de nota): a nota some (soft-delete), a OS volta a ABERTA
-/// (trava D5 restaurada); a API informa o que desfez junto.
+/// cancelamento de nota; desde a F2b pelo [ServiceOrderInvoiceDatasource]).
+/// Sem registro fiscal a nota some e a OS volta a ABERTA (trava D5
+/// restaurada); COM registro fiscal (D3/D4) a nota FICA com o evento C e a OS
+/// vira 'C' — o destino da tela vem do status RELIDO, nunca deste resultado.
 class ServiceOrderInvoiceCancelResult extends Equatable {
   const ServiceOrderInvoiceCancelResult({
     required this.orderId,

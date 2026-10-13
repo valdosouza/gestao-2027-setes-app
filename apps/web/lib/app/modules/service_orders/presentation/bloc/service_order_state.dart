@@ -45,26 +45,56 @@ class ServiceOrderListState extends ServiceOrderState {
 /// Modo detalhe da OS (buildável). [saving] desabilita as ações enquanto
 /// uma operação (item/cancelar/faturar/transmitir) está em andamento.
 ///
-/// Onda 3: na OS FATURADA o detalhe carrega junto a visão FISCAL da nota
-/// ([fiscal] — transmissões + voz do fisco). Quando o GET fiscal falha
-/// (API fora, endpoint ainda não montado) a OS continua legível e a seção
-/// "No fisco" mostra o motivo em [fiscalFailure] em vez de derrubar a tela.
-/// OS aberta: os dois ficam null (não há nota).
+/// F2b (D-F139): na OS FATURADA a seção "No fisco" tem DUAS fontes e DUAS
+/// falhas — a VOZ do fisco ([fiscal], nfse-api) e o EFEITO dela na nota
+/// ([effect], ERP). Uma pode falhar sem a outra: a voz indisponível mostra o
+/// motivo; o efeito indisponível diz "efeito indisponível" — nunca "nada
+/// pendente". OS aberta: tudo null (não há nota).
 class ServiceOrderDetailState extends ServiceOrderState {
   const ServiceOrderDetailState({
     required this.order,
     this.saving = false,
     this.fiscal,
     this.fiscalFailure,
+    this.effect,
+    this.effectFailure,
   });
 
   final ServiceOrderFull order;
   final bool saving;
   final ServiceOrderFiscalView? fiscal;
   final Failure? fiscalFailure;
+  final ServiceOrderFiscalEffect? effect;
+  final Failure? effectFailure;
 
   @override
-  List<Object?> get props => [order, saving, fiscal, fiscalFailure];
+  List<Object?> get props => [order, saving, fiscal, fiscalFailure, effect, effectFailure];
+}
+
+/// One-shot (listener-only): o PLANO de cancelamento lido (D-F140) — a
+/// página decide o passo seguinte só por ele (cancelável → motivo; NFS-e
+/// autorizada como único impedimento → cancelar no fisco e na nota;
+/// reconferir → reconferir; o resto → mostrar os bloqueios).
+class ServiceOrderCancelPlanReady extends ServiceOrderState {
+  const ServiceOrderCancelPlanReady(this.plan);
+  final ServiceOrderCancelPlan plan;
+
+  @override
+  List<Object?> get props => [plan];
+}
+
+/// One-shot (listener-only): AVISO informativo do fluxo fiscal (desfecho
+/// desconhecido no fisco, veredito da reconferência, o fisco cancelou mas a
+/// nota não). [messageKey] é chave i18n; [detail] = a mensagem da API, quando
+/// há (já pronta).
+class ServiceOrderFiscalNotice extends ServiceOrderState {
+  const ServiceOrderFiscalNotice(this.messageKey, {this.args = const [], this.detail});
+  final String messageKey;
+  final List<String> args;
+  final String? detail;
+
+  @override
+  List<Object?> get props => [messageKey, args, detail];
 }
 
 /// One-shot (listener-only): XML autorizado da NFS-e — a página abre em
@@ -97,9 +127,9 @@ class ServiceOrderFiscalWarnings extends ServiceOrderState {
   List<Object?> get props => [warnings];
 }
 
-/// One-shot (listener-only): notas faturadas SEM NFS-e — a página confirma
-/// com o operador ("N notas sem NFS-e — transmitir agora?") antes de
-/// disparar o lote. Lista vazia = nada a transmitir.
+/// One-shot (listener-only): notas da OS SEM NFS-e (lista fotografada — D-F145)
+/// — a página confirma com o operador antes de disparar o lote. Lista vazia =
+/// nada a transmitir.
 class ServiceOrderFiscalPendingLoaded extends ServiceOrderState {
   const ServiceOrderFiscalPendingLoaded(this.pending);
   final List<ServiceOrderFiscalPending> pending;
@@ -108,8 +138,9 @@ class ServiceOrderFiscalPendingLoaded extends ServiceOrderState {
   List<Object?> get props => [pending];
 }
 
-/// One-shot (listener-only): relatório AGREGADO do lote de transmissão —
-/// a página resume transmitidas/recusadas pela ponte.
+/// One-shot (listener-only): relatório do lote de transmissão (rodou no app,
+/// 1 nota por vez — D-F145) — a página resume transmitidas/recusadas e, se o
+/// lote PAROU, o motivo.
 class ServiceOrderFiscalBatchDone extends ServiceOrderState {
   const ServiceOrderFiscalBatchDone(this.report);
   final FiscalTransmitBatchReport report;

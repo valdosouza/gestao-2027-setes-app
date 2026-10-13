@@ -1,415 +1,281 @@
-// Contrato de dados da Onda 3 (NFS-e pelo ADN) no módulo service_orders:
-// parse da visão fiscal (/api/billing/fiscal/:orderId → transmissions/events),
-// vigência da transmissão, NFS-e autorizada, cancelamento em voo, pendências
-// (voz com efeito recusado — D-I10), a substituição no fisco + decisão de
-// manter a nota (D-F67) e os resultados de transmitir/consultar/cancelar/lote.
+// Contrato de dados da seção "No fisco" da OS — F2b (D-F4/D-F139/D-F142): o
+// app é cliente DIRETO da nfse-api e lê o EFEITO e o PLANO do ERP. O que este
+// teste fixa:
+// (1) a VOZ (nfse-api): o estado e a tentativa VIGENTE vêm do servidor — o
+//     app nunca deriva "autorizada"/"viva" de colunas (a vigente é a que o
+//     servidor escolheu, não a última da lista);
+// (2) o EFEITO (ERP): none/apply/decide/cancel + a decisão "manter" vigente;
+//     valor desconhecido = neutro;
+// (3) o PLANO (ERP): barreira fiscal TIPADA, bloqueios locais × fiscal, caixa,
+//     e o predicado "só o fisco impede" que libera a saga;
+// (4) os resultados das ações e o relatório do lote (contadores recontados).
 
+import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
 
 void main() {
-  group('ServiceOrderFiscalTransmission', () {
-    test('fromJson lê a transmissão com os campos write-once do fisco', () {
+  group('voz do fisco (nfse-api)', () {
+    test('transmissão: campos do fisco como texto (mysql2 devolve número ou string)', () {
       final tx = ServiceOrderFiscalTransmission.fromJson({
-        'attempt': '2', // mysql2 pode devolver como string
+        'attempt': '2',
         'environment': 'P',
         'dpsId': 'DPS00000000000000000000000000000000000000001',
         'accessKey': '41260912345678000199900001000000000012345678901234',
         'nfseNumber': 123,
-        'dhProc': '2026-09-21T10:15:00-03:00',
-        'createdAt': '2026-09-21 10:14:00',
-        'lastQueriedAt': '2026-09-21 10:20:00',
         'lastKind': 'A',
         'lastCode': 100,
         'lastMessage': 'Autorizado o uso da NFS-e',
-        'lastDh': '2026-09-21T10:15:00-03:00',
       });
       expect(tx.attempt, 2);
-      expect(tx.environment, 'P');
       expect(tx.nfseNumber, '123');
       expect(tx.lastCode, '100');
-      expect(tx.isAuthorized, isTrue);
-      expect(tx.isLive, isTrue);
-      expect(tx.inFlight, isFalse);
-      expect(tx.cancelInFlight, isFalse);
+      expect(tx.lastKind, FiscalTransmissionKind.authorized);
     });
 
-    test('defaults: sem ambiente = PRODUÇÃO (conservador — gate 2026-09-30); sem DPS nem evento = em voo',
-        () {
-      final tx = ServiceOrderFiscalTransmission.fromJson({'attempt': 1});
-      expect(tx.environment, 'P');
-      expect(tx.inFlight, isTrue);
-      expect(tx.isLive, isTrue, reason: 'envio em andamento ainda é vigente');
-      expect(tx.isAuthorized, isFalse);
-    });
-
-    test('isLive: R/C/F encerram a transmissão; S/A/K e null não', () {
-      bool live(String? kind) =>
-          ServiceOrderFiscalTransmission(attempt: 1, dpsId: 'x', lastKind: kind)
-              .isLive;
-      for (final k in [null, 'S', 'A', 'K']) {
-        expect(live(k), isTrue, reason: 'kind $k deveria ser vigente');
-      }
-      for (final k in ['R', 'C', 'F']) {
-        expect(live(k), isFalse, reason: 'kind $k deveria ser final');
-      }
-      expect(FiscalTransmissionKind.finals, {'R', 'C', 'F'});
-    });
-  });
-
-  group('ServiceOrderFiscalEvent', () {
-    test('fromJson lê a voz do fisco com código cru, origem e efeito na nota',
-        () {
+    test('evento: código cru, origem; kind ausente vira vazio', () {
       final ev = ServiceOrderFiscalEvent.fromJson({
-        'attempt': 1,
-        'event': 3,
-        'kind': 'C',
-        'authorityCode': 'E0000',
-        'message': 'Cancelamento homologado',
-        'dh': '2026-09-22T09:00:00-03:00',
-        'source': 'P',
-        'invoiceEvent': 2,
-        'createdAt': '2026-09-22 09:00:01',
+        'attempt': 1, 'event': 3, 'kind': 'C', 'authorityCode': 101101, 'source': 'Q',
       });
       expect(ev.event, 3);
-      expect(ev.kind, 'C');
-      expect(ev.authorityCode, 'E0000');
-      expect(ev.source, 'P');
-      expect(ev.invoiceEvent, 2);
+      expect(ev.authorityCode, '101101');
+      expect(ev.source, 'Q');
+      expect(ServiceOrderFiscalEvent.fromJson({'attempt': 1, 'event': 1}).kind, '');
     });
 
-    test('sem invoiceEvent e sem código: campos nulos, kind vazio não quebra',
-        () {
-      final ev = ServiceOrderFiscalEvent.fromJson({'attempt': 1, 'event': 1});
-      expect(ev.kind, '');
-      expect(ev.invoiceEvent, isNull);
-      expect(ev.authorityCode, isNull);
-    });
-  });
-
-  group('ServiceOrderFiscalView', () {
-    ServiceOrderFiscalView view(List<Map<String, dynamic>> transmissions,
-            {int pending = 0}) =>
-        ServiceOrderFiscalView.fromJson({
-          'transmissions': transmissions,
-          'events': const [],
-          'pendingEffects': pending,
-          'xmlAvailable': true,
-          'danfseAvailable': false,
-        });
-
-    test('fromJson: nunca transmitida = sem vigente, sem autorização', () {
+    test('visão vazia: nunca transmitida, nada disponível, cabe transmitir', () {
       final v = ServiceOrderFiscalView.fromJson(const {});
-      expect(v.lastTransmission, isNull);
-      expect(v.hasLiveTransmission, isFalse);
-      expect(v.isAuthorized, isFalse);
-      expect(v.blocksLocalCancel, isFalse);
-      expect(v.hasPendingEffects, isFalse);
+      expect(v.state, NfseState.none);
+      expect(v.currentAttempt, isNull);
+      expect(v.current, isNull);
+      expect(v.canTransmitState, isTrue);
+      expect(v.localCancelPending, isFalse);
+      expect(v.isSubstituted, isFalse);
       expect(v.xmlAvailable, isFalse);
     });
 
-    test('lastTransmission é a ÚLTIMA da lista (reapresentar = attempt + 1)',
-        () {
-      final v = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'R'},
-        {'attempt': 2, 'dpsId': 'b', 'lastKind': 'A', 'accessKey': 'K2', 'environment': 'P'},
-      ]);
-      expect(v.lastTransmission!.attempt, 2);
-      expect(v.hasLiveTransmission, isTrue);
-      expect(v.isAuthorized, isTrue);
-      expect(v.blocksLocalCancel, isTrue,
-          reason: 'autorizada em PRODUÇÃO esconde o "Cancelar nota" local');
+    test('a vigente é a que o SERVIDOR escolheu (currentAttempt), não a última da lista', () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'state': 'authorized',
+        'currentAttempt': 1,
+        'transmissions': [
+          {'attempt': 1, 'lastKind': 'A', 'accessKey': 'K1'},
+          {'attempt': 2, 'lastKind': 'F'},
+        ],
+        'xmlAvailable': true,
+      });
+      expect(v.current!.attempt, 1);
+      expect(v.current!.accessKey, 'K1');
+      expect(v.canTransmitState, isFalse);
       expect(v.xmlAvailable, isTrue);
-      expect(v.danfseAvailable, isFalse);
     });
 
-    test('Q-CA5b: autorizada em HOMOLOGAÇÃO libera o cancelamento local; K continua bloqueando', () {
-      final h = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1', 'environment': 'H'},
-      ]);
-      expect(h.isAuthorized, isTrue);
-      expect(h.blocksLocalCancel, isFalse);
-      final k = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'K', 'accessKey': 'K1', 'environment': 'H'},
-      ]);
-      expect(k.blocksLocalCancel, isTrue);
+    test('estados em que cabe transmitir = nunca transmitida ou fechou sem NFS-e', () {
+      for (final s in [NfseState.none, NfseState.rejected, NfseState.failed]) {
+        expect(ServiceOrderFiscalView(state: s).canTransmitState, isTrue, reason: s);
+      }
+      for (final s in [
+        NfseState.inFlight, NfseState.processing, NfseState.authorized, NfseState.denied,
+        NfseState.cancelled, NfseState.cancelInFlight, NfseState.unavailable, 'estado-novo',
+      ]) {
+        expect(ServiceOrderFiscalView(state: s).canTransmitState, isFalse, reason: s);
+      }
     });
 
-    test('rejeitada encerra: cabe nova transmissão e o cancel local volta',
-        () {
-      final v = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'R', 'lastCode': 'E0123'},
-      ]);
-      expect(v.hasLiveTransmission, isFalse);
-      expect(v.isAuthorized, isFalse);
-      expect(v.blocksLocalCancel, isFalse);
-    });
-
-    test('cancelamento em voo (K) bloqueia o cancel local sem ser autorizada',
-        () {
-      final v = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'K'},
-      ]);
-      expect(v.cancelInFlight, isTrue);
-      expect(v.isAuthorized, isFalse);
-      expect(v.hasLiveTransmission, isTrue);
-      expect(v.blocksLocalCancel, isTrue);
-    });
-
-    test('pendingEffects > 0 = pendência visível (D-I10)', () {
-      final v = view([
-        {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A'},
-      ], pending: 1);
-      expect(v.hasPendingEffects, isTrue);
-      expect(v.pendingEffects, 1);
+    test('substituição: chave da substituta; XML do evento indisponível = chave nula; bloco de tipo errado = sem substituição', () {
+      final v = ServiceOrderFiscalView.fromJson({
+        'state': 'cancelled',
+        'localCancelPending': true,
+        'substitution': {'substituteAccessKey': '41261012345678000199900001000000000099999999999999'},
+      });
+      expect(v.isSubstituted, isTrue);
+      expect(v.substitution!.hasSubstituteKey, isTrue);
+      expect(v.localCancelPending, isTrue);
+      expect(ServiceOrderFiscalSubstitution.fromJson(const {'substituteAccessKey': ''}).hasSubstituteKey, isFalse);
+      expect(ServiceOrderFiscalView.fromJson(const {'substitution': 'x'}).substitution, isNull);
     });
   });
 
-  // D-F67 (Valdo 2026-10-10): NFS-e cancelada POR SUBSTITUIÇÃO no fisco
-  // (e105102, fora do produto) — a nota fica viva até o humano decidir:
-  // cancelar a nota ou MANTÊ-LA (POST /api/billing/cancel-waiver).
-  group('D-F67 — substituição e decisão de manter', () {
-    const substitute = '41261012345678000199900001000000000099999999999999';
+  group('efeito na nota (ERP)', () {
+    test('parse dos 4 efeitos; valor que o build não conhece = unknown (neutro)', () {
+      expect(FiscalEffect.parse('none'), FiscalEffect.none);
+      expect(FiscalEffect.parse('apply'), FiscalEffect.apply);
+      expect(FiscalEffect.parse('decide'), FiscalEffect.decide);
+      expect(FiscalEffect.parse('cancel'), FiscalEffect.cancel);
+      expect(FiscalEffect.parse('novo'), FiscalEffect.unknown);
+      expect(FiscalEffect.parse(null), FiscalEffect.unknown);
+    });
 
-    test('sem os blocos novos (API antiga ou nota comum): nada de substituição',
-        () {
-      final v = ServiceOrderFiscalView.fromJson({
-        'transmissions': [
-          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1'},
+    test('a decisão "manter" vigente vem inteira; ausente = null', () {
+      final e = ServiceOrderFiscalEffect.fromJson({
+        'effect': 'none',
+        'invoiceCancelled': false,
+        'cancelWaiver': {'accessKey': 'K1', 'reason': 'Substituta no portal', 'userId': '7', 'createdAt': '2026-10-10 15:42:00'},
+      });
+      expect(e.effect, FiscalEffect.none);
+      expect(e.cancelWaiver!.userId, 7);
+      expect(e.cancelWaiver!.reason, 'Substituta no portal');
+      expect(ServiceOrderFiscalEffect.fromJson(const {'effect': 'decide'}).cancelWaiver, isNull);
+      expect(ServiceOrderFiscalCancelWaiver.fromJson(const {}).accessKey, '');
+    });
+  });
+
+  group('plano de cancelamento (ERP)', () {
+    Map<String, dynamic> fiscalBlock(String kind, {String? reason}) => {
+          'field': 'fiscal',
+          'message': 'mensagem do servidor',
+          'ref': 'fiscal',
+          'barrier': {'kind': kind, 'reason': reason, 'attempt': 2},
+        };
+
+    test('cancelável sem bloqueios: sem barreira, sem bloqueio local', () {
+      final p = ServiceOrderCancelPlan.fromJson({
+        'orderId': '7374', 'invoiceNumber': 704, 'cancellable': true, 'fiscalRecord': false,
+        'blocks': const [], 'effects': {'touchesCash': false},
+      });
+      expect(p.orderId, 7374);
+      expect(p.invoiceNumber, '704');
+      expect(p.cancellable, isTrue);
+      expect(p.fiscalBarrier, isNull);
+      expect(p.localBlocks, isEmpty);
+      expect(p.cashierOpen, isNull, reason: 'não toca o caixa');
+      expect(p.onlyAuthorityStands, isFalse);
+    });
+
+    test('barreira TIPADA: os 4 tipos + desconhecido; reconferir traz o motivo', () {
+      for (final (raw, kind) in [
+        ('authorized', FiscalBarrierKind.authorized),
+        ('in-flight', FiscalBarrierKind.inFlight),
+        ('cancel-in-flight', FiscalBarrierKind.cancelInFlight),
+        ('reconfirm', FiscalBarrierKind.reconfirm),
+        ('novo', FiscalBarrierKind.unknown),
+      ]) {
+        final p = ServiceOrderCancelPlan.fromJson({'orderId': 1, 'blocks': [fiscalBlock(raw, reason: 'sem-e2404')]});
+        expect(p.fiscalBarrier!.kind, kind, reason: raw);
+        expect(p.fiscalBarrier!.attempt, 2);
+      }
+      final r = ServiceOrderCancelPlan.fromJson({'orderId': 1, 'blocks': [fiscalBlock('reconfirm', reason: 'sem-e2404')]});
+      expect(r.fiscalBarrier!.reason, 'sem-e2404');
+    });
+
+    test('só a NFS-e autorizada impede (caixa aberto ou não tocado) → a saga cabe', () {
+      final p = ServiceOrderCancelPlan.fromJson({
+        'orderId': 1, 'fiscalRecord': true,
+        'blocks': [fiscalBlock('authorized')],
+        'effects': {'touchesCash': true, 'cashierOpen': true},
+      });
+      expect(p.onlyAuthorityStands, isTrue);
+      expect(p.fiscalRecord, isTrue);
+      expect(p.touchesCash, isTrue);
+    });
+
+    test('autorizada + bloqueio LOCAL (título baixado) → a saga NÃO cabe (o local recusaria depois do fisco)', () {
+      final p = ServiceOrderCancelPlan.fromJson({
+        'orderId': 1,
+        'blocks': [
+          fiscalBlock('authorized'),
+          {'field': 'title', 'message': 'Título 7650/1 tem baixa de 80.00 — estorne a baixa antes', 'ref': '7650/1'},
         ],
-        'pendingEffects': 0,
       });
-      expect(v.substitution, isNull);
-      expect(v.cancelWaiver, isNull);
-      expect(v.isSubstituted, isFalse);
-      expect(v.substitutionDecided, isFalse);
-      expect(v.canWaiveCancel, isFalse);
+      expect(p.localBlocks.single.field, 'title');
+      expect(p.onlyAuthorityStands, isFalse);
     });
 
-    test('blocos null explícitos ou de tipo errado são tolerados (viram null)',
-        () {
-      final nulls = ServiceOrderFiscalView.fromJson(
-          {'substitution': null, 'cancelWaiver': null});
-      expect(nulls.substitution, isNull);
-      expect(nulls.cancelWaiver, isNull);
-
-      final wrong = ServiceOrderFiscalView.fromJson(
-          {'substitution': 'x', 'cancelWaiver': 1});
-      expect(wrong.substitution, isNull);
-      expect(wrong.cancelWaiver, isNull);
+    test('autorizada + caixa FECHADO (toca o caixa) → a saga NÃO cabe', () {
+      final p = ServiceOrderCancelPlan.fromJson({
+        'orderId': 1,
+        'blocks': [fiscalBlock('authorized')],
+        'effects': {'touchesCash': true, 'cashierOpen': false},
+      });
+      expect(p.cashierOpen, isFalse);
+      expect(p.onlyAuthorityStands, isFalse);
     });
 
-    test('substituída SEM decisão: chave da substituta + "Manter a nota" cabe',
-        () {
-      final v = ServiceOrderFiscalView.fromJson({
-        'transmissions': [
-          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'accessKey': 'K1'},
-        ],
-        'pendingEffects': 1,
-        'substitution': {'substituteAccessKey': substitute, 'waived': false},
-        'cancelWaiver': null,
-      });
-      expect(v.isSubstituted, isTrue);
-      expect(v.substitution!.substituteAccessKey, substitute);
-      expect(v.substitution!.hasSubstituteKey, isTrue);
-      expect(v.substitution!.waived, isFalse);
-      expect(v.substitutionDecided, isFalse);
-      expect(v.canWaiveCancel, isTrue);
-      expect(v.hasPendingEffects, isTrue);
-      // a voz é C (final): o "Cancelar nota" local segue disponível
-      expect(v.blocksLocalCancel, isFalse);
+    test('barreira que não é "autorizada" nunca libera a saga', () {
+      for (final k in ['in-flight', 'cancel-in-flight', 'reconfirm', 'novo']) {
+        final p = ServiceOrderCancelPlan.fromJson({'orderId': 1, 'blocks': [fiscalBlock(k)]});
+        expect(p.onlyAuthorityStands, isFalse, reason: k);
+      }
     });
 
-    test('D-F80: substituição em HOMOLOGAÇÃO não se mantém (cancela-se a nota); toda voz C esconde o Transmitir (L4)',
-        () {
-      final h = ServiceOrderFiscalView.fromJson({
-        'transmissions': [
-          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'accessKey': 'K1', 'environment': 'H'},
-        ],
-        'pendingEffects': 1,
-        'substitution': {'substituteAccessKey': null, 'waived': false},
-      });
-      expect(h.isSubstituted, isTrue);
-      expect(h.canWaiveCancel, isFalse);
-      expect(h.hasCancelVoice, isTrue);
-      final exOfficio = ServiceOrderFiscalView.fromJson({
-        'transmissions': [
-          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'C', 'lastCode': '305101', 'accessKey': 'K1'},
-        ],
-        'pendingEffects': 1,
-      });
-      expect(exOfficio.isSubstituted, isFalse);
-      expect(exOfficio.canWaiveCancel, isFalse);
-      expect(exOfficio.hasCancelVoice, isTrue);
-      final authorized = ServiceOrderFiscalView.fromJson({
-        'transmissions': [
-          {'attempt': 1, 'dpsId': 'a', 'lastKind': 'A', 'accessKey': 'K1'},
-        ],
-      });
-      expect(authorized.hasCancelVoice, isFalse);
+    test('cashierOpen de tipo errado vira null (não inventa caixa aberto nem fechado)', () {
+      final p = ServiceOrderCancelPlan.fromJson({'orderId': 1, 'effects': {'cashierOpen': 'S'}});
+      expect(p.cashierOpen, isNull);
     });
+  });
 
-    test('XML do evento indisponível: chave null (a tela mostra "indisponível")',
-        () {
-      final v = ServiceOrderFiscalView.fromJson({
-        'substitution': {'substituteAccessKey': null, 'waived': false},
-      });
-      expect(v.substitution!.substituteAccessKey, isNull);
-      expect(v.substitution!.hasSubstituteKey, isFalse);
-      expect(v.canWaiveCancel, isTrue);
-
-      final empty = ServiceOrderFiscalSubstitution.fromJson(
-          {'substituteAccessKey': ''});
-      expect(empty.hasSubstituteKey, isFalse);
-      expect(empty.waived, isFalse, reason: 'sem o campo = não mantida');
-    });
-
-    test('mantida: cancelWaiver lido por inteiro e o botão some', () {
-      final v = ServiceOrderFiscalView.fromJson({
-        'pendingEffects': 0, // a substituição mantida deixa de contar
-        'substitution': {'substituteAccessKey': substitute, 'waived': true},
-        'cancelWaiver': {
-          'accessKey': 'K1',
-          'reason': 'Substituta emitida no portal pelo contador',
-          'userId': '7', // mysql2 pode devolver como string
-          'createdAt': '2026-10-10 15:42:00',
-        },
-      });
-      final w = v.cancelWaiver!;
-      expect(w.accessKey, 'K1');
-      expect(w.reason, 'Substituta emitida no portal pelo contador');
-      expect(w.userId, 7);
-      expect(w.createdAt, '2026-10-10 15:42:00');
-      expect(v.substitutionDecided, isTrue);
-      expect(v.canWaiveCancel, isFalse);
-      expect(v.hasPendingEffects, isFalse);
-    });
-
-    test('qualquer das duas leituras da API basta para dar a decisão por tomada',
-        () {
-      final soWaived = ServiceOrderFiscalView.fromJson({
-        'substitution': {'substituteAccessKey': substitute, 'waived': true},
-      });
-      expect(soWaived.canWaiveCancel, isFalse);
-
-      final soRegistro = ServiceOrderFiscalView.fromJson({
-        'substitution': {'substituteAccessKey': substitute, 'waived': false},
-        'cancelWaiver': {'accessKey': 'K1', 'reason': 'ok'},
-      });
-      expect(soRegistro.canWaiveCancel, isFalse);
-    });
-
-    test('cancelWaiver sem campos opcionais não quebra', () {
-      final w = ServiceOrderFiscalCancelWaiver.fromJson(const {});
-      expect(w.accessKey, '');
-      expect(w.reason, '');
-      expect(w.userId, isNull);
-      expect(w.createdAt, isNull);
-    });
-
-    test('resultado do POST cancel-waiver: alreadyWaived default false', () {
-      final r = ServiceOrderCancelWaiverResult.fromJson({
-        'orderId': '7223',
-        'accessKey': 'K1',
-        'createdAt': '2026-10-10 15:42:00',
-        'alreadyWaived': true,
-      });
-      expect(r.orderId, 7223);
-      expect(r.accessKey, 'K1');
-      expect(r.alreadyWaived, isTrue);
-
-      final novo = ServiceOrderCancelWaiverResult.fromJson({'orderId': 1});
-      expect(novo.alreadyWaived, isFalse);
-    });
-
-    test('igualdade: blocos novos entram no Equatable da visão', () {
-      Map<String, dynamic> json(bool waived) => {
-            'substitution': {'substituteAccessKey': substitute, 'waived': waived},
-          };
-      expect(ServiceOrderFiscalView.fromJson(json(false)),
-          ServiceOrderFiscalView.fromJson(json(false)));
-      expect(ServiceOrderFiscalView.fromJson(json(false)),
-          isNot(ServiceOrderFiscalView.fromJson(json(true))));
+  group('desfecho desconhecido no fisco (D-F139 — nunca "não aconteceu")', () {
+    test('rede, resposta ambígua e fisco fora = desconhecido; recusa e regra não', () {
+      expect(isUnknownAuthorityOutcome(const NetworkFailure()), isTrue);
+      expect(isUnknownAuthorityOutcome(
+          const Failure(message: 'x', statusCode: 502, code: FiscalCodes.authorityUnknown)), isTrue);
+      expect(isUnknownAuthorityOutcome(
+          const Failure(message: 'x', statusCode: 503, code: FiscalCodes.authorityUnavailable)), isTrue);
+      expect(isUnknownAuthorityOutcome(
+          const Failure(message: 'x', statusCode: 422, code: FiscalCodes.dpsRejected)), isFalse);
+      expect(isUnknownAuthorityOutcome(
+          const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isFalse);
+      expect(isUnknownAuthorityOutcome(
+          const Failure(message: 'x', statusCode: 503, code: FiscalCodes.voiceUnavailable)), isFalse,
+          reason: 'a VOZ indisponível no ERP é leitura, não ato no fisco');
     });
   });
 
   group('resultados das ações', () {
-    test('transmit: kind A = autorizada com chave', () {
-      final r = ServiceOrderTransmitResult.fromJson({
-        'invoiceId': 6190,
-        'attempt': 1,
-        'dpsId': 'DPS1',
-        'accessKey': 'KEY',
-        'kind': 'A',
-      });
+    test('transmit (201 só com A): chave e número', () {
+      final r = ServiceOrderTransmitResult.fromJson({'invoiceId': '6190', 'attempt': 1, 'accessKey': 'KEY', 'nfseNumber': 704});
       expect(r.invoiceId, 6190);
-      expect(r.authorized, isTrue);
       expect(r.accessKey, 'KEY');
+      expect(r.nfseNumber, '704');
     });
 
     test('refresh: changed false por default', () {
-      final r = ServiceOrderFiscalRefreshResult.fromJson(const {});
-      expect(r.changed, isFalse);
-      expect(r.authorized, isFalse);
+      expect(ServiceOrderFiscalRefreshResult.fromJson(const {}).changed, isFalse);
     });
 
-    test('cancel: C = cancelada, K = em voo; warnings vazios filtrados', () {
+    test('reconfirm: found/verdict', () {
+      final r = ServiceOrderFiscalReconfirmResult.fromJson({'needed': true, 'found': false, 'verdict': 'provada'});
+      expect(r.needed, isTrue);
+      expect(r.found, isFalse);
+      expect(r.verdict, 'provada');
+    });
+
+    test('cancel no fisco: atAuthority default true; warnings vazios filtrados', () {
       final c = ServiceOrderFiscalCancelResult.fromJson({
-        'invoiceId': 1,
-        'kind': 'C',
-        'warnings': ['Boleto vinculado cancelado junto', ''],
+        'invoiceId': 1, 'warnings': ['Evento arquivado com atraso', ''],
       });
-      expect(c.cancelled, isTrue);
-      expect(c.inFlight, isFalse);
-      expect(c.warnings, ['Boleto vinculado cancelado junto']);
-
-      final k = ServiceOrderFiscalCancelResult.fromJson({'invoiceId': 1, 'kind': 'K'});
-      expect(k.inFlight, isTrue);
-      expect(k.warnings, isEmpty);
+      expect(c.atAuthority, isTrue);
+      expect(c.warnings, ['Evento arquivado com atraso']);
+      expect(ServiceOrderFiscalCancelResult.fromJson({'invoiceId': 1, 'atAuthority': false}).atAuthority, isFalse);
     });
 
-    test('pending: invoiceId É o orderId (1 pedido = 1 nota com o mesmo id)',
-        () {
-      final p = ServiceOrderFiscalPending.fromJson(
-          {'invoiceId': '77', 'number': 12, 'dtEmission': '2026-09-01'});
-      expect(p.invoiceId, 77);
+    test('manter a nota: alreadyWaived default false', () {
+      final r = ServiceOrderCancelWaiverResult.fromJson({'orderId': '7223', 'accessKey': 'K1', 'alreadyWaived': true});
+      expect(r.orderId, 7223);
+      expect(r.alreadyWaived, isTrue);
+      expect(ServiceOrderCancelWaiverResult.fromJson({'orderId': 1}).alreadyWaived, isFalse);
+    });
+
+    test('pendente: invoiceId É o orderId (1 pedido = 1 nota com o mesmo id)', () {
+      final p = ServiceOrderFiscalPending.fromJson({'invoiceId': '77', 'number': 12, 'dtEmission': '2026-09-01'});
       expect(p.orderId, 77);
       expect(p.number, '12');
     });
   });
 
-  group('FiscalTransmitBatchReport', () {
-    test('fromJson reconta os contadores das linhas (a fonte é uma)', () {
-      final r = FiscalTransmitBatchReport.fromJson({
-        'transmitted': 99, // ignorado de propósito — as linhas mandam
-        'refused': 0,
-        'rows': [
-          {'orderId': 1, 'ok': true, 'kind': 'A'},
-          {'orderId': 2, 'ok': false, 'code': 'FISCAL_DPS_REJECTED', 'message': 'E0123'},
-          {'orderId': 3}, // sem ok explícito = recusada
-        ],
-      });
+  group('relatório do lote', () {
+    test('contadores recontados das linhas; aborted marca o código local', () {
+      final r = FiscalTransmitBatchReport.fromEntries(const [
+        FiscalTransmitBatchRow(orderId: 1, ok: true),
+        FiscalTransmitBatchRow(orderId: 2, ok: false, code: FiscalCodes.dpsRejected, message: 'E0123'),
+        FiscalTransmitBatchRow.aborted(orderId: 3, message: 'Sem privilégio'),
+      ], stoppedBy: const Failure(message: 'Sem privilégio', statusCode: 403));
       expect(r.requested, 3);
       expect(r.transmitted, 1);
       expect(r.refused, 2);
       expect(r.refusedRows.map((e) => e.orderId), [2, 3]);
-      expect(r.rows[1].code, 'FISCAL_DPS_REJECTED');
-    });
-
-    test('merge agrega os blocos na ordem e aborted marca o código local', () {
-      final merged = FiscalTransmitBatchReport.merge([
-        FiscalTransmitBatchReport.fromEntries(const [
-          FiscalTransmitBatchRow(orderId: 1, ok: true),
-        ]),
-        FiscalTransmitBatchReport.fromEntries(const [
-          FiscalTransmitBatchRow.aborted(orderId: 2, message: 'rede'),
-        ]),
-      ]);
-      expect(merged.rows.map((e) => e.orderId), [1, 2]);
-      expect(merged.transmitted, 1);
-      expect(merged.refused, 1);
-      expect(merged.rows.last.code, FiscalTransmitBatchRow.abortedCode);
-      expect(merged.rows.last.message, 'rede');
+      expect(r.rows.last.code, FiscalTransmitBatchRow.abortedCode);
+      expect(r.stoppedBy!.statusCode, 403);
     });
   });
 }

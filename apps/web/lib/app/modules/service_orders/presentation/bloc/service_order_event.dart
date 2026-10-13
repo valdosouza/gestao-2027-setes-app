@@ -135,19 +135,6 @@ class ServiceOrderBatchInvoiceRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderIds, input];
 }
 
-/// "Cancelar nota" da OS faturada (Q-G16) — motivo já confirmado no dialog.
-class ServiceOrderInvoiceCancelRequested extends ServiceOrderEvent {
-  const ServiceOrderInvoiceCancelRequested({
-    required this.orderId,
-    required this.reason,
-  });
-  final int orderId;
-  final String reason;
-
-  @override
-  List<Object?> get props => [orderId, reason];
-}
-
 class ServiceOrderInvoiceRequested extends ServiceOrderEvent {
   const ServiceOrderInvoiceRequested({
     required this.orderId,
@@ -162,12 +149,11 @@ class ServiceOrderInvoiceRequested extends ServiceOrderEvent {
 }
 
 // ---------------------------------------------------------------------
-// Onda 3 — NFS-e pelo ADN (seção "No fisco" do documento faturado)
+// F2b — a NFS-e na nfse-api + os fatos do ERP (seção "No fisco")
 // ---------------------------------------------------------------------
 
-/// "Transmitir": POST /api/billing/transmit — o detalhe recarrega depois
-/// (a voz do fisco S/A entra na linha do tempo). 422 FISCAL_DPS_REJECTED,
-/// 409 e 503 chegam como [ServiceOrderActionFailure] legível pela ponte.
+/// "Transmitir" (nfse-api): 201 = autorizada; 422/409 com a mensagem; 502/503
+/// ou rede = desfecho DESCONHECIDO — o detalhe RELÊ e o aviso diz "consulte".
 class ServiceOrderTransmitRequested extends ServiceOrderEvent {
   const ServiceOrderTransmitRequested(this.orderId);
   final int orderId;
@@ -176,7 +162,7 @@ class ServiceOrderTransmitRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId];
 }
 
-/// "Consultar": POST /fiscal/:orderId/refresh — reconciliação por chave.
+/// "Consultar" (nfse-api — consulta ativa ao fisco).
 class ServiceOrderFiscalRefreshRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalRefreshRequested(this.orderId);
   final int orderId;
@@ -185,7 +171,17 @@ class ServiceOrderFiscalRefreshRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId];
 }
 
-/// "XML": GET /fiscal/:orderId/xml → one-shot [ServiceOrderFiscalXmlReady].
+/// "Reconferir" (nfse-api — D-F109): o plano pediu a prova de que a NFS-e do
+/// envio interrompido não existe. Depois o detalhe relê (e o plano decide).
+class ServiceOrderFiscalReconfirmRequested extends ServiceOrderEvent {
+  const ServiceOrderFiscalReconfirmRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// "XML" → one-shot [ServiceOrderFiscalXmlReady].
 class ServiceOrderFiscalXmlRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalXmlRequested(this.orderId);
   final int orderId;
@@ -194,8 +190,7 @@ class ServiceOrderFiscalXmlRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId];
 }
 
-/// "DANFSe": GET /fiscal/:orderId/danfse → one-shot
-/// [ServiceOrderFiscalDanfseReady].
+/// "DANFSe" → one-shot [ServiceOrderFiscalDanfseReady].
 class ServiceOrderFiscalDanfseRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalDanfseRequested(this.orderId);
   final int orderId;
@@ -204,26 +199,37 @@ class ServiceOrderFiscalDanfseRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId];
 }
 
-/// "Cancelar NFS-e" (motivo já confirmado no MESMO dialog do "Cancelar
-/// nota"): POST /api/billing/fiscal/cancel. 'C' = nota cancelada no fisco
-/// e aqui (a OS volta a aberta); 'K' = pedido em voo (detalhe recarrega e
-/// fica bloqueado até a consulta reconciliar).
-class ServiceOrderFiscalCancelRequested extends ServiceOrderEvent {
-  const ServiceOrderFiscalCancelRequested({
+/// 1º passo de QUALQUER cancelamento da nota ("Cancelar nota", "Cancelar
+/// NFS-e", "Aplicar o cancelamento na nota" — D-F140): lê o PLANO (ERP) e o
+/// devolve no one-shot [ServiceOrderCancelPlanReady]; quem decide o passo
+/// seguinte é o plano (a página só traduz).
+class ServiceOrderCancelFlowRequested extends ServiceOrderEvent {
+  const ServiceOrderCancelFlowRequested(this.orderId);
+  final int orderId;
+
+  @override
+  List<Object?> get props => [orderId];
+}
+
+/// 2º passo (motivo confirmado): a SAGA do cancelamento (D-F139) — com
+/// [atAuthority] o fisco cancela PRIMEIRO (só quando o plano disse que a
+/// NFS-e autorizada é o único impedimento), depois a nota no ERP.
+class ServiceOrderCancelConfirmed extends ServiceOrderEvent {
+  const ServiceOrderCancelConfirmed({
     required this.orderId,
     required this.reason,
+    required this.atAuthority,
   });
   final int orderId;
   final String reason;
+  final bool atAuthority;
 
   @override
-  List<Object?> get props => [orderId, reason];
+  List<Object?> get props => [orderId, reason, atAuthority];
 }
 
-/// D-F67 "Manter a nota" (motivo já confirmado no dialog): POST
-/// /api/billing/cancel-waiver — a NFS-e foi SUBSTITUÍDA no fisco (e105102) e
-/// o humano decide NÃO cancelar a nota no ERP. O detalhe recarrega (a seção
-/// "No fisco" passa a mostrar a decisão registrada).
+/// D-F67 "Manter a nota" (motivo já confirmado no dialog): o efeito é
+/// `decide` (NFS-e SUBSTITUÍDA no fisco) e o humano decide NÃO cancelar.
 class ServiceOrderFiscalCancelWaiverRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalCancelWaiverRequested({
     required this.orderId,
@@ -236,15 +242,15 @@ class ServiceOrderFiscalCancelWaiverRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderId, reason];
 }
 
-/// "Transmitir pendentes" (aba Faturadas), 1º passo: GET /fiscal/pending →
-/// one-shot [ServiceOrderFiscalPendingLoaded] para a página confirmar.
+/// "Transmitir notas sem NFS-e" (aba Faturadas), 1º passo: a lista
+/// FOTOGRAFADA (todas as páginas da nfse-api, só da OS — D-F145) → one-shot
+/// [ServiceOrderFiscalPendingLoaded] para a página confirmar.
 class ServiceOrderFiscalPendingRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalPendingRequested();
 }
 
-/// "Transmitir pendentes", 2º passo (confirmado): fatia em blocos de
-/// [fiscalTransmitChunkSize], chama /transmit-batch em SEQUÊNCIA e agrega
-/// → one-shot [ServiceOrderFiscalBatchDone]. Um lote por vez (H1).
+/// 2º passo (confirmado): UMA nota por vez, no app; para em erro sistêmico
+/// → one-shot [ServiceOrderFiscalBatchDone]. Um lote por vez.
 class ServiceOrderFiscalTransmitBatchRequested extends ServiceOrderEvent {
   const ServiceOrderFiscalTransmitBatchRequested(this.orderIds);
   final List<int> orderIds;

@@ -36,8 +36,8 @@ const _validCert = IssuerCertStatus(
 );
 
 /// Registra as chamadas e devolve a visão configurada (mutável pelo teste).
-/// Imita a derivação da API: `enabled` de cada modelo = certificado válido
-/// do estabelecimento (recalculado a cada GET/PUT, como a API faz).
+/// Imita a derivação da nfse-api: `enabled` = virada feita (cutoverAt) E
+/// certificado válido (recalculado a cada GET/PUT, como a API faz).
 class _FakeDatasource implements EstablishmentIssuerDatasource {
   _FakeDatasource({required this.issuers, required this.certificate});
 
@@ -59,8 +59,9 @@ class _FakeDatasource implements EstablishmentIssuerDatasource {
               model: i.model,
               environment: i.environment,
               serie: i.serie,
-              enabled: certificate.valid,
+              enabled: i.cutoverAt != null && certificate.valid,
               authority: i.authority,
+              cutoverAt: i.cutoverAt,
             ),
         ],
         certificate: certificate,
@@ -76,9 +77,10 @@ class _FakeDatasource implements EstablishmentIssuerDatasource {
   Future<EstablishmentIssuerView> saveIssuer(String model,
       {required String environment, required String serie}) async {
     _maybeFail('saveIssuer:$model:$environment:$serie');
+    final previous = issuers.where((i) => i.model == model).firstOrNull;
     issuers = [
       ...issuers.where((i) => i.model != model),
-      EstablishmentIssuer(model: model, environment: environment, serie: serie),
+      EstablishmentIssuer(model: model, environment: environment, serie: serie, cutoverAt: previous?.cutoverAt ?? _cut),
     ];
     return _view;
   }
@@ -114,18 +116,21 @@ class _FakeDatasource implements EstablishmentIssuerDatasource {
   }
 }
 
-/// Certificado válido no cofre; SE habilitada em H; 55 sem linha.
+/// Instante da virada da habilitação SE (D-F39) nos cenários "já virou".
+const _cut = '2026-11-20 00:00:00';
+
+/// Certificado válido no cofre; SE (virada feita) habilitada em H.
 _FakeDatasource _withCertificate() => _FakeDatasource(
       issuers: const [
-        EstablishmentIssuer(model: 'SE', environment: 'H', serie: '1', authority: 'ADN'),
+        EstablishmentIssuer(model: 'SE', environment: 'H', serie: '1', authority: 'ADN', cutoverAt: _cut),
       ],
       certificate: _validCert,
     );
 
-/// Cofre vazio; SE com linha (H) — desabilitada por falta de certificado.
+/// Cofre vazio; SE com linha (H, virada feita) — desabilitada por falta de certificado.
 _FakeDatasource _withoutCertificate() => _FakeDatasource(
       issuers: const [
-        EstablishmentIssuer(model: 'SE', environment: 'H', serie: '1', authority: 'ADN'),
+        EstablishmentIssuer(model: 'SE', environment: 'H', serie: '1', authority: 'ADN', cutoverAt: _cut),
       ],
       certificate: const IssuerCertStatus(),
     );
@@ -154,7 +159,7 @@ Future<void> _pump(WidgetTester tester, _FakeDatasource ds,
 
 /// byType casa o runtimeType EXATO — o predicate cobre Elevated/Outlined/
 /// TextButton do SetesButton. [index] escolhe a ocorrência: "Remover" é
-/// [0] certificado, [1] SE, [2] 55.
+/// [0] certificado, [1] SE (D-F137: só a NFS-e na aba).
 Finder _button(String text, {int index = 0}) => find
     .ancestor(
         of: find.text(text),
@@ -193,10 +198,12 @@ void main() {
     // O ambiente só aparece na HABILITAÇÃO por modelo (dropdown), nunca como
     // título de bloco de certificado.
     expect(find.text('Ambiente de emissão'), findsNWidgets(kIssuerModels.length));
-    // Badges: SE habilitada (linha + certificado válido); 55 sem linha.
+    // Badge: SE habilitada (virada feita + certificado válido); D-F137: o 55
+    // saiu da aba (só a NFS-e, pela nfse-api).
     expect(find.text('Habilitado'), findsOneWidget);
-    expect(find.text('Não configurado'), findsOneWidget);
+    expect(find.text('Não configurado'), findsNothing);
     expect(find.text('Sem certificado'), findsNothing);
+    expect(find.text('NF-e'), findsNothing);
     // Série vinda do servidor preenche o campo.
     expect(find.widgetWithText(TextFormField, '1'), findsOneWidget);
   });
@@ -213,6 +220,19 @@ void main() {
     // "Remover" do certificado fica desabilitado quando não há par no cofre.
     expect(tester.widget<ButtonStyleButton>(_button('Remover', index: 0)).enabled,
         isFalse);
+  });
+
+  testWidgets('F2b: ANTES da virada (cutoverAt nulo) o selo diz "Aguardando a migração da emissão" — nunca "Sem certificado"',
+      (tester) async {
+    final ds = _FakeDatasource(
+      issuers: const [EstablishmentIssuer(model: 'SE', environment: 'P', serie: '1', authority: 'ADN')],
+      certificate: _validCert,
+    );
+    await _pump(tester, ds);
+
+    expect(find.text('Aguardando a migração da emissão'), findsOneWidget);
+    expect(find.text('Sem certificado'), findsNothing);
+    expect(find.text('Habilitado'), findsNothing);
   });
 
   testWidgets('certificado ainda não vigente mostra a linha "Só vale a partir de"',
@@ -236,17 +256,18 @@ void main() {
     expect(find.textContaining('Válido até'), findsNothing);
   });
 
-  testWidgets('série inválida bloqueia pela ponte (dialog) sem chamar a API', (tester) async {
+  testWidgets('série inválida (vazia, 0, 50000+) bloqueia pela ponte (dialog) sem chamar a API — a faixa do contrato da nfse-api', (tester) async {
     final ds = _withCertificate();
     await _pump(tester, ds);
 
-    // Limpa a série da NFS-e (campo "Série do documento" com '1') e salva.
-    await tester.enterText(find.widgetWithText(TextFormField, '1'), '');
-    await tester.tap(_button('Salvar', index: 0));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Informe a série do documento com 1 a 5 dígitos'), findsOneWidget);
-    await _tapOk(tester);
+    final serie = find.widgetWithText(TextFormField, 'Série do documento');
+    for (final bad in ['', '0', '50000']) {
+      await tester.enterText(serie, bad);
+      await tester.tap(_button('Salvar', index: 0));
+      await tester.pumpAndSettle();
+      expect(find.text('Informe a série do documento entre 1 e 49999'), findsOneWidget, reason: bad);
+      await _tapOk(tester);
+    }
     expect(ds.calls, ['get'], reason: 'nada foi salvo');
   });
 
@@ -255,16 +276,15 @@ void main() {
     final ds = _withCertificate();
     await _pump(tester, ds);
 
-    // NF-e (2º bloco, sem linha): série 00003 no ambiente default (H) →
-    // com certificado válido no cofre a API devolve enabled → "Habilitado".
-    final serieFields = find.widgetWithText(TextFormField, 'Série do documento');
-    await tester.enterText(serieFields.at(1), '00003');
-    await tester.tap(_button('Salvar', index: 1));
+    // NFS-e: série 00003 no ambiente atual (H) → virada feita + certificado
+    // válido → a API devolve enabled → "Habilitado".
+    await tester.enterText(find.widgetWithText(TextFormField, 'Série do documento'), '00003');
+    await tester.tap(_button('Salvar', index: 0));
     await tester.pumpAndSettle();
 
-    expect(ds.calls, ['get', 'saveIssuer:55:H:00003']);
+    expect(ds.calls, ['get', 'saveIssuer:SE:H:00003']);
     expect(find.text('Habilitação do documento salva'), findsOneWidget);
-    expect(find.text('Habilitado'), findsNWidgets(2));
+    expect(find.text('Habilitado'), findsOneWidget);
     expect(find.text('Não configurado'), findsNothing);
   });
 
@@ -272,7 +292,7 @@ void main() {
     final ds = _withCertificate();
     await _pump(tester, ds);
 
-    // Botões "Remover": [0] certificado, [1] SE, [2] 55 (desabilitado, sem linha).
+    // Botões "Remover": [0] certificado, [1] SE.
     await tester.tap(_button('Remover', index: 1));
     await tester.pumpAndSettle();
     expect(find.text('Remover a habilitação de NFS-e (Padrão Nacional)?'), findsOneWidget);
@@ -286,7 +306,7 @@ void main() {
     await tester.tap(find.text('Remover').last); // "Sim" rotulado como Remover
     await tester.pumpAndSettle();
     expect(ds.calls, ['get', 'removeIssuer:SE', 'get']);
-    expect(find.text('Não configurado'), findsNWidgets(2));
+    expect(find.text('Não configurado'), findsOneWidget);
     expect(find.text('Habilitado'), findsNothing);
   });
 
