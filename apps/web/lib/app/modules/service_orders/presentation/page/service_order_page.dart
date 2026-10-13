@@ -716,28 +716,42 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// consulte") — a NFS-e pode ter sido autorizada; nunca "recusada".
   Future<void> _showFiscalBatchSummary(FiscalTransmitBatchReport report) {
     final stopped = report.stoppedBy;
+    // D-F171 (= Q-F179 (a)): incertas e NÃO TENTADAS têm contador próprio, cada um só quando existe
     final summary = [
-      report.uncertain == 0
-          ? 'forms.serviceOrder.fiscalBatchSummary'
-              .tr(args: ['${report.transmitted}', '${report.refused}'])
-          : 'forms.serviceOrder.fiscalBatchSummaryUncertain'.tr(args: [
-              '${report.transmitted}', '${report.refused}', '${report.uncertain}']),
+      [
+        'forms.serviceOrder.fiscalBatchSummary'
+            .tr(args: ['${report.transmitted}', '${report.refused}']),
+        if (report.uncertain > 0)
+          'forms.serviceOrder.fiscalBatchSummaryUncertainPart'.tr(args: ['${report.uncertain}']),
+        if (report.notTried > 0)
+          'forms.serviceOrder.fiscalBatchSummaryNotTriedPart'.tr(args: ['${report.notTried}']),
+      ].join(' · '),
+      // R7-SOC-02 (i): parado por desfechos DESCONHECIDOS seguidos = frase de incerteza (D-F166), nunca o "tente novamente" do servidor
       if (stopped != null)
-        'forms.serviceOrder.fiscalBatchStopped'.tr(args: [stopped.message.tr()]),
+        isUnknownAuthorityOutcome(stopped)
+            ? 'forms.serviceOrder.fiscalBatchStoppedUncertain'.tr()
+            : 'forms.serviceOrder.fiscalBatchStopped'.tr(args: [stopped.message.tr()]),
     ].join('\n');
-    if (report.refused == 0 && report.uncertain == 0) {
+    if (report.refused == 0 && report.uncertain == 0 && report.notTried == 0) {
       return showSuccessFeedback(
           context, 'forms.serviceOrder.fiscalBatchSummary',
           args: ['${report.transmitted}', '${report.refused}']);
     }
     final lines = [
+      // R7-SOC-02 (iii): a incerta leva o código e o ref (como as recusadas — F2B-ADV-14)
       for (final r in report.uncertainRows)
-        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']),
+        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: [
+          '${r.orderId}',
+          [r.code, if (r.supportRef.isNotEmpty) 'ref ${r.supportRef}'].where((s) => s.isNotEmpty).join(' · '),
+        ]),
       for (final r in report.refusedRows)
         'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
           '${r.orderId}',
           [r.code, r.message.tr()].where((s) => s.isNotEmpty).join(' — '),   // F2B-ADV-14
         ]),
+      // R7-SOC-02 (ii) + D-F171: a não tentada diz que não foi tentada (nunca a frase da falha que parou o lote)
+      for (final r in report.notTriedRows)
+        'forms.serviceOrder.fiscalBatchNotTriedRow'.tr(args: ['${r.orderId}']),
     ].join('\n');
     return showInfoFeedback(context, '$summary\n$lines');
   }

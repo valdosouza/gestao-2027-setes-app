@@ -278,8 +278,10 @@ void main() {
       ], stoppedBy: const Failure(message: 'Sem privilégio', statusCode: 403));
       expect(r.requested, 3);
       expect(r.transmitted, 1);
-      expect(r.refused, 2);
-      expect(r.refusedRows.map((e) => e.orderId), [2, 3]);
+      // D-F171 (= Q-F179 (a)): a não tentada tem contador próprio — não é "recusada"
+      expect([r.refused, r.notTried], [1, 1]);
+      expect(r.refusedRows.map((e) => e.orderId), [2]);
+      expect(r.notTriedRows.map((e) => e.orderId), [3]);
       expect(r.rows.last.code, FiscalTransmitBatchRow.abortedCode);
       expect(r.stoppedBy!.statusCode, 403);
     });
@@ -294,7 +296,18 @@ void main() {
       expect([r.refusedRows.single.orderId, r.uncertainRows.single.orderId], [3, 2]);
       for (final lang in ['pt', 'en']) {
         final json = File('assets/translations/$lang.json').readAsStringSync();
-        expect([lang, json.contains('"fiscalBatchSummaryUncertain"'), json.contains('"fiscalBatchUncertainRow"')], [lang, true, true]);
+        expect([lang, json.contains('"fiscalBatchSummaryUncertainPart"'), json.contains('"fiscalBatchSummaryNotTriedPart"'),
+          json.contains('"fiscalBatchUncertainRow"'), json.contains('"fiscalBatchSummaryUncertain"')], [lang, true, true, true, false]);
+      }
+    });
+
+    test('R7-SOC-02: a não tentada se reconhece (notTried); a incerta guarda o ref; as chaves novas existem em pt e en', () {
+      const aborted = FiscalTransmitBatchRow.aborted(orderId: 9, message: 'Registro em uso — tente novamente');
+      const uncertain = FiscalTransmitBatchRow(orderId: 8, ok: false, code: FiscalCodes.resourceBusy, unknown: true, supportRef: 'R7X');
+      expect([aborted.notTried, uncertain.notTried, uncertain.supportRef], [true, false, 'R7X']);
+      for (final lang in ['pt', 'en']) {
+        final json = File('assets/translations/$lang.json').readAsStringSync();
+        expect([lang, json.contains('"fiscalBatchNotTriedRow"'), json.contains('"fiscalBatchStoppedUncertain"')], [lang, true, true]);
       }
     });
   });

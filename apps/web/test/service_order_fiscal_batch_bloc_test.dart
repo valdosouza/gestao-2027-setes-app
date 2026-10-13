@@ -156,6 +156,7 @@ void main() {
       // D-F163/D-F168: o 409 RESOURCE_BUSY num ato é desfecho DESCONHECIDO — "incerta", não "recusada"
       expect([r.refused, r.uncertain], [1, 1]);
       expect(r.uncertainRows.single.orderId, 3);
+      expect(r.uncertainRows.single.code, FiscalCodes.resourceBusy);
       expect(r.rows[1].code, FiscalCodes.dpsRejected);
       expect(r.rows[1].message, 'E0116 IM obrigatória');
       expect(r.stoppedBy, isNull);

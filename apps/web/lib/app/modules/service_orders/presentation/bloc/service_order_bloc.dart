@@ -159,16 +159,24 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// rodando. Cada lote baixa a própria marca ANTES da recarga final.
   bool get _batchInFlight => _batchRunning || _fiscalBatchRunning;
 
+  /// R7-SOC-03 (gate socrático da Rodada 7): a recarga SUPERADA (outra começou
+  /// depois — ex.: a página recriada pediu a lista no meio do lote e respondeu
+  /// DEPOIS da recarga final dele) não emite: a foto velha nunca sobrescreve a
+  /// nova (OS já faturadas voltando a "Abertas").
+  int _listGeneration = 0;
+
   Future<void> _reloadList(Emitter<ServiceOrderState> emit) async {
     _detail = null;
     _fiscal = null;
     _fiscalFailure = null;
     _effect = null;
     _effectFailure = null;
+    final generation = ++_listGeneration;
     emit(ServiceOrderListState(
         loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await getlist(_status, _filter,
         page: _page, pageSize: _pageSize, criteria: _criteria);
+    if (generation != _listGeneration) return;
     await result.fold(
       (failure) async {
         // Q-BA16 (a): critério recusado é descartado + aviso + recarga.

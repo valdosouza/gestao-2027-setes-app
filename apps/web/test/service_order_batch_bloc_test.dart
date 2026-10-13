@@ -176,6 +176,42 @@ void main() {
     });
   });
 
+  group('R7-SOC-03 (gate socrático da Rodada 7): a recarga SUPERADA não emite', () {
+    test('a lista pedida no MEIO do lote (página recriada) que responde DEPOIS da recarga final nunca sobrescreve a foto nova', () async {
+      final gate = Completer<void>();
+      when(() => repo.batchInvoice(any(), any())).thenAnswer((inv) async {
+        await gate.future;
+        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
+      });
+      final slow = Completer<Either<Failure, PagedResult<ServiceOrderListItem>>>();
+      var listCalls = 0;
+      when(() => repo.getList(any(), any(),
+              page: any(named: 'page'),
+              pageSize: any(named: 'pageSize'),
+              criteria: any(named: 'criteria')))
+          .thenAnswer((_) {
+        listCalls++;
+        if (listCalls == 1) return slow.future;                             // a página recriada no meio do lote
+        return Future.value(const Right(PagedResult(items: [], page: 1, pageSize: 25, total: 99)));   // a recarga FINAL do lote
+      });
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(3), input: _input));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const ServiceOrderListRequested(status: 'A', filter: ''));
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+      await bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      slow.complete(const Right(PagedResult(items: [], page: 1, pageSize: 25, total: 1)));    // a foto VELHA chega por último
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      final lists = states.whereType<ServiceOrderListState>().where((s) => !s.loading).toList();
+      expect(lists.map((s) => s.total), [99], reason: 'só a recarga final emite a lista; a superada é descartada');
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {

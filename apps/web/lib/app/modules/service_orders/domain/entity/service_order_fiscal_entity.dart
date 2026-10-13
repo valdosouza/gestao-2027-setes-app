@@ -700,6 +700,7 @@ class FiscalTransmitBatchRow extends Equatable {
     this.code = '',
     this.message = '',
     this.unknown = false,
+    this.supportRef = '',
   });
 
   /// Nota que NÃO foi tentada porque o lote PAROU (erro sistêmico antes dela).
@@ -707,7 +708,8 @@ class FiscalTransmitBatchRow extends Equatable {
       {required this.orderId, required this.message})
       : ok = false,
         code = abortedCode,
-        unknown = false;
+        unknown = false,
+        supportRef = '';
 
   static const abortedCode = 'BATCH_ABORTED';
 
@@ -721,8 +723,14 @@ class FiscalTransmitBatchRow extends Equatable {
   /// a NFS-e PODE ter sido autorizada — "incerta, consulte", nunca "recusada".
   final bool unknown;
 
+  /// O código de suporte da falha (`ref` do servidor) — a linha incerta o mostra (R7-SOC-02: perdia código e ref).
+  final String supportRef;
+
+  /// Nota NÃO tentada (o lote parou antes dela).
+  bool get notTried => code == abortedCode;
+
   @override
-  List<Object?> get props => [orderId, ok, code, message, unknown];
+  List<Object?> get props => [orderId, ok, code, message, unknown, supportRef];
 }
 
 /// Relatório do lote — contadores SEMPRE recontados das linhas.
@@ -731,14 +739,18 @@ class FiscalTransmitBatchReport extends Equatable {
     this.transmitted = 0,
     this.refused = 0,
     this.uncertain = 0,
+    this.notTried = 0,
     this.rows = const [],
     this.stoppedBy,
   });
 
   final int transmitted;
 
-  /// Recusadas + não tentadas (o lote parou) — o desfecho desconhecido NÃO entra.
+  /// Recusadas — nem o desfecho desconhecido nem as não tentadas entram.
   final int refused;
+
+  /// D-F171 (= Q-F179 (a), Valdo 2026-10-13 — R7-SOC-02): não tentadas (o lote parou antes delas) — contador próprio.
+  final int notTried;
 
   /// D-F168: desfecho DESCONHECIDO — "incertas, consulte".
   final int uncertain;
@@ -750,7 +762,11 @@ class FiscalTransmitBatchReport extends Equatable {
   int get requested => rows.length;
 
   List<FiscalTransmitBatchRow> get refusedRows =>
-      rows.where((r) => !r.ok && !r.unknown).toList();
+      rows.where((r) => !r.ok && !r.unknown && !r.notTried).toList();
+
+  /// D-F171: as notas que o lote NÃO tentou (parou antes delas).
+  List<FiscalTransmitBatchRow> get notTriedRows =>
+      rows.where((r) => r.notTried).toList();
 
   /// D-F168: as notas de desfecho DESCONHECIDO (consultar antes de repetir).
   List<FiscalTransmitBatchRow> get uncertainRows =>
@@ -760,12 +776,13 @@ class FiscalTransmitBatchReport extends Equatable {
           List<FiscalTransmitBatchRow> rows, {Failure? stoppedBy}) =>
       FiscalTransmitBatchReport(
         transmitted: rows.where((r) => r.ok).length,
-        refused:     rows.where((r) => !r.ok && !r.unknown).length,
+        refused:     rows.where((r) => !r.ok && !r.unknown && !r.notTried).length,
         uncertain:   rows.where((r) => !r.ok && r.unknown).length,
+        notTried:    rows.where((r) => r.notTried).length,
         rows:        List.unmodifiable(rows),
         stoppedBy:   stoppedBy,
       );
 
   @override
-  List<Object?> get props => [transmitted, refused, uncertain, rows, stoppedBy];
+  List<Object?> get props => [transmitted, refused, uncertain, notTried, rows, stoppedBy];
 }
