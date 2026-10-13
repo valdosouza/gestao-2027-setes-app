@@ -216,8 +216,9 @@ void main() {
           const Failure(message: 'x', statusCode: 503, code: FiscalCodes.authorityUnavailable)), isTrue);
       expect(isUnknownAuthorityOutcome(
           const Failure(message: 'x', statusCode: 422, code: FiscalCodes.dpsRejected)), isFalse);
+      // D-F163 (= Q-F171 (a)): a contenção num ATO pode vir DEPOIS do fisco — desconhecido
       expect(isUnknownAuthorityOutcome(
-          const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isFalse);
+          const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isTrue);
       expect(isUnknownAuthorityOutcome(
           const Failure(message: 'x', statusCode: 503, code: FiscalCodes.voiceUnavailable)), isFalse,
           reason: 'a VOZ indisponível no ERP é leitura, não ato no fisco');

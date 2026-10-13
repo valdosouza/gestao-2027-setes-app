@@ -810,6 +810,7 @@
       "fiscalEvents": "Authority responses",
       "fiscalEffectApplyRow": "The tax authority cancelled the NFS-e — the invoice still has to be cancelled in the system.",
       "fiscalEffectCancelRow": "The tax authority cancelled the NFS-e (ex officio or in homologation) — cancel the invoice.",
+      "fiscalEffectDecideRow": "NFS-e REPLACED at the tax authority (per the system; the authority's details are unavailable right now) — decide: cancel the invoice or keep it.",
       "fiscalEffectUnavailable": "Effect on the invoice unavailable: {}",
       "fiscalEnvProduction": "Production",
       "fiscalEnvRestricted": "Homologation",

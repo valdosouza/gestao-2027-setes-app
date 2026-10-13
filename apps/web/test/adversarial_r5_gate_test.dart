@@ -40,7 +40,6 @@ const _bare500 = Failure(message: 'core.errors.generic', statusCode: 500);
 // o 409 que a nfse-api devolve quando a gravação DEPOIS do fisco esbarra numa trava (lock wait → contentionToHttpError)
 const _busy = Failure(message: 'Recurso ocupado — tente de novo', statusCode: 409, code: 'RESOURCE_BUSY');
 
-const _skipQ02 = 'Q-F171 (= Q-F168-ADV-02, decisão do Valdo): RESOURCE_BUSY num ATO = desconhecido? — rode com --run-skipped';
 // R5-ADV-08 CORRIGIDO na sessão (a mesma regra de host no app e no script) — os 3 testes rodam sempre (no Windows).
 
 ServiceOrderCancelPlan _onlyAuthority() => const ServiceOrderCancelPlan(orderId: _orderId, fiscalRecord: true, blocks: [
@@ -190,15 +189,15 @@ void main() {
       expect([goOn.stoppedBy, goOn.transmitted, goOn.refused], [null, 1, 3]);
     });
 
-    test('[Q-F168-ADV-02 — decisão] 409 RESOURCE_BUSY num ATO: a nfse-api devolve-o quando a gravação da voz DEPOIS do fisco esbarra numa trava (lock wait → `contentionToHttpError`, `transmission.ts` (g)/(5)) — a NFS-e pode ter sido autorizada/cancelada. Pela razão da D-F155 seria desconhecido; hoje é "tente de novo"',
+    test('[DECIDIDO D-F163 (= Q-F171 (a))] 409 RESOURCE_BUSY num ATO: a nfse-api devolve-o quando a gravação da voz DEPOIS do fisco esbarra numa trava (lock wait → `contentionToHttpError`, `transmission.ts` (g)/(5)) — a NFS-e pode ter sido autorizada/cancelada. Pela razão da D-F155 seria desconhecido; hoje é "tente de novo"',
         () async {
       when(() => nfse.transmit(_orderId)).thenAnswer((_) async => const Left(_busy));
       final states = await runDetail(await opened(), const ServiceOrderTransmitRequested(_orderId));
       expect(states.whereType<ServiceOrderFiscalNotice>().single.messageKey, 'forms.serviceOrder.fiscalOutcomeUnknown');
-    }, skip: _skipQ02);
+    });
 
-    test('[FATO — base da Q-F168-ADV-02] hoje RESOURCE_BUSY num ato é falha comum (a seção relê e mostra a tentativa em voo; o fisco reconcilia depois)', () {
-      expect(isUnknownAuthorityOutcome(_busy), isFalse);
+    test('[DECIDIDO D-F163] RESOURCE_BUSY num ato é desfecho desconhecido; nas LEITURAS segue falha comum (o classificador é só dos atos)', () {
+      expect(isUnknownAuthorityOutcome(_busy), isTrue);
     });
   });
 

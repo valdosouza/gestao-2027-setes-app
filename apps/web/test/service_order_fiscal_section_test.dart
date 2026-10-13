@@ -221,6 +221,8 @@ void main() {
       ));
 
       expect(find.textContaining('a nota fica viva no ERP até você decidir'), findsOneWidget);
+      // D-F159: com o bloco da VOZ, a linha do ERP não se repete (uma frase da substituição só)
+      expect(find.textContaining('SUBSTITUÍDA'), findsOneWidget);
       expect(find.text('SUBSTITUTA-123'), findsOneWidget);
       await tester.tap(find.text('Manter a nota'));
       expect(calls.list, ['keep']);

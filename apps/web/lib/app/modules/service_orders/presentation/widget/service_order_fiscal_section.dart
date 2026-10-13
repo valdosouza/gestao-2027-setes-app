@@ -107,12 +107,18 @@ class ServiceOrderFiscalSection extends StatelessWidget {
   }
 
   /// O EFEITO da voz do fisco na nota (ERP — D-F114): `apply` e `cancel`
-  /// pedem ação humana (cor de erro); `decide` é o bloco da substituição;
-  /// `none`/desconhecido = nada a dizer.
-  Widget? _effectRow(BuildContext context, ServiceOrderFiscalEffect fx) {
+  /// pedem ação humana (cor de erro); `decide` é o bloco da substituição
+  /// (a frase vem da VOZ); `none`/desconhecido = nada a dizer. D-F159 (=
+  /// Q-F167 (b), Valdo 2026-10-13): sem o bloco da voz (fora do ar), o `decide`
+  /// ganha a linha do ERP — "Manter a nota" nunca aparece sem dizer por quê;
+  /// cada fonte mostra as próprias ações (F2B-SOC-11) e o ERP reconfere no POST.
+  Widget? _effectRow(BuildContext context, ServiceOrderFiscalEffect fx,
+      {required bool substitutionShown}) {
     final key = switch (fx.effect) {
       FiscalEffect.apply => 'forms.serviceOrder.fiscalEffectApplyRow',
       FiscalEffect.cancel => 'forms.serviceOrder.fiscalEffectCancelRow',
+      FiscalEffect.decide when !substitutionShown =>
+        'forms.serviceOrder.fiscalEffectDecideRow',
       _ => null,
     };
     if (key == null || order.isCancelled) return null;
@@ -136,7 +142,9 @@ class ServiceOrderFiscalSection extends StatelessWidget {
     final failure = state.fiscalFailure;
     final fx = effect;
     final canCancel = CurrentInterface.can('CANCELAR');
-    final effectRow = fx == null ? null : _effectRow(context, fx);
+    final effectRow = fx == null
+        ? null
+        : _effectRow(context, fx, substitutionShown: view?.substitution != null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

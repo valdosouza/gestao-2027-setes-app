@@ -12,8 +12,8 @@
 // Nada aqui fala com servidor: repositórios mocktail e clientes falsos.
 //
 // CORRIGIDOS na sessão (rodam sempre — `[CORRIGIDO …]`): ADV-01 (408/502/503/504 sem código = desfecho desconhecido), ADV-02 (erro
-// sistêmico de credencial/cadastro para o lote), ADV-03 (a tela que sai PARA o lote — stopBatches() no dispose da página e no onDispose do módulo
-// — D-F156), ADV-04 (envelope estrito), ADV-05 (fotografia com garantia de progresso), ADV-07 (Transmitir com trava),
+// sistêmico de credencial/cadastro para o lote), ADV-03 (a tela que sai PARA o lote — stopBatches() no onDispose do módulo
+// — D-F156; só nele desde a D-F160), ADV-04 (envelope estrito), ADV-05 (fotografia com garantia de progresso), ADV-07 (Transmitir com trava),
 // ADV-08 (ordem dos avisos), ADV-09 (barreira desconhecida + id pedido), ADV-12 (tipo trocado = falha do catálogo / desconhecido no ato),
 // ADV-13 (clientes IRMÃOS), ADV-15 (ambiente desconhecido neutro). Ficam PULADOS só os que dependem de decisão: o 500 como desfecho
 // desconhecido (Q-F163) e o fechamento do bloc pelo Modular (Q-F164).
@@ -282,7 +282,8 @@ void main() {
             reason: 'HTTP $status sem code — a tentativa pode estar em voo na nfse-api');
       }
       expect(isUnknownAuthorityOutcome(const Failure(message: 'x', statusCode: 503, code: 'FISCAL_MASTER_KEY_UNAVAILABLE')), isFalse);
-      expect(isUnknownAuthorityOutcome(const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isFalse);
+      // D-F163 (= Q-F171 (a)): a contenção num ATO pode vir DEPOIS do fisco — desconhecido
+      expect(isUnknownAuthorityOutcome(const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isTrue);
     });
 
     test('[DECIDIDO D-F155 (= Q-F163 (a))] o 500 da nfse-api num ATO (INTERNAL ou sem código) é desfecho desconhecido — nada garante que o ato não aconteceu', () {
@@ -413,7 +414,7 @@ void main() {
       bloc.add(const ServiceOrderFiscalTransmitBatchRequested([1, 2, 3]));
       await pumpEventQueue();
       expect(gates, hasLength(1), reason: 'a 1ª nota está "no fisco"');
-      bloc.stopBatches(); // o dispose da página
+      bloc.stopBatches(); // o onDispose do módulo (D-F160)
       await pumpEventQueue();
       for (var k = 0; k < 6; k++) {
         for (final g in gates.where((g) => !g.isCompleted)) {
@@ -427,10 +428,12 @@ void main() {
       await bloc.close();
     });
 
-    test('[CORRIGIDO F2B-ADV-03] o dispose da página manda o sinal de parada (cerca no fonte)', () {
+    test('[DECIDIDO D-F160 (= Q-F168 (a))] o sinal de parada é SÓ do onDispose do módulo — o dispose da página (que roda também na troca de layout ao cruzar 1100 px) não para o lote (cerca no fonte)', () {
       final src = File('lib/app/modules/service_orders/presentation/page/service_order_page.dart').readAsStringSync();
       final dispose = RegExp(r'void dispose\(\) \{[\s\S]*?super\.dispose\(\);').firstMatch(src)!.group(0)!;
-      expect(dispose, contains('_bloc.stopBatches();'));
+      expect(dispose, isNot(contains('stopBatches')));
+      final module = File('lib/app/modules/service_orders/service_orders_module.dart').readAsStringSync();
+      expect(module, matches(RegExp(r'onDispose: \(bloc\) \{\s*bloc\.stopBatches\(\);\s*bloc\.close\(\);')));
     });
 
     test('[DECIDIDO D-F156 (= Q-F164 (a))] o bind do ServiceOrderBloc fecha o bloc quando o módulo é desmontado (corta também o lote de faturamento — Q-R5.2)', () {

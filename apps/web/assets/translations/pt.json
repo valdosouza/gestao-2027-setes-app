@@ -810,6 +810,7 @@
       "fiscalEvents": "Voz do fisco",
       "fiscalEffectApplyRow": "O fisco cancelou a NFS-e — falta cancelar a nota no sistema.",
       "fiscalEffectCancelRow": "O fisco cancelou a NFS-e (de ofício ou em homologação) — cancele a nota.",
+      "fiscalEffectDecideRow": "NFS-e SUBSTITUÍDA no fisco (segundo o sistema; os detalhes do fisco estão indisponíveis agora) — decida: cancelar a nota ou mantê-la.",
       "fiscalEffectUnavailable": "Efeito na nota indisponível: {}",
       "fiscalEnvProduction": "Produção",
       "fiscalEnvRestricted": "Homologação",

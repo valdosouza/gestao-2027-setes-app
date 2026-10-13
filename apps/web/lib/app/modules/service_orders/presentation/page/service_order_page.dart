@@ -95,9 +95,11 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   @override
   void dispose() {
-    // D-F145/D-F156: a tela saiu — os lotes param depois da unidade em voo
-    // (síncrono; seguro com o bloc já fechado pelo onDispose do módulo)
-    _bloc.stopBatches();
+    // D-F160 (= Q-F168 (a), Valdo 2026-10-13 — R5-SOC-01): a parada dos lotes
+    // é do MÓDULO (onDispose — só ao navegar para outra tela). O dispose da
+    // PÁGINA também roda quando a janela cruza 1100 px (o layout troca de
+    // RouterOutlet e recria a página) — parar aqui calava o lote sem o
+    // operador sair.
     _tabs.dispose();
     _filter.dispose();
     super.dispose();

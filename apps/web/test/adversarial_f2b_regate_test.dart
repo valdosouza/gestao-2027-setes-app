@@ -55,7 +55,6 @@ const _gateway504 = Failure(message: 'core.errors.generic', statusCode: 504);
 
 // CORRIGIDOS na sessão (rodam sempre): RG-01 (o script com BOM), RG-02 (a regra do app + sem loopback na publicação), RG-03 (a sessão
 // salva relida do armazenamento), RG-05 (a releitura confere a nota), RG-07 (envelope + falha do catálogo na aba do emissor).
-const _skipQRG01 = 'Q-F165-RG-01 (decisão do Valdo): "Manter a nota" com a voz indisponível — rode com --run-skipped';
 
 /// O plano em que SÓ a NFS-e autorizada impede (a saga vai ao fisco — D-F149).
 ServiceOrderCancelPlan _onlyAuthority({int orderId = _orderId, bool? cashierOpen, bool touchesCash = false}) =>
@@ -400,7 +399,7 @@ void main() {
       expect(find.text('Consultar'), findsNothing);
     });
 
-    testWidgets('[Q-F165-RG-01 — decisão] voz indisponível + efeito `decide`: "Manter a nota" não aparece SEM a frase que diz por quê (a substituição só vinha da voz)',
+    testWidgets('[DECIDIDO D-F159 (= Q-F167 (b))] voz indisponível + efeito `decide`: "Manter a nota" vem COM a linha do ERP que diz por quê (a substituição só vinha da voz)',
         (tester) async {
       await pump(tester, const ServiceOrderDetailState(
         order: _order,
@@ -409,14 +408,8 @@ void main() {
       ));
       // hoje: o botão aparece (service_order_fiscal_section.dart:303 — só o efeito) e a única frase da
       // substituição (fiscalSubstitutedRow) depende de `view.substitution` (:212) — botão de decisão sem contexto
-      final keep = find.text('Manter a nota').evaluate().isNotEmpty;
-      final explained = find.textContaining('SUBSTITUÍDA').evaluate().isNotEmpty;
-      expect(!keep || explained, isTrue);
-    }, skip: true); // Q-F165-RG-01 — ver _skipQRG01
-  });
-
-  // Mantém as constantes de motivo referenciadas (o `skip: true` dos testWidgets não aceita String).
-  test('motivos dos skips de testWidgets', () {
-    expect([_skipQRG01], everyElement(isNotEmpty));
+      expect(find.text('Manter a nota'), findsOneWidget);
+      expect(find.textContaining('SUBSTITUÍDA no fisco (segundo o sistema'), findsOneWidget);
+    });
   });
 }

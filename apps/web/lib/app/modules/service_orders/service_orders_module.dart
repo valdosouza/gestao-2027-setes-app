@@ -147,7 +147,9 @@ class ServiceOrdersModule extends Module {
             // só descarta Disposable/onDispose — sem isto o bloc NUNCA fechava.
             // Fechar corta os dois lotes entre uma unidade e a próxima (o fiscal
             // depois da nota em voo — D-F145; o de faturamento entre blocos —
-            // decide a Q-R5.2); o que já foi feito fica na lista
+            // decide a Q-R5.2); o que já foi feito fica na lista. D-F160: este é
+            // o ÚNICO sinal de "a tela saiu" (o dispose da página roda também na
+            // troca de layout desktop × mobile)
             onDispose: (bloc) {
               bloc.stopBatches();
               bloc.close();

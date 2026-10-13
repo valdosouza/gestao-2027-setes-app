@@ -394,8 +394,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     for (var start = 0; start < ids.length; start += batchInvoiceChunkSize) {
       // M4 do gate: a tela saiu (módulo desmontado) = PARAR de enviar blocos —
       // o que já rodou está na aba Faturadas; o resto continua aberto.
-      // D-F156 (= Q-F164 (a) — decide a Q-R5.2): [stopBatches] (dispose da
-      // página e onDispose do módulo). O close do bloc 8 NÃO interrompe este
+      // D-F156 (= Q-F164 (a) — decide a Q-R5.2): [stopBatches] (o onDispose
+      // do módulo — D-F160). O close do bloc 8 NÃO interrompe este
       // handler (só cancela as emissões) — por isso o sinal é conferido a CADA bloco.
       if (isClosed || _invoiceBatchStop) return;
       final chunk = ids.sublist(
@@ -727,8 +727,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   bool _fiscalBatchStop = false;
   bool _invoiceBatchStop = false;
 
-  /// A TELA SAIU — o dispose da página e o `onDispose` do módulo (D-F156 =
-  /// Q-F164 (a), Valdo 2026-10-13). Os dois lotes param depois da unidade em
+  /// A TELA SAIU — o `onDispose` do módulo (D-F156 = Q-F164 (a); D-F160 =
+  /// Q-F168 (a), Valdo 2026-10-13: só ele — o dispose da página roda também
+  /// na troca de layout ao cruzar 1100 px). Os dois lotes param depois da unidade em
   /// voo (a nota no fisco; o bloco de faturamento): o que já foi feito fica na
   /// lista; tela fechada = sem relatório. Síncrono e seguro com o bloc já
   /// fechado. Conhecimento negativo (R5-SOC-02, sonda no bloc 8.1.4): o

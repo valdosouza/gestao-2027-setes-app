@@ -156,7 +156,7 @@ void main() {
 
       bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(120), input: _input));
       await Future<void>.delayed(Duration.zero);
-      bloc.stopBatches(); // o dispose da página / o onDispose do módulo
+      bloc.stopBatches(); // o onDispose do módulo (D-F160)
       gate.complete();
       await Future<void>.delayed(const Duration(milliseconds: 10));
       await sub.cancel();
