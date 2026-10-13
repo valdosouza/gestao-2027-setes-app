@@ -671,6 +671,9 @@ void main() {
       for (final e in minimum.entries) {
         expect(cover[e.key] ?? 0, greaterThan(e.value), reason: 'o fuzz quase não exercitou "${e.key}": $cover');
       }
+      // R14-SOC-03 (gate socrático da Rodada 14): com a D-F193 e a D-F194 em vigor, os dois contadores que eram só impressos viram CERCA —
+      // um detalhe ressuscitado sobre operação longa ou um plano da OS a caminho descartado reprova o fuzz
+      expect([cover['resurrectedOverLongOp'] ?? 0, cover['planDroppedOnTheWay'] ?? 0], [0, 0], reason: 'D-F193/D-F194: $cover');
     }, timeout: const Timeout(Duration(minutes: 6)));
   });
 }

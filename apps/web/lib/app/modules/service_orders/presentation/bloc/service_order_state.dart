@@ -163,6 +163,10 @@ class ServiceOrderFiscalBatchDone extends ServiceOrderState {
   List<Object?> get props => [report, noteNumbers];
 }
 
+/// CONHECIMENTO NEGATIVO (D-F198 = Q-F197-ADV-02 (a), gate adversarial da Rodada 14): os one-shots são `Equatable` e o bloc DESCARTA um
+/// estado IGUAL ao atual — dois avisos idênticos seguidos (mesma chave, mesmos args, mesma OS) viram UM. O texto perdido é sempre o mesmo
+/// que acabou de aparecer; nenhuma regra pode CONTAR avisos iguais seguidos.
+///
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
 /// alimenta placeholders da chave (ex.: nº da fatura gerada).
 class ServiceOrderActionSuccess extends ServiceOrderState {

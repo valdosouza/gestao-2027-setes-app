@@ -209,10 +209,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// por cima dele troca a tela pela lista sem subir o contador — D-F174). Senão, só o one-shot do desfecho; a tela de agora fica.
   bool _stillOnDetail(int screen) => screen == _screenGeneration && _detail != null;
 
-  /// O começo de um ato NO detalhe: marca saving e devolve a tela capturada (R10-SOC-03).
-  int _beginDetailAct(Emitter<ServiceOrderState> emit) {
+  /// O começo de um ato NO detalhe: marca saving e devolve a tela capturada (R10-SOC-03). R14-SOC-05 (gate socrático da Rodada 14 —
+  /// endurecimento): só marca o detalhe DA OS do ato — hoje todo ato nasce no detalhe dele (os diálogos são modais), mas a garantia
+  /// passa a ser do bloc, não da página. CONHECIMENTO NEGATIVO (D-F197 = Q-F197-ADV-01 (a)): o ato nascido com a OS A CAMINHO (o plano
+  /// aberto sobre a lista em loading — D-F194) não marca `saving`; a OS chega com os botões abertos e o 2º clique cai na trava por nota
+  /// (D-F183) — o limite conhecido da D-F191 (b), pela porta da D-F194.
+  int _beginDetailAct(Emitter<ServiceOrderState> emit, int orderId) {
     final detail = _detail;
-    if (detail != null) emit(_detailState(detail, saving: true));
+    if (detail != null && detail.id == orderId) emit(_detailState(detail, saving: true));
     return _screenGeneration;
   }
 
@@ -245,7 +249,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   /// D-F182/D-F187: o NÚMERO que a tela mostra da OS do ato, quando a tela de agora não é ela (outra OS aberta ou a lista) — o operador
   /// nunca lê o desfecho de X como se fosse de Y; nulo quando a tela é a OS do ato (aberta, reaberta ou a caminho — D-F191).
-  int? _outcomeOrder(int screen, int orderId) => _stillOnDetail(screen) || _showsOrder(orderId) ? null : _shownNumberOf(orderId);
+  /// R14-SOC-05: pela MESMA regra do `_showsOrder` (a tela da OS do ato — aberta ou a caminho), nunca só por "a tela não mudou".
+  int? _outcomeOrder(int screen, int orderId) => _showsOrder(orderId) ? null : _shownNumberOf(orderId);
 
   /// A tela vira a LISTA em loading (um ato de lista começou — lote, rotina
   /// mensal, pendentes, abrir/ver OS): o detalhe SAI (`_detail` nulo —
@@ -425,7 +430,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onCancelRequested(
       ServiceOrderCancelRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, event.id);
     final result = await delete(event.id);
     await result.fold(
       (failure) async {
@@ -443,7 +448,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onItemSaveRequested(
       ServiceOrderItemSaveRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, event.orderId);
     final result = await itemSave(event.orderId, event.itemId, event.input);
     await result.fold(
       (failure) async {
@@ -460,7 +465,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onItemRemoveRequested(
       ServiceOrderItemRemoveRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, event.orderId);
     final result = await itemDelete(event.orderId, event.itemId);
     await result.fold(
       (failure) async {
@@ -595,7 +600,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onInvoiceRequested(
       ServiceOrderInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, event.orderId);
     final result = await invoice(event.orderId, event.input);
     await result.fold(
       (failure) async {
@@ -638,7 +643,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     Future<Either<Failure, T>> Function() run,
     Future<void> Function(T result, int screen) onSuccess,
   ) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, orderId);
     final result = await run();
     await result.fold(
       (failure) async {
@@ -669,7 +674,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     // mas não se manda o 2º; o clique em OUTRA nota vai
     if (!_transmitting.add(event.orderId)) return;
     try {
-      final screen = _beginDetailAct(emit);
+      final screen = _beginDetailAct(emit, event.orderId);
       final result = await transmit(event.orderId);
       await result.fold(
         (failure) async {
@@ -715,7 +720,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// "Cancelar nota" lê o PLANO de novo (quem decide).
   Future<void> _onFiscalReconfirmRequested(ServiceOrderFiscalReconfirmRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final screen = _beginDetailAct(emit);
+    final screen = _beginDetailAct(emit, event.orderId);
     final result = await fiscalReconfirm(event.orderId);
     await result.fold(
       (failure) async {
@@ -766,6 +771,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         }
         // R10-SOC-03: a decisão do cancelamento só abre sobre o detalhe que a pediu (outra OS ou a lista = nada a decidir aqui); D-F189
         // (= Q-F195-SOC-03 (a)): a MESMA OS reaberta no meio também abre; D-F194 (= Q-F196-SOC-03 (a)): e a MESMA OS a caminho
+        // CONHECIMENTO NEGATIVO (D-F196 = Q-F197-SOC-02 (a)): com a tela em OUTRA OS ou na lista o plano some SEM aviso — o GET do plano
+        // não tem efeito, e uma frase convidaria a decidir o cancelamento sem ver a OS (o motivo do R10-SOC-03); o operador abre a OS e pede
         if (!_stillOnDetail(screen) && !_showsOrder(event.orderId)) return;
         _endDetailAct(screen, emit);
         emit(ServiceOrderCancelPlanReady(plan.withOrderId(event.orderId)));
@@ -780,7 +787,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     // D-F183: decisões EXCLUSIVAS sobre a MESMA nota (cancelar × manter) — a trava é por nota
     if (!_invoiceCancelling.add(event.orderId)) return;
     try {
-      final screen = _beginDetailAct(emit);
+      final screen = _beginDetailAct(emit, event.orderId);
       final result = await cancelInvoice(event.orderId, event.reason, atAuthority: event.atAuthority);
       int? about() => _outcomeOrder(screen, event.orderId);
       await result.fold(
@@ -831,7 +838,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       Emitter<ServiceOrderState> emit) async {
     if (!_invoiceCancelling.add(event.orderId)) return;   // D-F183: por nota
     try {
-      final screen = _beginDetailAct(emit);
+      final screen = _beginDetailAct(emit, event.orderId);
       final result = await fiscalWaiveCancel(event.orderId, event.reason);
       await result.fold(
         (failure) async {
