@@ -229,9 +229,15 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// fora de ordem punham "recusada" depois do "autorizada"). CONHECIMENTO NEGATIVO (D-F191 (b) — R12-SOC-03): com OUTRO ato em voo na
   /// mesma OS, o detalhe relido sai SEM `saving` (os botões reabrem) — as travas por nota cobrem Transmitir/Cancelar/Manter e o servidor
   /// protege o resto.
+  ///
+  /// D-F193 (= Q-F196-SOC-02 (a), Valdo 2026-10-13 — R13-SOC-02 = R13-ADV-01): a releitura de uma OS ABERTA é a de um ATO — morre se o
+  /// detalhe sair por um lote confirmado por cima (`act: true` — a regra do R10-SOC-03); só a OS A CAMINHO por escolha do operador
+  /// (ver/abrir) segue como pedido "a caminho" e vence o lote (D-F174).
   Future<void> _rereadAfterAct(int orderId, Emitter<ServiceOrderState> emit) {
     if (!_showsOrder(orderId)) return Future.value();
+    final onTheWay = _pendingDetailScreen != null && _pendingDetailScreen == _screenGeneration;
     final screen = ++_screenGeneration;
+    if (!onTheWay) return _reloadDetail(orderId, emit, generation: screen, act: true);
     _pendingDetailScreen = screen;
     _pendingDetailOrder = orderId;
     return _reloadDetail(orderId, emit, generation: screen);
@@ -759,8 +765,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           return;
         }
         // R10-SOC-03: a decisão do cancelamento só abre sobre o detalhe que a pediu (outra OS ou a lista = nada a decidir aqui); D-F189
-        // (= Q-F195-SOC-03 (a)): a MESMA OS reaberta no meio também abre
-        if (!_stillOnDetail(screen) && _detail?.id != event.orderId) return;
+        // (= Q-F195-SOC-03 (a)): a MESMA OS reaberta no meio também abre; D-F194 (= Q-F196-SOC-03 (a)): e a MESMA OS a caminho
+        if (!_stillOnDetail(screen) && !_showsOrder(event.orderId)) return;
         _endDetailAct(screen, emit);
         emit(ServiceOrderCancelPlanReady(plan.withOrderId(event.orderId)));
       });

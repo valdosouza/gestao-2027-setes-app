@@ -729,7 +729,8 @@ void main() {
               }
             }
             if (s is ServiceOrderCancelPlanReady) {
-              expect([onOwn, s.plan.orderId], [true, f.os], reason: 'o plano abriu o diálogo fora da OS que o pediu — ${why()}');
+              // D-F194 (= Q-F196-SOC-03 (a)): também com a MESMA OS a caminho
+              expect([onOwn || onTheWay, s.plan.orderId], [true, f.os], reason: 'o plano abriu o diálogo fora da OS que o pediu — ${why()}');
             }
           }
         }

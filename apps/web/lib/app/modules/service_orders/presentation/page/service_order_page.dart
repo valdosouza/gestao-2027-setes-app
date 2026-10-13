@@ -111,8 +111,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// página recriada (cruzar 1100 px — D-F160); o bloc é o singleton do
   /// módulo e só fecha no onDispose (R5-ADV-07: `add` num bloc fechado lança
   /// StateError). O servidor confere tudo de novo (o plano relido — D-F149).
-  /// Entre DOIS diálogos encadeados a página ainda precisa estar montada (o 2º
-  /// abre pelo contexto dela).
+  /// Entre DOIS diálogos encadeados (D-F189): o 2º abre pelo Navigator RAIZ e
+  /// a cadeia segue se o bloc está vivo (R13-SOC-03) — não pelo `mounted`.
   void _dispatch(ServiceOrderEvent event) {
     if (!_bloc.isClosed) _bloc.add(event);
   }
@@ -649,7 +649,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           message: 'forms.serviceOrder.cancelAtAuthorityAsk'.tr(args: [number]),
           yesLabel: 'forms.serviceOrder.fiscalCancel'.tr(),
         );
-        if (decision != SetesDecision.yes || !root.mounted) return;
+        // R13-SOC-03 (gate socrático da Rodada 13): a cadeia segue se o BLOC está vivo (a regra da D-F184) — com o módulo fora (o bloc
+        // fechado no onDispose), o motivo seria pedido à toa e descartado
+        if (decision != SetesDecision.yes || _bloc.isClosed || !root.mounted) return;
         final reason = await showCancelInvoiceDialog(root, number);
         if (reason == null) return;
         _dispatch(ServiceOrderCancelConfirmed(   // D-F184
