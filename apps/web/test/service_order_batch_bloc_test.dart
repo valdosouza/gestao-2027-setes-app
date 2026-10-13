@@ -311,6 +311,59 @@ void main() {
     });
   });
 
+  group('D-F177/D-F178 (= Q-F185 (a)/Q-F186 (a)): as saídas longas respeitam a OS aberta; o detalhe preservado não é relido', () {
+    test('D-F177: a rotina mensal termina com uma OS aberta no meio → o relatório sai e o operador FICA na OS (nenhuma recarga)', () async {
+      final gate = Completer<void>();
+      when(() => repo.monthlyRun(any(), any())).thenAnswer((_) async {
+        await gate.future;
+        return const Right(MonthlyRunReport(processed: 3));
+      });
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(const ServiceOrderMonthlyRunRequested(year: 2026, month: 10));
+      await Future<void>.delayed(Duration.zero);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderMonthlyRunDone);
+      gate.complete();
+      await done;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      final shown = states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).toList();
+      expect(shown.last, isA<ServiceOrderDetailState>());
+    });
+
+    test('D-F178 (conhecimento negativo): o fim do lote com a OS aberta NÃO relê o detalhe — ele fica como foi carregado', () async {
+      final gate = Completer<void>();
+      when(() => repo.batchInvoice(any(), any())).thenAnswer((inv) async {
+        await gate.future;
+        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
+      });
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(3), input: _input));
+      await Future<void>.delayed(Duration.zero);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderBatchInvoiceDone);
+      gate.complete();
+      await done;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      verify(() => repo.getById(7)).called(1);                                                   // uma carga só — sem releitura
+      final last = states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).last as ServiceOrderDetailState;
+      expect(last.order.status, 'A');
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {

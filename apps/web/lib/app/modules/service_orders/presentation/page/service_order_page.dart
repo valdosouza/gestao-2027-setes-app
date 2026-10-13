@@ -282,10 +282,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 child: const Icon(Icons.manage_search),
               ),
             ),
+          // D-F177 (= Q-F185 (a)): travado pelo loading, como os botões de lote
+          // (H1) — dava para disparar a rotina mensal com um lote no ar
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
             tooltip: 'forms.serviceOrder.monthlyRun'.tr(),
-            onPressed: _openMonthlyRun,
+            onPressed: state.loading ? null : _openMonthlyRun,
           ),
           const RegisterConfigButton(moduleKey: 'service-orders'),
         ],
@@ -740,7 +742,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     final lines = [
       // R7-SOC-02 (iii): a incerta leva o código e o ref (como as recusadas — F2B-ADV-14)
       for (final r in report.uncertainRows)
-        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) + r.uncertainDetail,
+        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +
+            (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail),   // D-F176
       for (final r in report.refusedRows)
         'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
           '${r.orderId}',

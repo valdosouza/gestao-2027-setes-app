@@ -701,6 +701,8 @@ class FiscalTransmitBatchRow extends Equatable {
     this.message = '',
     this.unknown = false,
     this.supportRef = '',
+    this.httpStatus = 0,
+    this.network = false,
   });
 
   /// Nota que NÃO foi tentada porque o lote PAROU (erro sistêmico antes dela).
@@ -709,7 +711,9 @@ class FiscalTransmitBatchRow extends Equatable {
       : ok = false,
         code = abortedCode,
         unknown = false,
-        supportRef = '';
+        supportRef = '',
+        httpStatus = 0,
+        network = false;
 
   static const abortedCode = 'BATCH_ABORTED';
 
@@ -726,18 +730,28 @@ class FiscalTransmitBatchRow extends Equatable {
   /// O código de suporte da falha (`ref` do servidor) — a linha incerta o mostra (R7-SOC-02: perdia código e ref).
   final String supportRef;
 
+  /// D-F176 (= Q-F184 (b), Valdo 2026-10-13 — R8-ADV-03): o status HTTP da falha (0 = sem) — a incerta SEM código da casa (o proxy na
+  /// frente da nfse-api: 502/503/504 com página HTML; o 500 sem corpo) diz "HTTP 503" no lugar do código: o suporte sabe que foi o proxy.
+  final int httpStatus;
+
+  /// D-F176: a rede caiu (`NetworkFailure`) — a linha diz "sem conexão"; o texto da exceção (o `supportRef` da rede) não vai à tela.
+  final bool network;
+
   /// Nota NÃO tentada (o lote parou antes dela).
   bool get notTried => code == abortedCode;
 
   /// O complemento da linha INCERTA (D-F168): " (código · ref X)" SÓ quando existe — o gateway sem envelope (408/502/503/504) e o 500
   /// cru chegam sem nenhum dos dois (gate socrático da Rodada 8, R8-SOC-02: a frase saía com "()").
+  /// D-F176: sem código, o status HTTP ("HTTP 503"); a rede caída não tem complemento aqui — a página diz "sem conexão" (localizado).
   String get uncertainDetail {
-    final detail = [code, if (supportRef.isNotEmpty) 'ref $supportRef'].where((s) => s.isNotEmpty).join(' · ');
+    if (network) return '';
+    final first = code.isNotEmpty ? code : (httpStatus > 0 ? 'HTTP $httpStatus' : '');
+    final detail = [first, if (supportRef.isNotEmpty) 'ref $supportRef'].where((s) => s.isNotEmpty).join(' · ');
     return detail.isEmpty ? '' : ' ($detail)';
   }
 
   @override
-  List<Object?> get props => [orderId, ok, code, message, unknown, supportRef];
+  List<Object?> get props => [orderId, ok, code, message, unknown, supportRef, httpStatus, network];
 }
 
 /// Relatório do lote — contadores SEMPRE recontados das linhas.

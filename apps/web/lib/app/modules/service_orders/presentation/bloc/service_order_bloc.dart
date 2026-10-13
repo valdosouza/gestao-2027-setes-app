@@ -405,13 +405,17 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       Emitter<ServiceOrderState> emit) async {
     _showListLoading(emit, supersede: false);
     final result = await monthlyRun(event.year, event.month);
+    // D-F177 (= Q-F185 (a), Valdo 2026-10-13 — R9-SOC-03): a rotina leva minutos com N contratos — a OS aberta (ou a caminho) no meio
+    // fica; o desfecho aparece e voltar à lista recarrega (a regra da D-F174 em TODA saída longa)
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
+        if (_onDetail) return;
         await _reloadList(emit);
       },
       (report) async {
         emit(ServiceOrderMonthlyRunDone(report));
+        if (_onDetail) return;
         await _reloadList(emit);
       },
     );
@@ -496,7 +500,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     }
     emit(ServiceOrderBatchInvoiceDone(BatchInvoiceReport.merge(parts)));
     // D-F174: o operador abriu uma OS no meio do lote (que pode levar dezenas de minutos) — o fim mostra o relatório e NÃO o tira do
-    // detalhe; voltar à lista recarrega (BackToList) — aberto OU a caminho
+    // detalhe; voltar à lista recarrega (BackToList) — aberto OU a caminho. CONHECIMENTO NEGATIVO (D-F178 = Q-F186 (a)): o detalhe
+    // preservado NÃO é relido no fim do lote — se a OS aberta fosse do lote, ficaria com o status de antes (a UI não chega lá: durante o
+    // lote a lista é spinner e o FAB cria OS NOVA; o servidor protege com 409/trava da nota); reler no meio de uma ação reabriria os
+    // botões em voo
     if (_onDetail) return;
     await _reloadList(emit);
   }
@@ -759,13 +766,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     if (_fiscalBatchRunning) return;
     _showListLoading(emit, supersede: false);
     final result = await fiscalPending();
+    // D-F177: a fotografia das pendentes (todas as páginas) pode demorar — a OS aberta no meio fica (a confirmação abre por cima dela)
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
+        if (_onDetail) return;
         await _reloadList(emit);
       },
       (pending) async {
         emit(ServiceOrderFiscalPendingLoaded(pending));
+        if (_onDetail) return;
         await _reloadList(emit);
       },
     );

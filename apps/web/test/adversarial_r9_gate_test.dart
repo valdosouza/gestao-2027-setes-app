@@ -324,7 +324,7 @@ void main() {
       expect((_shown(states) as ServiceOrderListState).loading, isFalse);
     });
 
-    test('[FATO — base da Q-F185-ADV-01] a ROTINA MENSAL (o botão não é travado pelo loading — pode levar minutos com N contratos) e o PASSO 1 do lote fiscal ("Transmitir pendentes" — a fotografia lê TODAS as páginas da nfse-api) recarregam a lista no fim SEM olhar o detalhe: com a OS do FAB aberta no meio, o operador volta à lista. No passo 1 o diálogo "N notas sem NFS-e — transmitir agora?" abre por cima do DETALHE e, enquanto ele está aberto, a tela troca para a lista. Não são "lote" na letra da D-F174 (faturamento ou fiscal), mas são o mesmo caso', () async {
+    test('[DECIDIDO D-F177 (= Q-F185 (a)) — era o FATO base da Q-F185-ADV-01] a ROTINA MENSAL (o botão não é travado pelo loading — pode levar minutos com N contratos) e o PASSO 1 do lote fiscal ("Transmitir pendentes" — a fotografia lê TODAS as páginas da nfse-api) recarregam a lista no fim SEM olhar o detalhe: com a OS do FAB aberta no meio, o operador volta à lista. No passo 1 o diálogo "N notas sem NFS-e — transmitir agora?" abre por cima do DETALHE e, enquanto ele está aberto, a tela troca para a lista. Não são "lote" na letra da D-F174 (faturamento ou fiscal), mas são o mesmo caso', () async {
       final run = Completer<Either<Failure, MonthlyRunReport>>();
       when(() => repo.monthlyRun(2026, 10)).thenAnswer((_) => run.future);
       final pending = Completer<Either<Failure, PagedResult<ServiceOrderFiscalPending>>>();
@@ -335,7 +335,7 @@ void main() {
       await openByFab(bloc, states);
       run.complete(const Right(MonthlyRunReport(processed: 3, opened: 3)));
       await pumpEventQueue(times: 20);
-      expect([states.whereType<ServiceOrderMonthlyRunDone>().length, _shown(states) is ServiceOrderListState], [1, true]);
+      expect([states.whereType<ServiceOrderMonthlyRunDone>().length, _shown(states) is ServiceOrderDetailState], [1, true]);   // D-F177: fica na OS
       bloc.add(const ServiceOrderFiscalPendingRequested());
       await pumpEventQueue();
       await openByFab(bloc, states);
@@ -348,7 +348,7 @@ void main() {
       final ask = after.indexWhere((s) => s is ServiceOrderFiscalPendingLoaded);
       expect(ask, greaterThanOrEqualTo(0));
       expect(after.take(ask).any((s) => s is ServiceOrderListState), isFalse, reason: 'o diálogo abre por cima do detalhe');
-      expect(_shown(states), isA<ServiceOrderListState>(), reason: 'e a tela troca para a lista');
+      expect(_shown(states), isA<ServiceOrderDetailState>(), reason: 'D-F177: e a tela FICA no detalhe (a confirmação abre por cima dele)');
     });
   });
 
@@ -529,7 +529,7 @@ void main() {
 
     test('[CORRIGIDO — cerca do fonte] a guarda da D-F174 (`_onDetail` — aberto OU a caminho) nos TRÊS fins de lote (faturamento ok, 1º bloco que falha — R9-ADV-01 — e fiscal); UM contador da tela; o `_detail` e a voz gravados JUNTOS depois da conferência do pedido (R9-ADV-03)', () {
       final src = File(_blocSrc).readAsStringSync();
-      expect(RegExp(r'if \(_onDetail\) return;').allMatches(src).length, 3);
+      expect(RegExp(r'if \(_onDetail\) return;').allMatches(src).length, 7);   // + D-F177: rotina mensal (2) e pendentes (2)
       expect(src, isNot(contains('_listGeneration')));
       expect(src, matches(RegExp(r'final fiscal = await _fetchFiscal\(full\);\s*if \(screen != _screenGeneration\) return;')));
       expect(src, matches(RegExp(r'_effectFailure = fiscal\.effectFailure;\s*_detail = full;\s*emit\(_detailState\(full\)\);')));
@@ -585,7 +585,9 @@ void main() {
       final callers = Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))
           .where((f) => f.readAsStringSync().contains('fiscalBatchUncertainRow')).toList();
       expect(callers, hasLength(1));
-      expect(callers.single.readAsStringSync(), contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) + r.uncertainDetail"));
+      final caller = callers.single.readAsStringSync();
+      expect(caller, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
+      expect(caller, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail)"));   // D-F176
     });
   });
 }

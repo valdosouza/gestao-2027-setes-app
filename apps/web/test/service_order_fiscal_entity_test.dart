@@ -301,6 +301,16 @@ void main() {
       }
     });
 
+    test('D-F176 (= Q-F184 (b)): sem código, o status HTTP ("HTTP 503"); a rede caída sem complemento (a página diz "sem conexão")', () {
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, httpStatus: 503).uncertainDetail, ' (HTTP 503)');
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, httpStatus: 500, supportRef: 'x1').uncertainDetail, ' (HTTP 500 · ref x1)');
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true, httpStatus: 500).uncertainDetail, ' (INTERNAL)');
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, network: true, supportRef: 'ClientException').uncertainDetail, '');
+      for (final lang in ['pt', 'en']) {
+        expect(File('assets/translations/$lang.json').readAsStringSync().contains('"fiscalBatchNoConnection"'), isTrue);
+      }
+    });
+
     test('R8-SOC-02: o complemento da incerta só com conteúdo — sem código nem ref (gateway sem envelope) nada de "()"', () {
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true).uncertainDetail, '');
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true).uncertainDetail, ' (INTERNAL)');

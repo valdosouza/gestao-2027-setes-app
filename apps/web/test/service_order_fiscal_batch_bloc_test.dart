@@ -129,6 +129,18 @@ void main() {
     });
   });
 
+  group('D-F176: a linha do lote carrega o status HTTP e a rede caída (sem o texto da exceção)', () {
+    test('503 do proxy → httpStatus 503; NetworkFailure → network, sem supportRef', () async {
+      when(() => nfse.transmit(any())).thenAnswer((inv) async => switch (inv.positionalArguments[0] as int) {
+            1 => const Left(Failure(message: 'gw', statusCode: 503)),
+            _ => const Left(NetworkFailure(detail: 'ClientException: Failed to fetch, uri=https://x')),
+          });
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)([1, 2]);
+      expect([r.rows[0].httpStatus, r.rows[0].network, r.rows[0].uncertainDetail], [503, false, ' (HTTP 503)']);
+      expect([r.rows[1].network, r.rows[1].supportRef, r.rows[1].uncertainDetail], [true, '', '']);
+    });
+  });
+
   group('R8-SOC-02 (gate socrático da Rodada 8): "o lote parou" só quando sobrou nota', () {
     test('3 incertas seguidas nas 3 ÚLTIMAS notas: nada deixou de ser tentado — sem parada, sem não tentadas', () async {
       when(() => nfse.transmit(any())).thenAnswer((_) async => const Left(Failure(message: 'gw', statusCode: 504)));

@@ -65,8 +65,11 @@ class ServiceOrderFiscalTransmitBatch {
         continue;
       }
       // D-F168: o desfecho DESCONHECIDO é linha própria ("incerta — consulte"), nunca "recusada"
+      // D-F176: o status HTTP e a rede caída viajam na linha (o texto da exceção da rede NÃO — não é código de suporte)
+      final network = failure is NetworkFailure;
       rows.add(FiscalTransmitBatchRow(orderId: id, ok: false, code: failure.code ?? '', message: failure.message,
-          unknown: isUnknownAuthorityOutcome(failure), supportRef: failure.supportRef ?? ''));
+          unknown: isUnknownAuthorityOutcome(failure), supportRef: network ? '' : (failure.supportRef ?? ''),
+          httpStatus: failure.statusCode ?? 0, network: network));
       if (isSystemic(failure)) {
         stoppedBy = failure;
         i++;

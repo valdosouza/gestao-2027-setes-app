@@ -849,6 +849,7 @@
       "fiscalBatchSummaryNotTriedPart": "Não tentadas: {} — o lote parou antes delas",
       "fiscalBatchUncertainRow": "Ordem {}: resultado incerto — consulte a situação no fisco antes de transmitir de novo",
       "fiscalBatchNotTriedRow": "Ordem {}: não tentada — o lote parou antes dela",
+      "fiscalBatchNoConnection": "sem conexão",
       "fiscalBatchStoppedUncertain": "O lote parou depois de resultados incertos seguidos (o fisco ou o serviço pode estar fora) — consulte as notas incertas antes de transmitir de novo",
       "fiscalBatchStopped": "O lote parou: {}",
       "fiscalBatchCapped": "Teto de {} notas por lote — o restante fica para o próximo lote.",
