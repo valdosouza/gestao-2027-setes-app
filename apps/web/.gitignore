@@ -44,5 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Config local de dev (run-dev.ps1) — versionar apenas o .env.example
+# Config local de dev (run-dev.ps1) â€” versionar apenas o .env.example
 .env
