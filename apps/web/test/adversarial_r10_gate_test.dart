@@ -464,7 +464,7 @@ void main() {
       final core = File('../../packages/core/lib/src/shared/http/api_client.dart').readAsStringSync();
       expect(core, matches(RegExp(r'\} catch \(e\) \{\s*throw NetworkFailure\(detail: e\.toString\(\)\);')));
       final r = await batch({1: const NetworkFailure(detail: 'ClientException: XMLHttpRequest error., uri=https://nfse.setes.example/v1/nfse/invoices/1/transmit')});
-      expect(uncertainLine(r.rows.single), 'Ordem 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo (sem resposta do serviço — rede, proxy ou tempo)');
+      expect(uncertainLine(r.rows.single), 'Nota 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo (sem resposta do serviço — rede, proxy ou tempo)');
     });
 
     test('[DECIDIDO D-F180 — era o FATO base da Q-F187-ADV-02] a D-F176 tirou da linha o texto da exceção da REDE, mas a outra falha cujo `supportRef` é texto cru do Dart seguia na tela: a resposta 2xx que o datasource não lê (`invalidResponseFailure` no `_guard` do repositório — F2B-ADV-12) é incerta e a linha leva o erro do Dart como "ref"', () async {

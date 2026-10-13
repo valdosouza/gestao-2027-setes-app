@@ -308,15 +308,17 @@ void main() {
         return src.substring(i, src.indexOf('\n  }', i));
       }
       // D-F184 (= Q-F192 (a)): a DECISÃO vai ao bloc se ELE está vivo (`_dispatch` confere o `isClosed`) — não pelo `mounted` da página
-      // (os diálogos sobrevivem à página recriada ao cruzar 1100 px); a pesquisa avançada aplica no estado da PÁGINA e segue pelo `mounted`
+      // (os diálogos sobrevivem à página recriada ao cruzar 1100 px)
       final dispatch = src.substring(src.indexOf('void _dispatch('), src.indexOf('\n  }', src.indexOf('void _dispatch(')));
       expect(dispatch, contains('if (!_bloc.isClosed) _bloc.add(event);'));
       for (final f in ['_openNewOrder', '_openMonthlyRun', '_askTransmitPending', '_askKeepInvoice']) {
         final b = body(f);
         expect([f, b.contains('await '), b.contains('_dispatch('), b.contains('_bloc.add('), b.contains('!mounted')], [f, true, true, false, false]);
       }
+      // D-F189 (= Q-F195-SOC-03 (a)): a pesquisa avançada também vai ao BLOC pelo `_dispatch` (o estado da lista é dele)
       final search = body('_openAdvancedSearch');
-      expect([search.contains('await '), search.contains('if (!mounted) return;')], [true, true]);
+      expect([search.contains('await '), search.contains('_applyCriteria('), search.contains('!mounted')], [true, true, false]);
+      expect(src, contains('_dispatch(ServiceOrderListRequested(criteria: criteria));'));
     });
   });
 

@@ -303,8 +303,15 @@ void main() {
 
     test('R11-SOC-04 (cerca): TODO código de `ClientFailureCodes` está em `ClientFailureCodes.all` — a lista que a D-F180 usa para tirar o "ref" da falha montada pelo app', () {
       final src = File('../../packages/core/lib/src/shared/http/api_client.dart').readAsStringSync();
-      final body = src.substring(src.indexOf('abstract final class ClientFailureCodes'), src.indexOf('static const all'));
-      final declared = RegExp(r"static const \w+ = '([A-Z_]+)';").allMatches(body).map((m) => m.group(1)).toSet();
+      // R12-SOC-05 (gate socrático da Rodada 12): a classe INTEIRA (até o `}` que a fecha), com tipo opcional, aspas simples ou duplas e
+      // qualquer valor — declaração depois do `all`, com dígito ou com aspas duplas não escapa
+      final start = src.indexOf('abstract final class ClientFailureCodes');
+      final body = src.substring(start, src.indexOf('\n}', start));
+      final declared = RegExp(r"""static const (?:String )?(\w+) = (['"])(.+?)\2;""")
+          .allMatches(body)
+          .where((m) => m.group(1) != 'all')
+          .map((m) => m.group(3))
+          .toSet();
       expect(declared, isNotEmpty);
       expect(ClientFailureCodes.all, declared, reason: 'código novo do cliente entra na lista');
     });

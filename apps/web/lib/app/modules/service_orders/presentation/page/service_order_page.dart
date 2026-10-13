@@ -220,7 +220,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   }
 
   void _applyCriteria(SearchCriteriaValues criteria) =>
-      _bloc.add(ServiceOrderListRequested(criteria: criteria));
+      _dispatch(ServiceOrderListRequested(criteria: criteria));
 
   Future<void> _openAdvancedSearch(SearchCriteriaValues current) async {
     final values = await showAdvancedSearch(
@@ -229,7 +229,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       current: current,
       datasource: _searchDatasource,
     );
-    if (!mounted) return; // R5-ADV-07
+    // R5-ADV-07 + D-F189 (= Q-F195-SOC-03 (a)): os critérios vão ao BLOC (o estado da lista é dele) — pelo `_dispatch` (bloc vivo)
     if (values != null) _applyCriteria(values);
   }
 
@@ -395,7 +395,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// RELATÓRIO do lote — informativo próprio (mesmo tratamento da rotina
   /// mensal): as recusadas aparecem com o motivo da API, uma por linha. A
   /// seleção só é limpa DEPOIS de o operador ver o relatório.
-  Future<void> _showBatchReport(BatchInvoiceReport report) async {
+  /// D-F187: as linhas citam o NÚMERO que a tela mostra de cada OS ([numbers]), nunca a chave interna.
+  Future<void> _showBatchReport(BatchInvoiceReport report, Map<int, int> numbers) async {
+    String shown(int orderId) => '${numbers[orderId] ?? orderId}';
     final recusadas = report.results.where((r) => !r.ok).toList();
     final faturadas = report.results.where((r) => r.ok).toList();
     await showDialog<void>(
@@ -450,14 +452,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                       child: SetesText(linha.uncharged
                           ? 'forms.serviceOrder.batchInvoicedRowCharged'
                               .tr(args: [
-                              '${linha.orderId}',
+                              shown(linha.orderId),
                               isoDateToDisplay(linha.dtExpiration),
                               linha.invoiceNumber,
                               '${linha.chargedParcels}',
                               '${linha.chargeableParcels}',
                             ])
                           : 'forms.serviceOrder.batchInvoicedRow'.tr(args: [
-                              '${linha.orderId}',
+                              shown(linha.orderId),
                               isoDateToDisplay(linha.dtExpiration),
                               linha.invoiceNumber,
                             ])),
@@ -472,9 +474,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                       padding: const EdgeInsets.only(bottom: 4),
                       child: SetesText(linha.retryable
                           ? 'forms.serviceOrder.batchRefusedRowRetry'
-                              .tr(args: ['${linha.orderId}', linha.error])
+                              .tr(args: [shown(linha.orderId), linha.error])
                           : 'forms.serviceOrder.batchRefusedRow'
-                              .tr(args: ['${linha.orderId}', linha.error])),
+                              .tr(args: [shown(linha.orderId), linha.error])),
                     ),
                 ],
               ],
@@ -639,14 +641,16 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     switch (barrier.kind) {
       case FiscalBarrierKind.authorized:
         if (!plan.onlyAuthorityStands) break;
+        // D-F189 (= Q-F195-SOC-03 (a)): o 2º diálogo da cadeia abre pelo Navigator RAIZ (vive com o app) — o "sim" do 1º não se perde
+        // com a página recriada no meio (cruzar 1100 px — D-F160)
+        final root = Navigator.of(context, rootNavigator: true).context;
         final decision = await askDecision(
           context,
           message: 'forms.serviceOrder.cancelAtAuthorityAsk'.tr(args: [number]),
           yesLabel: 'forms.serviceOrder.fiscalCancel'.tr(),
         );
-        // entre os dois diálogos a página precisa estar montada (o 2º abre pelo contexto dela)
-        if (decision != SetesDecision.yes || !mounted) return;
-        final reason = await showCancelInvoiceDialog(context, number);
+        if (decision != SetesDecision.yes || !root.mounted) return;
+        final reason = await showCancelInvoiceDialog(root, number);
         if (reason == null) return;
         _dispatch(ServiceOrderCancelConfirmed(   // D-F184
             orderId: plan.orderId, reason: reason, atAuthority: true));
@@ -682,24 +686,28 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   }
 
   /// DANFSe → nova aba (Flutter Web), como o PDF do boleto. Sem navegador,
-  /// avisa pela ponte.
-  Future<void> _openDanfse(String base64) async {
-    if (base64.isEmpty || !await openBase64InNewTab(base64)) {
-      if (mounted) {
-        showValidationFeedback(
-            context, 'forms.serviceOrder.fiscalDocUnavailable'.tr());
-      }
-    }
+  /// avisa pela ponte. D-F189 (+ Q-F195-ADV-01 (a)): com a tela em OUTRA OS,
+  /// o aviso de indisponível leva "OS N:" e o documento que abriu é dito
+  /// ("OS N: documento aberto em nova aba").
+  Future<void> _openDanfse(String base64, String about) async {
+    final ok = base64.isNotEmpty && await openBase64InNewTab(base64);
+    _docOutcome(ok, about);
   }
 
   /// XML autorizado → nova aba (texto vira data URL application/xml).
-  Future<void> _openXml(String xml) async {
+  Future<void> _openXml(String xml, String about) async {
     final ok = xml.isNotEmpty &&
         await openBase64InNewTab(base64Encode(utf8.encode(xml)),
             mimeType: 'application/xml');
-    if (!ok && mounted) {
-      showValidationFeedback(
-          context, 'forms.serviceOrder.fiscalDocUnavailable'.tr());
+    _docOutcome(ok, about);
+  }
+
+  void _docOutcome(bool ok, String about) {
+    if (!mounted) return;
+    if (!ok) {
+      showValidationFeedback(context, '$about${'forms.serviceOrder.fiscalDocUnavailable'.tr()}');
+    } else if (about.isNotEmpty) {
+      showInfoFeedback(context, '$about${'forms.serviceOrder.fiscalDocOpened'.tr()}');
     }
   }
 
@@ -730,7 +738,10 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   /// recusa (código do fisco ou da nossa regra + mensagem). D-F168 (= Q-F176
   /// (a)): o desfecho DESCONHECIDO tem contador e linha próprios ("incerta —
   /// consulte") — a NFS-e pode ter sido autorizada; nunca "recusada".
-  Future<void> _showFiscalBatchSummary(FiscalTransmitBatchReport report) {
+  /// D-F187: as linhas se identificam pelo nº da NOTA que a pendente trouxe
+  /// ([noteNumbers]); sem ele, a referência da OS.
+  Future<void> _showFiscalBatchSummary(FiscalTransmitBatchReport report, Map<int, String> noteNumbers) {
+    String note(int orderId) => noteNumbers[orderId] ?? '$orderId';
     final stopped = report.stoppedBy;
     // D-F171 (= Q-F179 (a)): incertas e NÃO TENTADAS têm contador próprio, cada um só quando existe
     final summary = [
@@ -756,16 +767,16 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     final lines = [
       // R7-SOC-02 (iii): a incerta leva o código e o ref (como as recusadas — F2B-ADV-14)
       for (final r in report.uncertainRows)
-        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +
+        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: [note(r.orderId)]) +
             (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail),   // D-F176/D-F181 (frase neutra: rede, proxy ou tempo)
       for (final r in report.refusedRows)
         'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
-          '${r.orderId}',
+          note(r.orderId),
           [r.code, r.message.tr()].where((s) => s.isNotEmpty).join(' — '),   // F2B-ADV-14
         ]),
       // R7-SOC-02 (ii) + D-F171: a não tentada diz que não foi tentada (nunca a frase da falha que parou o lote)
       for (final r in report.notTriedRows)
-        'forms.serviceOrder.fiscalBatchNotTriedRow'.tr(args: ['${r.orderId}']),
+        'forms.serviceOrder.fiscalBatchNotTriedRow'.tr(args: [note(r.orderId)]),
     ].join('\n');
     return showInfoFeedback(context, '$summary\n$lines');
   }
@@ -798,20 +809,20 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderBatchInvoiceDone) {
-            _showBatchReport(state.report);
+            _showBatchReport(state.report, state.numbers);
             return;
           }
           // Onda 3 — one-shots fiscais
           if (state is ServiceOrderFiscalXmlReady) {
-            _openXml(state.xml);
+            _openXml(state.xml, _about(state.orderNumber));
             return;
           }
           if (state is ServiceOrderFiscalDanfseReady) {
-            _openDanfse(state.pdfBase64);
+            _openDanfse(state.pdfBase64, _about(state.orderNumber));
             return;
           }
           if (state is ServiceOrderFiscalWarnings) {
-            showInfoFeedback(context, '${_about(state.orderId)}${state.warnings.map((w) => '• $w').join('\n')}');
+            showInfoFeedback(context, '${_about(state.orderNumber)}${state.warnings.map((w) => '• $w').join('\n')}');
             return;
           }
           if (state is ServiceOrderFiscalPendingLoaded) {
@@ -819,7 +830,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderFiscalBatchDone) {
-            _showFiscalBatchSummary(state.report);
+            _showFiscalBatchSummary(state.report, state.noteNumbers);
             return;
           }
           if (state is ServiceOrderCancelPlanReady) {
@@ -827,7 +838,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderFiscalNotice) {
-            final text = '${_about(state.orderId)}${state.messageKey.tr(args: state.args)}';
+            final text = '${_about(state.orderNumber)}${state.messageKey.tr(args: state.args)}';
             // F2B-ADV-14: o detalhe pode ser chave i18n (core.errors.*)
             showInfoFeedback(context,
                 state.detail == null || state.detail!.isEmpty ? text : '$text\n${state.detail!.tr()}');
@@ -835,12 +846,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           }
           if (state is ServiceOrderActionSuccess) {
             showSuccessFeedback(context, state.messageKey,
-                args: state.args.isEmpty ? null : state.args, about: _about(state.orderId));
+                args: state.args.isEmpty ? null : state.args, about: _about(state.orderNumber));
             return;
           }
           final failureState = state as ServiceOrderActionFailure;
           final failure = failureState.failure;
-          final about = _about(failureState.orderId);
+          final about = _about(failureState.orderNumber);
           if (failure.code == 'INVOICE_CANCEL_BLOCKED' &&
               failure.fields.isNotEmpty) {
             // Q-P4: um código, fields[] tipado com o que resolver antes

@@ -183,7 +183,7 @@ void main() {
       await pumpEventQueue(times: 20);
       final shown = _shown(states) as ServiceOrderDetailState;
       final authorized = states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.fiscalAuthorized');
-      expect([authorized.length, authorized.single.orderId], [1, null], reason: 'a tela é a MESMA OS — sem prefixo');
+      expect([authorized.length, authorized.single.orderNumber], [1, null], reason: 'a tela é a MESMA OS — sem prefixo');
       expect([shown.order.id, shown.fiscal, aVoiceReads > readsBefore], [_aId, _aVoiceAfter, true],
           reason: 'D-F182: a MESMA OS reaberta é RELIDA (a voz nova)');
 
@@ -204,7 +204,7 @@ void main() {
       await bloc.close();
       final list = _shown(states) as ServiceOrderListState;
       final generated = states.whereType<ServiceOrderActionSuccess>().where((s) => s.messageKey == 'forms.serviceOrder.invoiceGenerated');
-      expect([generated.length, generated.single.orderId], [1, _newId], reason: 'D-F182: na LISTA, o desfecho leva o número da OS');
+      expect([generated.length, generated.single.orderNumber], [1, _newId], reason: 'D-F182: na LISTA, o desfecho leva o número da OS');
       // D-F182 deixou de fora a lista desatualizada (se corrige ao abrir a OS): ela não é relida
       expect([list.status, list.items.map((i) => i.id).contains(_newId), listCalls], ['A', true, calls]);
     });
@@ -250,7 +250,7 @@ void main() {
       transmitA.complete(const Left(Failure(message: 'x', statusCode: 422, code: 'FISCAL_DPS_REJECTED')));
       await pumpEventQueue(times: 20);
       // D-F182: a recusa da A chega com a B na tela — leva o número da A
-      expect(states.sublist(atA).whereType<ServiceOrderActionFailure>().single.orderId, _aId);
+      expect(states.sublist(atA).whereType<ServiceOrderActionFailure>().single.orderNumber, _aId);
 
       // o cancelamento (saga sem o fisco) em voo na A × "Manter a nota" na B
       final localCancel = Completer<Either<Failure, ServiceOrderInvoiceCancelResult>>();

@@ -89,47 +89,53 @@ class ServiceOrderCancelPlanReady extends ServiceOrderState {
 /// nota não). [messageKey] é chave i18n; [detail] = a mensagem da API, quando
 /// há (já pronta).
 class ServiceOrderFiscalNotice extends ServiceOrderState {
-  const ServiceOrderFiscalNotice(this.messageKey, {this.args = const [], this.detail, this.orderId});
+  const ServiceOrderFiscalNotice(this.messageKey, {this.args = const [], this.detail, this.orderNumber});
   final String messageKey;
   final List<String> args;
   final String? detail;
-  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
-  final int? orderId;
+  /// D-F182/D-F187: o NÚMERO que a tela mostra da OS (`number ?? id`, nunca a chave interna) quando o desfecho é de um ato cuja tela
+  /// SAIU (outra OS aberta ou a lista) — a página o prefixa ("OS N: "); nulo = a tela é a OS do ato.
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [messageKey, args, detail, orderId];
+  List<Object?> get props => [messageKey, args, detail, orderNumber];
 }
 
 /// One-shot (listener-only): XML autorizado da NFS-e — a página abre em
 /// nova aba (Onda 3).
 class ServiceOrderFiscalXmlReady extends ServiceOrderState {
-  const ServiceOrderFiscalXmlReady(this.xml);
+  const ServiceOrderFiscalXmlReady(this.xml, {this.orderNumber});
   final String xml;
+  /// D-F189 (Q-F195-ADV-01 (a)): o número da OS quando a tela de agora é OUTRA (o documento abre e a página diz de qual OS é).
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [xml];
+  List<Object?> get props => [xml, orderNumber];
 }
 
 /// One-shot (listener-only): DANFSe em base64 — a página abre em nova aba
 /// como o PDF do boleto (Onda 3).
 class ServiceOrderFiscalDanfseReady extends ServiceOrderState {
-  const ServiceOrderFiscalDanfseReady(this.pdfBase64);
+  const ServiceOrderFiscalDanfseReady(this.pdfBase64, {this.orderNumber});
   final String pdfBase64;
+  /// D-F189 (Q-F195-ADV-01 (a)): o número da OS quando a tela de agora é OUTRA (o documento abre e a página diz de qual OS é).
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [pdfBase64];
+  List<Object?> get props => [pdfBase64, orderNumber];
 }
 
 /// One-shot (listener-only): avisos NÃO bloqueantes do cancelamento da
 /// NFS-e (`warnings[]` da API) — a página mostra pela ponte como aviso.
 class ServiceOrderFiscalWarnings extends ServiceOrderState {
-  const ServiceOrderFiscalWarnings(this.warnings, {this.orderId});
+  const ServiceOrderFiscalWarnings(this.warnings, {this.orderNumber});
   final List<String> warnings;
-  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
-  final int? orderId;
+  /// D-F182/D-F187: o NÚMERO que a tela mostra da OS (`number ?? id`, nunca a chave interna) quando o desfecho é de um ato cuja tela
+  /// SAIU (outra OS aberta ou a lista) — a página o prefixa ("OS N: "); nulo = a tela é a OS do ato.
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [warnings, orderId];
+  List<Object?> get props => [warnings, orderNumber];
 }
 
 /// One-shot (listener-only): notas da OS SEM NFS-e (lista fotografada — D-F145)
@@ -147,26 +153,30 @@ class ServiceOrderFiscalPendingLoaded extends ServiceOrderState {
 /// 1 nota por vez — D-F145) — a página resume transmitidas/recusadas e, se o
 /// lote PAROU, o motivo.
 class ServiceOrderFiscalBatchDone extends ServiceOrderState {
-  const ServiceOrderFiscalBatchDone(this.report);
+  const ServiceOrderFiscalBatchDone(this.report, {this.noteNumbers = const {}});
   final FiscalTransmitBatchReport report;
 
+  /// D-F187: o nº da NOTA de cada OS do lote (a pendente fotografada o traz) — as linhas se identificam por ele.
+  final Map<int, String> noteNumbers;
+
   @override
-  List<Object?> get props => [report];
+  List<Object?> get props => [report, noteNumbers];
 }
 
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
 /// alimenta placeholders da chave (ex.: nº da fatura gerada).
 class ServiceOrderActionSuccess extends ServiceOrderState {
-  const ServiceOrderActionSuccess(this.messageKey, {this.args = const [], this.orderId});
+  const ServiceOrderActionSuccess(this.messageKey, {this.args = const [], this.orderNumber});
 
   /// Chave i18n — a página traduz.
   final String messageKey;
   final List<String> args;
-  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
-  final int? orderId;
+  /// D-F182/D-F187: o NÚMERO que a tela mostra da OS (`number ?? id`, nunca a chave interna) quando o desfecho é de um ato cuja tela
+  /// SAIU (outra OS aberta ou a lista) — a página o prefixa ("OS N: "); nulo = a tela é a OS do ato.
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [messageKey, args, orderId];
+  List<Object?> get props => [messageKey, args, orderNumber];
 }
 
 /// Efeito one-shot de falha (listener-only, não buildável). Carrega o
@@ -175,13 +185,14 @@ class ServiceOrderActionSuccess extends ServiceOrderState {
 /// dialog de validação com a mensagem da API e o fields[] do 400 ancora a
 /// mensagem no campo apontado.
 class ServiceOrderActionFailure extends ServiceOrderState {
-  const ServiceOrderActionFailure(this.failure, {this.orderId});
+  const ServiceOrderActionFailure(this.failure, {this.orderNumber});
   final Failure failure;
-  /// D-F182: o número da OS quando o desfecho é de um ato cuja tela SAIU (outra OS aberta ou a lista) — a página o prefixa; nulo = a tela é a OS do ato.
-  final int? orderId;
+  /// D-F182/D-F187: o NÚMERO que a tela mostra da OS (`number ?? id`, nunca a chave interna) quando o desfecho é de um ato cuja tela
+  /// SAIU (outra OS aberta ou a lista) — a página o prefixa ("OS N: "); nulo = a tela é a OS do ato.
+  final int? orderNumber;
 
   @override
-  List<Object?> get props => [failure, orderId];
+  List<Object?> get props => [failure, orderNumber];
 }
 
 /// Efeito one-shot com o RELATÓRIO da rotina mensal (listener-only) — a
@@ -190,11 +201,14 @@ class ServiceOrderActionFailure extends ServiceOrderState {
 /// Efeito one-shot do LOTE (D6/D7) — a página abre o relatório: uma linha
 /// por ordem, com o motivo das recusadas.
 class ServiceOrderBatchInvoiceDone extends ServiceOrderState {
-  const ServiceOrderBatchInvoiceDone(this.report);
+  const ServiceOrderBatchInvoiceDone(this.report, {this.numbers = const {}});
   final BatchInvoiceReport report;
 
+  /// D-F187: o NÚMERO que a tela mostra de cada OS do relatório (nunca a chave interna).
+  final Map<int, int> numbers;
+
   @override
-  List<Object?> get props => [report];
+  List<Object?> get props => [report, numbers];
 }
 
 class ServiceOrderMonthlyRunDone extends ServiceOrderState {

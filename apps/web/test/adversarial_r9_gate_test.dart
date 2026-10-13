@@ -533,7 +533,8 @@ void main() {
       expect(src, isNot(contains('_listGeneration')));
       // R10-SOC-03: a conferência do pedido virou `live()` (o contador e, num ato, o detalhe ainda aberto)
       expect(src, matches(RegExp(r'final fiscal = await _fetchFiscal\(full\);\s*if \(!live\(\)\) return;')));
-      expect(src, matches(RegExp(r'_effectFailure = fiscal\.effectFailure;\s*_detail = full;\s*emit\(_detailState\(full\)\);')));
+      // D-F187: entre o `_detail` e a emissão, só o registro do número que a tela mostra
+      expect(src, matches(RegExp(r'_effectFailure = fiscal\.effectFailure;\s*_detail = full;\s*_shownNumbers\[full\.id\] = full\.number \?\? full\.id;[^\n]*\n\s*emit\(_detailState\(full\)\);')));
       expect(src, matches(RegExp(r'if \(failure != null && parts\.length == 1\) \{[^}]*if \(_onDetail\) return;\s*await _reloadList\(emit\);')));
     });
   });
@@ -587,7 +588,7 @@ void main() {
           .where((f) => f.readAsStringSync().contains('fiscalBatchUncertainRow')).toList();
       expect(callers, hasLength(1));
       final caller = callers.single.readAsStringSync();
-      expect(caller, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
+      expect(caller, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: [note(r.orderId)]) +"));   // D-F187: o nº da nota
       expect(caller, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));   // D-F176
     });
   });

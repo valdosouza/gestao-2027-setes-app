@@ -93,7 +93,7 @@ void main() {
       final r = await usecase({1: const Left(_proxy503), 2: const Left(_proxy502), 3: const Left(_bare500)}, [1, 2, 3]);
       final src = File(_pageSrc).readAsStringSync();
       // D-F176/D-F181: a página compõe a linha com a frase neutra da rede ("sem resposta do serviço — rede, proxy ou tempo") ou o complemento (código · ref · HTTP)
-      expect(src, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
+      expect(src, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: [note(r.orderId)]) +"));   // D-F187: o nº da nota
       expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));
       for (final row in r.uncertainRows) {
         final line = 'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${row.orderId}']) + row.uncertainDetail;
@@ -180,11 +180,12 @@ void main() {
       final r = await usecase({1: const Left(Failure(message: 'Sem privilégio', statusCode: 403)), 2: const Right(_tx), 3: const Right(_tx)}, [1, 2, 3]);
       expect(r.notTriedRows.map((x) => x.orderId), [2, 3]);
       final line = 'forms.serviceOrder.fiscalBatchNotTriedRow'.tr(args: ['2']);
-      expect(line, 'Ordem 2: não tentada — o lote parou antes dela');
+      expect(line, 'Nota 2: não tentada — o lote parou antes dela');
       expect(r.refusedRows.map((x) => x.orderId), [1]);
       expect(r.uncertainRows, isEmpty);
       final src = File(_pageSrc).readAsStringSync();
-      expect(src, matches(RegExp(r"for \(final r in report\.notTriedRows\)\r?\n\s+'forms\.serviceOrder\.fiscalBatchNotTriedRow'\.tr\(args: \['\$\{r\.orderId\}'\]\),")));
+      // D-F187: a linha se identifica pelo nº da NOTA (`note(...)`)
+      expect(src, matches(RegExp(r"for \(final r in report\.notTriedRows\)\r?\n\s+'forms\.serviceOrder\.fiscalBatchNotTriedRow'\.tr\(args: \[note\(r\.orderId\)\]\),")));
     });
   });
 

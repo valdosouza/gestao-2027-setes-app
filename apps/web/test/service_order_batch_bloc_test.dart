@@ -492,6 +492,46 @@ void main() {
     });
   });
 
+  group('D-F187 (= Q-F195-SOC-01 (a)): os relatórios citam o número que a TELA mostra, nunca a chave interna', () {
+    test('o relatório do lote de faturamento leva o Nº da OS de cada ordem (o da lista — `number ?? id`)', () async {
+      when(() => repo.getList(any(), any(),
+              page: any(named: 'page'), pageSize: any(named: 'pageSize'), criteria: any(named: 'criteria')))
+          .thenAnswer((_) async => const Right(PagedResult(items: [
+                ServiceOrderListItem(id: 8011, number: 7374, customerId: 1),
+                ServiceOrderListItem(id: 8012, customerId: 1),
+              ], page: 1, pageSize: 10, total: 2)));
+      faturaTudo();
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      final listed = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      bloc.add(const ServiceOrderListRequested(status: 'A', filter: ''));
+      await listed;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderBatchInvoiceDone);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: const [8011, 8012], input: _input));
+      final report = await done as ServiceOrderBatchInvoiceDone;
+      await sub.cancel();
+      await bloc.close();
+      expect(report.numbers, {8011: 7374, 8012: 8012}, reason: 'sem número, a OS mostra o id (como a lista)');
+    });
+
+    test('o lote FISCAL se identifica pelo nº da NOTA que a pendente fotografada traz', () async {
+      final nfse = NfseRepoMock();
+      when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize'))).thenAnswer((_) async => const Right(
+          PagedResult(items: [ServiceOrderFiscalPending(invoiceId: 8011, number: '704')], page: 1, pageSize: 100, total: 1)));
+      when(() => nfse.transmit(8011)).thenAnswer((_) async => const Right(ServiceOrderTransmitResult(invoiceId: 8011, attempt: 1, accessKey: 'K')));
+      final bloc = buildServiceOrderBloc(repo: repo, nfse: nfse);
+      final loaded = bloc.stream.firstWhere((s) => s is ServiceOrderFiscalPendingLoaded);
+      bloc.add(const ServiceOrderFiscalPendingRequested());
+      await loaded;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderFiscalBatchDone);
+      bloc.add(const ServiceOrderFiscalTransmitBatchRequested([8011]));
+      final report = await done as ServiceOrderFiscalBatchDone;
+      await bloc.close();
+      expect(report.noteNumbers, {8011: '704'});
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {

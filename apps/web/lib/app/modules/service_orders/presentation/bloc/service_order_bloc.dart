@@ -184,6 +184,20 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// vence; a recarga automática respeita o detalhe, aberto ou a caminho).
   int? _pendingDetailScreen;
 
+  /// D-F191 (= Q-F195-SOC-05 (a), Valdo 2026-10-13 — R12-SOC-02 = R12-ADV-02): a marca "a caminho" carrega a OS — o fim de um ato com a
+  /// MESMA OS a caminho a trata como a tela dela (sem prefixo) e a pede de novo.
+  int? _pendingDetailOrder;
+
+  /// D-F187 (= Q-F195-SOC-01 (a), Valdo 2026-10-13 — R12-SOC-01 = R12-ADV-06): o número que a TELA mostra de cada OS já vista (`number ??
+  /// id` — o da lista e do cabeçalho; os ids internos diferem dos números) — o desfecho e o relatório do lote citam ESTE, nunca a chave.
+  final Map<int, int> _shownNumbers = {};
+  int _shownNumberOf(int orderId) => _shownNumbers[orderId] ?? orderId;
+
+  /// D-F191: a tela mostra (ou vai mostrar) a OS [orderId] — o pedido de detalhe em voo, se ele é o último pedido; senão o detalhe aberto.
+  bool _showsOrder(int orderId) => _pendingDetailScreen != null && _pendingDetailScreen == _screenGeneration
+      ? _pendingDetailOrder == orderId
+      : _detail?.id == orderId;
+
   /// A tela é (ou vai ser) o detalhe — o fim de um lote só mostra o relatório.
   /// R10-SOC-01 (gate socrático do delta da Rodada 10): "aberto" e "a caminho" são UM estado — a marca só morre no MESMO ponto em que o
   /// `_detail` nasce (ou em que a falha volta à lista), nunca entre o GET da OS e a voz do fisco.
@@ -208,18 +222,24 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     if (detail != null && _stillOnDetail(screen)) emit(_detailState(detail));
   }
 
-  /// D-F182 (= Q-F190 (a), Valdo 2026-10-13 — R11-SOC-01/02 = R11-ADV-02): o fim de um ato que MUDA a OS relê o detalhe se a tela ainda é
-  /// a do ato OU se é a MESMA OS reaberta no meio (página recriada — releitura com a tela de AGORA, conferida de novo na chegada); outra OS
-  /// ou a lista: nada a reler (o desfecho levou o número da OS — [_outcomeOrder]).
-  Future<void> _rereadAfterAct(int screen, int orderId, Emitter<ServiceOrderState> emit) {
-    if (_stillOnDetail(screen)) return _reloadDetail(orderId, emit, generation: screen, act: true);
-    if (_detail?.id == orderId) return _reloadDetail(orderId, emit, generation: _screenGeneration, act: true);
-    return Future.value();
+  /// D-F182 (= Q-F190 (a), Valdo 2026-10-13 — R11-SOC-01/02 = R11-ADV-02): o fim de um ato que MUDA a OS relê o detalhe se a tela mostra
+  /// (ou vai mostrar) a MESMA OS — a do ato, ela reaberta no meio (página recriada) ou ela A CAMINHO (D-F191); outra OS ou a lista: nada a
+  /// reler (o desfecho levou o número da OS — [_outcomeOrder]). A releitura é um PEDIDO NOVO de detalhe da OS (o contador sobe): o pedido
+  /// em voo — a OS a caminho, ou a releitura de um ato anterior — perde a vez (gate adversarial da Rodada 12, R12-ADV-01: duas releituras
+  /// fora de ordem punham "recusada" depois do "autorizada"). CONHECIMENTO NEGATIVO (D-F191 (b) — R12-SOC-03): com OUTRO ato em voo na
+  /// mesma OS, o detalhe relido sai SEM `saving` (os botões reabrem) — as travas por nota cobrem Transmitir/Cancelar/Manter e o servidor
+  /// protege o resto.
+  Future<void> _rereadAfterAct(int orderId, Emitter<ServiceOrderState> emit) {
+    if (!_showsOrder(orderId)) return Future.value();
+    final screen = ++_screenGeneration;
+    _pendingDetailScreen = screen;
+    _pendingDetailOrder = orderId;
+    return _reloadDetail(orderId, emit, generation: screen);
   }
 
-  /// D-F182: o número da OS que o DESFECHO de um ato leva quando a tela de agora não é a OS do ato (outra OS aberta ou a lista) — o
-  /// operador nunca lê o desfecho de X como se fosse de Y; nulo quando a tela é a do ato (ou a mesma OS reaberta).
-  int? _outcomeOrder(int screen, int orderId) => _stillOnDetail(screen) || _detail?.id == orderId ? null : orderId;
+  /// D-F182/D-F187: o NÚMERO que a tela mostra da OS do ato, quando a tela de agora não é ela (outra OS aberta ou a lista) — o operador
+  /// nunca lê o desfecho de X como se fosse de Y; nulo quando a tela é a OS do ato (aberta, reaberta ou a caminho — D-F191).
+  int? _outcomeOrder(int screen, int orderId) => _stillOnDetail(screen) || _showsOrder(orderId) ? null : _shownNumberOf(orderId);
 
   /// A tela vira a LISTA em loading (um ato de lista começou — lote, rotina
   /// mensal, pendentes, abrir/ver OS): o detalhe SAI (`_detail` nulo —
@@ -273,6 +293,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         // A resposta é a fonte da verdade (clamp/config da API — D4/D5).
         _page = paged.page;
         _pageSize = paged.pageSize;
+        for (final item in paged.items) {
+          _shownNumbers[item.id] = item.number ?? item.id;   // D-F187: o número que a tela mostra
+        }
         emit(ServiceOrderListState(
           // D-F169: com um lote no ar, a lista sai em loading (a trava H1 continua)
           loading: _batchInFlight,
@@ -321,6 +344,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         _effect = fiscal.effect;
         _effectFailure = fiscal.effectFailure;
         _detail = full;
+        _shownNumbers[full.id] = full.number ?? full.id;   // D-F187
         emit(_detailState(full));
       },
     );
@@ -368,6 +392,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _showListLoading(emit);   // R9-SOC-04 (i): a lista em voo perde a vez já no POST
     final screen = _screenGeneration;
     _pendingDetailScreen = screen;
+    _pendingDetailOrder = null;   // D-F191: a OS ainda não existe (o POST dá o id)
     final result = await post(event.customerId);
     await result.fold(
       (failure) async {
@@ -376,6 +401,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         if (screen == _screenGeneration) await _reloadList(emit);
       },
       (id) async {
+        if (_pendingDetailScreen == screen) _pendingDetailOrder = id;
         emit(const ServiceOrderActionSuccess('forms.serviceOrder.opened'));
         await _reloadDetail(id, emit, generation: screen);
       },
@@ -386,6 +412,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       ServiceOrderViewRequested event, Emitter<ServiceOrderState> emit) async {
     _showListLoading(emit);   // D-F174/R9-SOC-04: a lista em voo não emite por cima do detalhe que vai abrir
     _pendingDetailScreen = _screenGeneration;
+    _pendingDetailOrder = event.id;   // D-F191
     await _reloadDetail(event.id, emit, generation: _screenGeneration);
   }
 
@@ -396,13 +423,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await delete(event.id);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.id)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.id)));
         _endDetailAct(screen, emit);
       },
       (_) async {
-        emit(ServiceOrderActionSuccess('forms.serviceOrder.canceled', orderId: _outcomeOrder(screen, event.id)));
-        // D-F182: a OS cancelada (excluída) reaberta no meio também volta à lista
-        if (_stillOnDetail(screen) || _detail?.id == event.id) await _reloadList(emit);
+        emit(ServiceOrderActionSuccess('forms.serviceOrder.canceled', orderNumber: _outcomeOrder(screen, event.id)));
+        // D-F182/D-F191: a OS cancelada (excluída) reaberta — ou a caminho — no meio também volta à lista
+        if (_stillOnDetail(screen) || _showsOrder(event.id)) await _reloadList(emit);
       },
     );
   }
@@ -414,12 +441,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await itemSave(event.orderId, event.itemId, event.input);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
         _endDetailAct(screen, emit);
       },
       (_) async {
-        emit(ServiceOrderActionSuccess('register.saved', orderId: _outcomeOrder(screen, event.orderId)));
-        await _rereadAfterAct(screen, event.orderId, emit);
+        emit(ServiceOrderActionSuccess('register.saved', orderNumber: _outcomeOrder(screen, event.orderId)));
+        await _rereadAfterAct(event.orderId, emit);
       },
     );
   }
@@ -431,12 +458,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await itemDelete(event.orderId, event.itemId);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
         _endDetailAct(screen, emit);
       },
       (_) async {
-        emit(ServiceOrderActionSuccess('register.deleted', orderId: _outcomeOrder(screen, event.orderId)));
-        await _rereadAfterAct(screen, event.orderId, emit);
+        emit(ServiceOrderActionSuccess('register.deleted', orderNumber: _outcomeOrder(screen, event.orderId)));
+        await _rereadAfterAct(event.orderId, emit);
       },
     );
   }
@@ -547,7 +574,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       await _reloadList(emit);
       return;
     }
-    emit(ServiceOrderBatchInvoiceDone(BatchInvoiceReport.merge(parts)));
+    final merged = BatchInvoiceReport.merge(parts);
+    // D-F187: o relatório cita o NÚMERO que a tela mostra de cada OS
+    emit(ServiceOrderBatchInvoiceDone(merged, numbers: {for (final e in merged.results) e.orderId: _shownNumberOf(e.orderId)}));
     // D-F174: o operador abriu uma OS no meio do lote (que pode levar dezenas de minutos) — o fim mostra o relatório e NÃO o tira do
     // detalhe; voltar à lista recarrega (BackToList) — aberto OU a caminho. CONHECIMENTO NEGATIVO (D-F178 = Q-F186 (a)): o detalhe
     // preservado NÃO é relido no fim do lote — se a OS aberta fosse do lote, ficaria com o status de antes (a UI não chega lá: durante o
@@ -564,21 +593,21 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await invoice(event.orderId, event.input);
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
         _endDetailAct(screen, emit);
       },
       (invoiceResult) async {
         emit(ServiceOrderActionSuccess(
           'forms.serviceOrder.invoiceGenerated',
           args: [invoiceResult.invoiceNumber],
-          orderId: _outcomeOrder(screen, event.orderId),
+          orderNumber: _outcomeOrder(screen, event.orderId),
         ));
         // Fluxo do processo: a OS faturada aparece na aba Faturadas —
         // troca de aba SEMPRE volta à página 1. R10-SOC-03: só se a tela ainda é
         // o detalhe (outra tela pedida no meio vence — vale o último pedido);
         // D-F182: a MESMA OS reaberta no meio é relida (mostra a nota)
         if (!_stillOnDetail(screen)) {
-          if (_detail?.id == event.orderId) await _reloadDetail(event.orderId, emit, generation: _screenGeneration, act: true);
+          await _rereadAfterAct(event.orderId, emit);   // D-F182/D-F191: a MESMA OS reaberta (ou a caminho) mostra a nota
           return;
         }
         _status = 'F';
@@ -607,7 +636,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final result = await run();
     await result.fold(
       (failure) async {
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, orderId)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, orderId)));
         _endDetailAct(screen, emit);
       },
       (r) => onSuccess(r, screen),
@@ -620,8 +649,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<bool> _unknownOutcome(Failure failure, int orderId, int screen, Emitter<ServiceOrderState> emit) async {
     if (!isUnknownAuthorityOutcome(failure)) return false;
     emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalOutcomeUnknown',
-        detail: failure.message, orderId: _outcomeOrder(screen, orderId)));
-    await _rereadAfterAct(screen, orderId, emit);
+        detail: failure.message, orderNumber: _outcomeOrder(screen, orderId)));
+    await _rereadAfterAct(orderId, emit);
     return true;
   }
 
@@ -639,13 +668,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       await result.fold(
         (failure) async {
           if (await _unknownOutcome(failure, event.orderId, screen, emit)) return;
-          emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
-          await _rereadAfterAct(screen, event.orderId, emit);   // a tentativa R/F entra na linha do tempo
+          emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
+          await _rereadAfterAct(event.orderId, emit);   // a tentativa R/F entra na linha do tempo
         },
         (r) async {
           emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized',
-              args: [r.accessKey ?? ''], orderId: _outcomeOrder(screen, event.orderId)));
-          await _rereadAfterAct(screen, event.orderId, emit);
+              args: [r.accessKey ?? ''], orderNumber: _outcomeOrder(screen, event.orderId)));
+          await _rereadAfterAct(event.orderId, emit);
         },
       );
     } finally {
@@ -665,14 +694,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       _fiscalAction(emit, event.orderId, () => fiscalRefresh(event.orderId), (result, screen) async {
         final about = _outcomeOrder(screen, event.orderId);
         if (!result.changed) {
-          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshUnchanged', orderId: about));
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshUnchanged', orderNumber: about));
         } else if (result.kind == FiscalTransmissionKind.authorized ||
             result.kind == FiscalTransmissionKind.notCancelled) {
-          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [result.accessKey ?? ''], orderId: about));
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [result.accessKey ?? ''], orderNumber: about));
         } else {
-          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshChanged', orderId: about));
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshChanged', orderNumber: about));
         }
-        await _rereadAfterAct(screen, event.orderId, emit);
+        await _rereadAfterAct(event.orderId, emit);
       });
 
   /// Reconferir (nfse-api — D-F109): o veredito só escolhe a FRASE
@@ -685,7 +714,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     await result.fold(
       (failure) async {
         if (await _unknownOutcome(failure, event.orderId, screen, emit)) return;
-        emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
+        emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
         _endDetailAct(screen, emit);
       },
       (r) async {
@@ -694,8 +723,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
             : r.verdict == 'provada'
                 ? 'forms.serviceOrder.fiscalReconfirmProven'
                 : 'forms.serviceOrder.fiscalReconfirmNotProven';
-        emit(ServiceOrderFiscalNotice(key, detail: r.verdict, orderId: _outcomeOrder(screen, event.orderId)));
-        await _rereadAfterAct(screen, event.orderId, emit);
+        emit(ServiceOrderFiscalNotice(key, detail: r.verdict, orderNumber: _outcomeOrder(screen, event.orderId)));
+        await _rereadAfterAct(event.orderId, emit);
       },
     );
   }
@@ -704,7 +733,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onFiscalXmlRequested(ServiceOrderFiscalXmlRequested event,
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, event.orderId, () => fiscalXml(event.orderId), (xml, screen) async {
-        emit(ServiceOrderFiscalXmlReady(xml));
+        emit(ServiceOrderFiscalXmlReady(xml, orderNumber: _outcomeOrder(screen, event.orderId)));   // D-F189/Q-F195-ADV-01
         _endDetailAct(screen, emit);
       });
 
@@ -712,7 +741,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onFiscalDanfseRequested(ServiceOrderFiscalDanfseRequested event,
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, event.orderId, () => fiscalDanfse(event.orderId), (base64, screen) async {
-        emit(ServiceOrderFiscalDanfseReady(base64));
+        emit(ServiceOrderFiscalDanfseReady(base64, orderNumber: _outcomeOrder(screen, event.orderId)));   // D-F189/Q-F195-ADV-01
         _endDetailAct(screen, emit);
       });
 
@@ -725,12 +754,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         if (plan.orderId != 0 && plan.orderId != event.orderId) {
           // o servidor respondeu o plano de OUTRA nota: nunca decidir por ele
           emit(ServiceOrderActionFailure(invalidResponseFailure('plano da OS ${plan.orderId} para a OS ${event.orderId}'),
-              orderId: _outcomeOrder(screen, event.orderId)));
+              orderNumber: _outcomeOrder(screen, event.orderId)));
           _endDetailAct(screen, emit);
           return;
         }
-        // R10-SOC-03: a decisão do cancelamento só abre sobre o detalhe que a pediu (a tela mudou no meio = nada a decidir aqui)
-        if (!_stillOnDetail(screen)) return;
+        // R10-SOC-03: a decisão do cancelamento só abre sobre o detalhe que a pediu (outra OS ou a lista = nada a decidir aqui); D-F189
+        // (= Q-F195-SOC-03 (a)): a MESMA OS reaberta no meio também abre
+        if (!_stillOnDetail(screen) && _detail?.id != event.orderId) return;
         _endDetailAct(screen, emit);
         emit(ServiceOrderCancelPlanReady(plan.withOrderId(event.orderId)));
       });
@@ -753,32 +783,32 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           if (saga.stage == CancelSagaStage.plan) {
             // D-F149: o plano relido não deixa ir ao fisco — nada foi feito
             if (f.code == FiscalCodes.cancelPlanChanged) {
-              emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', orderId: about()));
+              emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', orderNumber: about()));
             } else {
-              emit(ServiceOrderActionFailure(f, orderId: about()));
+              emit(ServiceOrderActionFailure(f, orderNumber: about()));
             }
           } else if (saga.stage == CancelSagaStage.authority) {
             if (await _unknownOutcome(f, event.orderId, screen, emit)) return;
-            emit(ServiceOrderActionFailure(f, orderId: about()));
+            emit(ServiceOrderActionFailure(f, orderNumber: about()));
           } else if (f.code == FiscalCodes.invoiceNotCancellable) {
             // a situação mudou (ex.: outra aba já cancelou a nota): diz e relê —
             // ANTES do authorityCancelled (F2B-SOC-05/ADV-08: com o fisco e a nota
             // já cancelados, "aplicar na nota" dizia o contrário)
-            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', detail: f.message, orderId: about()));
+            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', detail: f.message, orderNumber: about()));
           } else if (saga.authorityCancelled) {
             // o fisco CANCELOU e a nota não: o efeito fica `apply` — a seção
             // oferece "Aplicar o cancelamento na nota" (retomada por derivação)
-            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalLocalCancelPending', detail: f.message, orderId: about()));
+            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalLocalCancelPending', detail: f.message, orderNumber: about()));
           } else {
-            emit(ServiceOrderActionFailure(f, orderId: about()));
+            emit(ServiceOrderActionFailure(f, orderNumber: about()));
           }
-          await _rereadAfterAct(screen, event.orderId, emit);
+          await _rereadAfterAct(event.orderId, emit);
         },
         (outcome) async {
           emit(ServiceOrderActionSuccess('forms.serviceOrder.invoiceCancelled',
-              args: [outcome.result.invoiceNumber], orderId: about()));
-          if (outcome.warnings.isNotEmpty) emit(ServiceOrderFiscalWarnings(outcome.warnings, orderId: about()));
-          await _rereadAfterAct(screen, event.orderId, emit);
+              args: [outcome.result.invoiceNumber], orderNumber: about()));
+          if (outcome.warnings.isNotEmpty) emit(ServiceOrderFiscalWarnings(outcome.warnings, orderNumber: about()));
+          await _rereadAfterAct(event.orderId, emit);
         },
       );
     } finally {
@@ -799,9 +829,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       final result = await fiscalWaiveCancel(event.orderId, event.reason);
       await result.fold(
         (failure) async {
-          emit(ServiceOrderActionFailure(failure, orderId: _outcomeOrder(screen, event.orderId)));
+          emit(ServiceOrderActionFailure(failure, orderNumber: _outcomeOrder(screen, event.orderId)));
           if (failure.code == FiscalCodes.cancelWaiverNotApplicable) {
-            await _rereadAfterAct(screen, event.orderId, emit);
+            await _rereadAfterAct(event.orderId, emit);
           } else {
             _endDetailAct(screen, emit);
           }
@@ -809,8 +839,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         (waiver) async {
           emit(ServiceOrderActionSuccess(
               waiver.alreadyWaived ? 'forms.serviceOrder.fiscalKeepAlready' : 'forms.serviceOrder.fiscalKeepDone',
-              orderId: _outcomeOrder(screen, event.orderId)));
-          await _rereadAfterAct(screen, event.orderId, emit);
+              orderNumber: _outcomeOrder(screen, event.orderId)));
+          await _rereadAfterAct(event.orderId, emit);
         },
       );
     } finally {
@@ -837,6 +867,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           await _reloadList(emit);
         },
         (pending) async {
+          // D-F187: o lote fiscal cita o nº da NOTA que a pendente traz
+          _pendingNoteNumbers = {for (final p in pending) p.orderId: p.number};
           emit(ServiceOrderFiscalPendingLoaded(pending));
           if (_onDetail) return;
           await _reloadList(emit);
@@ -862,7 +894,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
       _fiscalBatchRunning = false;   // D-F169: a recarga final já sai livre
-      emit(ServiceOrderFiscalBatchDone(report));
+      emit(ServiceOrderFiscalBatchDone(report, noteNumbers: {
+        for (final id in event.orderIds)
+          if (_pendingNoteNumbers[id] != null) id: _pendingNoteNumbers[id]!,
+      }));
       if (_onDetail) return;   // D-F174: com a OS aberta (ou a caminho), só o relatório (voltar à lista recarrega)
       await _reloadList(emit);
     } finally {
@@ -871,6 +906,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   }
 
   bool _fiscalBatchRunning = false;
+
+  /// D-F187: o nº da NOTA de cada OS da última fotografia das pendentes (o lote fiscal se identifica por ele).
+  Map<int, String?> _pendingNoteNumbers = const {};
 
   /// A tela saiu ([stopBatches]) — o lote fiscal para depois da nota em voo
   /// (D-F145; F2B-ADV-03) e o de faturamento depois do bloco em voo (D-F156).
