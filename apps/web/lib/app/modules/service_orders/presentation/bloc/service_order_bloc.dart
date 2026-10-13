@@ -159,11 +159,42 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// rodando. Cada lote baixa a própria marca ANTES da recarga final.
   bool get _batchInFlight => _batchRunning || _fiscalBatchRunning;
 
-  /// R7-SOC-03 (gate socrático da Rodada 7): a recarga SUPERADA (outra começou
-  /// depois — ex.: a página recriada pediu a lista no meio do lote e respondeu
-  /// DEPOIS da recarga final dele) não emite: a foto velha nunca sobrescreve a
-  /// nova (OS já faturadas voltando a "Abertas").
-  int _listGeneration = 0;
+  /// UM contador da TELA — "vale o último PEDIDO" (lista ou detalhe). Todo
+  /// pedido de tela (recarregar a lista, ver/abrir OS, um ato que troca a tela
+  /// pela lista em loading) sobe o contador; a resposta só emite se ainda for a
+  /// do último pedido. R7-SOC-03: a recarga SUPERADA nunca sobrescreve a nova;
+  /// D-F174: a lista em voo nunca derruba o detalhe aberto DEPOIS dela; R9-SOC-04
+  /// (dica do gate socrático da Rodada 9): e o detalhe em voo nunca vence uma
+  /// lista pedida DEPOIS dele (troca de aba, página recriada).
+  int _screenGeneration = 0;
+
+  /// O pedido de DETALHE em voo (ver/abrir OS — escolha do OPERADOR): o
+  /// número de tela dele. Enquanto ele é o último pedido, a tela "é o
+  /// detalhe" para as recargas AUTOMÁTICAS (o fim de um lote — D-F174): elas
+  /// não o atropelam (gate adversarial da Rodada 9 — a escolha do operador
+  /// vence; a recarga automática respeita o detalhe, aberto ou a caminho).
+  int? _pendingDetailScreen;
+
+  /// A tela é (ou vai ser) o detalhe — o fim de um lote só mostra o relatório.
+  bool get _onDetail =>
+      _detail != null || (_pendingDetailScreen != null && _pendingDetailScreen == _screenGeneration);
+
+  /// A tela vira a LISTA em loading (um ato de lista começou — lote, rotina
+  /// mensal, pendentes, abrir/ver OS): o detalhe SAI (`_detail` nulo —
+  /// R9-SOC-02: sem isto o fim do lote achava "OS aberta" e a tela ficava no
+  /// spinner). [supersede]: o pedido de tela em voo perde a vez (ver/abrir OS);
+  /// as operações LONGAS (lotes, rotina mensal, pendentes) passam false — o
+  /// detalhe que o operador pediu e ainda está a caminho VENCE (D-F174).
+  void _showListLoading(Emitter<ServiceOrderState> emit, {bool supersede = true}) {
+    if (supersede) _screenGeneration++;
+    _detail = null;
+    _fiscal = null;
+    _fiscalFailure = null;
+    _effect = null;
+    _effectFailure = null;
+    emit(ServiceOrderListState(
+        loading: true, status: _status, filter: _filter, criteria: _criteria));
+  }
 
   Future<void> _reloadList(Emitter<ServiceOrderState> emit) async {
     _detail = null;
@@ -171,12 +202,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _fiscalFailure = null;
     _effect = null;
     _effectFailure = null;
-    final generation = ++_listGeneration;
+    final generation = ++_screenGeneration;
     emit(ServiceOrderListState(
         loading: true, status: _status, filter: _filter, criteria: _criteria));
     final result = await getlist(_status, _filter,
         page: _page, pageSize: _pageSize, criteria: _criteria);
-    if (generation != _listGeneration) return;
+    if (generation != _screenGeneration) return;
     await result.fold(
       (failure) async {
         // Q-BA16 (a): critério recusado é descartado + aviso + recarga.
@@ -217,19 +248,30 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   /// Recarrega o detalhe (o totalizer é recalculado no servidor a cada
   /// operação de item).
-  Future<void> _reloadDetail(int id, Emitter<ServiceOrderState> emit) async {
+  /// [generation] = o pedido de tela que trouxe o detalhe (ver/abrir OS); sem
+  /// ele (um ato NO detalhe — item, faturar, fisco), vale a tela de agora: se
+  /// outra tela foi pedida enquanto o GET voava, o detalhe não volta por cima.
+  Future<void> _reloadDetail(int id, Emitter<ServiceOrderState> emit, {int? generation}) async {
+    final screen = generation ?? _screenGeneration;
     final result = await get(id);
+    if (screen != _screenGeneration) return;
+    if (_pendingDetailScreen == screen) _pendingDetailScreen = null;
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
         await _reloadList(emit);
       },
       (full) async {
+        final fiscal = await _fetchFiscal(full);
+        if (screen != _screenGeneration) return;
+        // R9-SOC-04/R9-ADV-03: o `_detail` e a voz do fisco nascem JUNTOS, no
+        // ponto em que o detalhe é EMITIDO — uma carga abandonada nunca deixa a
+        // voz de A no detalhe de B (D-F174 lê o `_detail` no fim dos lotes)
+        _fiscal = fiscal.view;
+        _fiscalFailure = fiscal.viewFailure;
+        _effect = fiscal.effect;
+        _effectFailure = fiscal.effectFailure;
         _detail = full;
-        await _loadFiscal(full);
-        // D-F174 (= Q-F182 (b), Valdo 2026-10-13 — R8-SOC-04): entrar no detalhe INVALIDA a recarga da lista em voo (a da página
-        // recriada, a final de um lote) — a resposta dela, que chegaria depois, tirava o operador da OS que ele abriu
-        _listGeneration++;
         emit(_detailState(full));
       },
     );
@@ -239,21 +281,25 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// PARALELO (D-F139): a voz do fisco (nfse-api) e o efeito na nota (ERP).
   /// Uma falha não derruba o detalhe nem a outra fonte — fica no estado e a
   /// seção mostra cada uma pelo que é.
-  Future<void> _loadFiscal(ServiceOrderFull order) async {
-    _fiscal = null;
-    _fiscalFailure = null;
-    _effect = null;
-    _effectFailure = null;
-    if (order.isOpen) return;
+  /// R9-ADV-03 (gate adversarial da Rodada 9): devolve as duas fontes como
+  /// VALOR (antes gravava no bloc no meio da carga — a carga abandonada de A
+  /// sobrescrevia a voz no detalhe de B).
+  Future<_FiscalSnapshot> _fetchFiscal(ServiceOrderFull order) async {
+    if (order.isOpen) return const _FiscalSnapshot();
     final results = await Future.wait([fiscalGet(order.id), fiscalEffectGet(order.id)]);
+    ServiceOrderFiscalView? view;
+    Failure? viewFailure;
+    ServiceOrderFiscalEffect? effect;
+    Failure? effectFailure;
     (results[0] as Either<Failure, ServiceOrderFiscalView>).fold(
-      (failure) => _fiscalFailure = failure,
-      (view) => _fiscal = view,
+      (failure) => viewFailure = failure,
+      (v) => view = v,
     );
     (results[1] as Either<Failure, ServiceOrderFiscalEffect>).fold(
-      (failure) => _effectFailure = failure,
-      (effect) => _effect = effect,
+      (failure) => effectFailure = failure,
+      (e) => effect = e,
     );
+    return _FiscalSnapshot(view: view, viewFailure: viewFailure, effect: effect, effectFailure: effectFailure);
   }
 
   Future<void> _onListRequested(
@@ -270,27 +316,28 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _onOpenRequested(
       ServiceOrderOpenRequested event, Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
+    _showListLoading(emit);   // R9-SOC-04 (i): a lista em voo perde a vez já no POST
+    final screen = _screenGeneration;
+    _pendingDetailScreen = screen;
     final result = await post(event.customerId);
     await result.fold(
       (failure) async {
+        if (_pendingDetailScreen == screen) _pendingDetailScreen = null;
         emit(ServiceOrderActionFailure(failure));
-        await _reloadList(emit);
+        if (screen == _screenGeneration) await _reloadList(emit);
       },
       (id) async {
         emit(const ServiceOrderActionSuccess('forms.serviceOrder.opened'));
-        await _reloadDetail(id, emit);
+        await _reloadDetail(id, emit, generation: screen);
       },
     );
   }
 
   Future<void> _onViewRequested(
       ServiceOrderViewRequested event, Emitter<ServiceOrderState> emit) async {
-    _listGeneration++;   // D-F174: a lista em voo não emite por cima do detalhe que vai abrir
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
-    await _reloadDetail(event.id, emit);
+    _showListLoading(emit);   // D-F174/R9-SOC-04: a lista em voo não emite por cima do detalhe que vai abrir
+    _pendingDetailScreen = _screenGeneration;
+    await _reloadDetail(event.id, emit, generation: _screenGeneration);
   }
 
   Future<void> _onCancelRequested(
@@ -356,8 +403,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onMonthlyRunRequested(
       ServiceOrderMonthlyRunRequested event,
       Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
+    _showListLoading(emit, supersede: false);
     final result = await monthlyRun(event.year, event.month);
     await result.fold(
       (failure) async {
@@ -407,8 +453,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _runBatch(ServiceOrderBatchInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
-    emit(ServiceOrderListState(
-        loading: true, status: _status, filter: _filter, criteria: _criteria));
+    _showListLoading(emit, supersede: false);
     final ids = event.orderIds.toSet().toList();
     final parts = <BatchInvoiceReport>[];
     Failure? aborted;
@@ -442,15 +487,17 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final failure = aborted;
     _batchRunning = false;   // D-F169: a recarga final já sai livre
     if (failure != null && parts.length == 1) {
-      // 1º bloco falhou: nada faturado, comportamento de sempre
+      // 1º bloco falhou: nada faturado, comportamento de sempre — e a OS aberta
+      // no meio fica (D-F174 também no "fim" por falha — R9-SOC-01)
       emit(ServiceOrderActionFailure(failure));
+      if (_onDetail) return;
       await _reloadList(emit);
       return;
     }
     emit(ServiceOrderBatchInvoiceDone(BatchInvoiceReport.merge(parts)));
     // D-F174: o operador abriu uma OS no meio do lote (que pode levar dezenas de minutos) — o fim mostra o relatório e NÃO o tira do
-    // detalhe; voltar à lista recarrega (BackToList)
-    if (_detail != null) return;
+    // detalhe; voltar à lista recarrega (BackToList) — aberto OU a caminho
+    if (_onDetail) return;
     await _reloadList(emit);
   }
 
@@ -710,7 +757,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onFiscalPendingRequested(ServiceOrderFiscalPendingRequested event,
       Emitter<ServiceOrderState> emit) async {
     if (_fiscalBatchRunning) return;
-    emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
+    _showListLoading(emit, supersede: false);
     final result = await fiscalPending();
     await result.fold(
       (failure) async {
@@ -733,14 +780,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _fiscalBatchRunning = true;
     _fiscalBatchStop = false;
     try {
-      emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
+      _showListLoading(emit, supersede: false);
       // D-F156: [stopBatches] (ou o bloc fechado) é o sinal, conferido a CADA
       // nota — o close do bloc 8 não interrompe este handler (R5-SOC-02)
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
       _fiscalBatchRunning = false;   // D-F169: a recarga final já sai livre
       emit(ServiceOrderFiscalBatchDone(report));
-      if (_detail != null) return;   // D-F174: com a OS aberta, só o relatório (voltar à lista recarrega)
+      if (_onDetail) return;   // D-F174: com a OS aberta (ou a caminho), só o relatório (voltar à lista recarrega)
       await _reloadList(emit);
     } finally {
       _fiscalBatchRunning = false;
@@ -767,4 +814,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _fiscalBatchStop = true;
     _invoiceBatchStop = true;
   }
+}
+
+/// As duas fontes da seção "No fisco" de UMA OS (a voz da nfse-api e o efeito
+/// do ERP) — um valor, gravado no bloc só junto do detalhe que descreve.
+class _FiscalSnapshot {
+  const _FiscalSnapshot({this.view, this.viewFailure, this.effect, this.effectFailure});
+  final ServiceOrderFiscalView? view;
+  final Failure? viewFailure;
+  final ServiceOrderFiscalEffect? effect;
+  final Failure? effectFailure;
 }

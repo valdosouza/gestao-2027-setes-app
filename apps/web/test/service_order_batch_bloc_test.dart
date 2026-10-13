@@ -242,6 +242,75 @@ void main() {
     });
   });
 
+  group('R9-SOC-01/02/04 (gate socrático da Rodada 9): UM contador da tela — vale o último pedido', () {
+    void detailOf(int id) =>
+        when(() => repo.getById(any())).thenAnswer((_) async => Right(ServiceOrderFull(id: id, customerId: 1, status: 'A')));
+    List<ServiceOrderState> shownOf(List<ServiceOrderState> s) =>
+        s.where((x) => x is ServiceOrderListState || x is ServiceOrderDetailState).toList();
+
+    test('R9-SOC-04 (ii): o detalhe em voo NÃO vence uma lista pedida DEPOIS dele (troca de aba)', () async {
+      final slow = Completer<Either<Failure, ServiceOrderFull>>();
+      when(() => repo.getById(any())).thenAnswer((_) => slow.future);
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const ServiceOrderListRequested(status: 'F', filter: ''));                    // o operador trocou de aba
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      slow.complete(const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));        // o detalhe chega DEPOIS
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      expect(shownOf(states).last, isA<ServiceOrderListState>());
+      expect(states.whereType<ServiceOrderDetailState>(), isEmpty);
+    });
+
+    test('R9-SOC-02: o lote começa com um detalhe "aberto" atrás do diálogo → a tela vira a lista e o FIM recarrega (nunca fica no spinner)', () async {
+      detailOf(7);
+      faturaTudo();
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(3), input: _input));
+      await done;
+      await sub.cancel();
+      await bloc.close();
+      expect(states.whereType<ServiceOrderBatchInvoiceDone>(), hasLength(1));
+      final last = shownOf(states).last as ServiceOrderListState;
+      expect(last.loading, isFalse);
+    });
+
+    test('R9-SOC-01: o 1º bloco do lote FALHA (504) com uma OS aberta no meio → a falha aparece e o operador FICA na OS', () async {
+      final gate = Completer<void>();
+      when(() => repo.batchInvoice(any(), any())).thenAnswer((_) async {
+        await gate.future;
+        return const Left(Failure(message: 'gw', statusCode: 504));
+      });
+      detailOf(9);
+      when(() => repo.open(any())).thenAnswer((_) async => const Right(9));
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(60), input: _input));
+      await Future<void>.delayed(Duration.zero);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderOpenRequested(5));                                              // o FAB no meio do lote
+      await detail;
+      final failed = bloc.stream.firstWhere((s) => s is ServiceOrderActionFailure);
+      gate.complete();
+      await failed;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      expect(shownOf(states).last, isA<ServiceOrderDetailState>());
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {
