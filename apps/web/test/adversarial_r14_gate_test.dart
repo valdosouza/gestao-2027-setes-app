@@ -521,6 +521,7 @@ void main() {
         var stepHadOutcome = false;
         ServiceOrderState? stepStartState;   // o estado do bloc no começo do passo (o `emit` IGUAL ao atual é engolido — Equatable)
         var stepEmits = 0;                   // R15-SOC-04 (i): as emissões do passo corrente (a tolerância do desfecho engolido exige a 1ª)
+        var stepOk = true;                   // R16-ADV-02: o passo de completar deu certo? (a causa do desfecho engolido é um get/post que FALHOU)
         var stepPlanShown = false;
         final violations = <String>[];
         String why() => 'seed $seed\n${trace.join('\n')}';
@@ -617,7 +618,10 @@ void main() {
           } else if (s is ServiceOrderListState) {
             if (stepKind == 'complete') {
               if (onWay() || last == 'detail') {
-                if (!stepHadOutcome && stepStartState is ServiceOrderActionFailure && stepEmits == 1) {
+                // R16-ADV-02: e só quando a CAUSA é a de verdade — um get/post que FALHOU no passo (os únicos fins que emitem a falha e
+                // logo a lista); uma lista velha com uma falha qualquer no estado de partida reprova
+                final swallowCause = !stepOk && const {'get', 'post'}.contains(stepFlight?.kind);
+                if (!stepHadOutcome && stepStartState is ServiceOrderActionFailure && stepEmits == 1 && swallowCause) {
                   // R14-ADV-02: o desfecho do passo era IGUAL ao estado atual (a mesma falha, o mesmo número) e o bloc o engoliu — R15-SOC-04 (i):
                   // só quando a lista é a 1ª emissão do passo (o desfecho engolido vem ANTES dela); um passo que emitiu outra coisa antes da
                   // lista sem desfecho é violação, parta de onde partir
@@ -651,6 +655,7 @@ void main() {
             openSeq++;
           }
           stepKind = 'add';
+          stepOk = true;
           stepEvent = e;
           stepFlight = null;
           stepHadOutcome = false;
@@ -671,6 +676,7 @@ void main() {
           if (planOfTheWay >= 0 && rnd.nextBool()) i = planOfTheWay;
           final f = flights.removeAt(i);
           final ok = rnd.nextDouble() < okRate;
+          stepOk = ok;
           // (3) o 1º passo do cancelamento: o diálogo SE E SÓ SE o modelo é a OS dele (aberta ou a caminho)
           final planOwn = (last == 'view' || last == 'detail') && os == f.os;
           if (f.kind == 'post' && ok && last == 'open' && f.tag == 'open$openSeq') os = _newId;   // a OS a caminho ganha o id

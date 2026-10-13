@@ -212,7 +212,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// D-F199 (= Q-F198-SOC-01 (a) = Q-F198-ADV-01 (a), Valdo 2026-10-13 — autorização em pé; R15-SOC-01 = R15-ADV-01): "a tela que o ato
   /// capturou ainda é o detalhe DESTA OS" — UM predicado para todo ponto que re-emite o detalhe capturado ou tira o operador dele (o
   /// fim sem recarga, a troca de aba do Faturar). As decisões "a tela é a OS do ato" (prefixo, releitura, plano, lista depois de cancelar
-  /// a OS) são do [_showsOrder]. Hoje todo ato nasce no detalhe dele; a garantia é do bloc, não da página.
+  /// a OS) são do [_showsOrder]. A garantia é do bloc, não da página. Por que nada ALCANÇÁVEL mudou (R16-SOC-03 — não é "todo ato nasce no
+  /// detalhe dele": a D-F197 e a D-F184 desmentem): (I1) com a marca "a caminho" na tela de agora o `_detail` é nulo; (I2) o `_detail` só
+  /// troca de OS por um pedido de tela, que sobe o contador antes do GET; (I3) a página só despacha um ato com a OS do detalhe à vista ou de
+  /// um diálogo MODAL aberto sobre ela. Um diálogo que deixe de ser modal, ou uma releitura que troque o `_detail` sem subir o contador, torna
+  /// alcançável a região que este predicado fecha — a cerca é o diferencial do fuzz de página do gate R15 (`beginOnOtherDetail` = 0).
   bool _stillOnActDetail(int screen, int orderId) => _stillOnDetail(screen) && _detail?.id == orderId;
 
   /// O começo de um ato NO detalhe: marca saving e devolve a tela capturada (R10-SOC-03). R14-SOC-05 (gate socrático da Rodada 14 —
@@ -220,9 +224,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// passa a ser do bloc, não da página (D-F199 fecha o fim do ato pela mesma regra). CONHECIMENTO NEGATIVO (D-F197 = Q-F197-ADV-01
   /// (a)): o ato nascido com a OS A CAMINHO (o plano aberto sobre a lista em loading — D-F194) não marca `saving`; a OS chega com os
   /// botões abertos e o 2º clique cai na trava por nota (D-F183) — o limite conhecido da D-F191 (b), pela porta da D-F194. D-F200
-  /// (= Q-F198-SOC-02 (a)): a mesma porta abre a RECONFERÊNCIA (plano com barreira `reconfirm`), que não tem trava por nota — o 2º
-  /// clique manda outra consulta; quem protege é o servidor (a nfse-api serializa pela trava da nota: 409 `RESOURCE_BUSY` ou "a
-  /// tentativa mudou", que o app diz como "resultado incerto — consulte" — D-F162) e a consulta não tem efeito no fisco.
+  /// (= Q-F198-SOC-02 (a); premissa corrigida pelo R16-SOC-01): a mesma porta abre a RECONFERÊNCIA (plano com barreira `reconfirm`), que
+  /// não tem trava por nota — o 2º clique manda outra consulta. Aceito porque a DUPLICATA É INOFENSIVA, não porque o servidor serializa: é
+  /// um `GET /dps` no fisco (sem efeito) e a prova do E2404 pousa por UPDATE condicional à última voz vista (D-F90 — sem trava longa); duas
+  /// juntas = dois GET, dois carimbos (o 2º mais novo, ainda posterior ao F) e duas "provada"; só o fisco ACHAR a nota passa pela trava da
+  /// nota (reconciliação).
   int _beginDetailAct(Emitter<ServiceOrderState> emit, int orderId) {
     final detail = _detail;
     if (detail != null && detail.id == orderId) emit(_detailState(detail, saving: true));
@@ -232,7 +238,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// O fim SEM recarga de um ato no detalhe: o detalhe volta (sem saving) só se a tela ainda é o detalhe DESTA OS (R10-SOC-03 + D-F199).
   /// CONHECIMENTO NEGATIVO (D-F201 = Q-F198-ADV-02 (a), R15-ADV-02 — a família da D-F191 (b)): não há contador de atos por OS; o fim
   /// de um ato devolve os botões mesmo com OUTRO ato da MESMA OS ainda no ar (a releitura do 1º reabriu a tela; o operador disparou o
-  /// 3º; o fim do 2º o desmarca). As travas por nota (Transmitir/Cancelar/Manter) e o servidor protegem; nada conta "atos em voo".
+  /// 3º; o fim do 2º — que nasceu DEPOIS de a releitura do 1º ser PEDIDA, por isso no mesmo contador do 3º (R16-SOC-06) — o desmarca). As
+  /// travas por nota (Transmitir/Cancelar/Manter) e o servidor protegem; nada conta "atos em voo". D-F203 (= Q-F199-ADV-01 (a), R16-ADV-01):
+  /// pela mesma raiz, o Faturar na OS aberta com OUTRO ato dela relido no meio (o contador subiu) RELÊ a OS em vez de trocar para a aba
+  /// Faturadas — a nota aparece no detalhe; a aba fica para o operador.
   void _endDetailAct(int screen, int orderId, Emitter<ServiceOrderState> emit) {
     final detail = _detail;
     if (detail != null && _stillOnActDetail(screen, orderId)) emit(_detailState(detail));

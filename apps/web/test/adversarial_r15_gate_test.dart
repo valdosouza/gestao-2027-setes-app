@@ -462,9 +462,9 @@ void main() {
 
     test('[DECIDIDO D-F200 — Q-F198-SOC-02 (a), R15-SOC-03] a RECONFERÊNCIA nascida com a OS A CAMINHO (a porta da D-F194: o plano com '
         'barreira `reconfirm` aberto sobre a lista) não tem trava por nota: a OS chega com os botões abertos (sem `saving` — D-F197) e o 2º '
-        'clique MANDA outra reconferência à nfse-api com a 1ª no ar. Quem protege é o servidor (a trava da nota — 409 `RESOURCE_BUSY` ou "a '
-        'tentativa mudou" → "resultado incerto — consulte", D-F162) e a consulta não tem efeito no fisco. Diferente do Transmitir/Cancelar/'
-        'Manter (D-F183 — trava por nota)', () async {
+        'clique MANDA outra reconferência à nfse-api com a 1ª no ar. Aceito porque a DUPLICATA É INOFENSIVA (R16-SOC-01 — não porque o '
+        'servidor serializa): um `GET /dps` no fisco sem efeito + o carimbo condicional da prova do E2404 (D-F90); só o fisco achar a nota '
+        'passa pela trava da nota. Diferente do Transmitir/Cancelar/Manter (D-F183 — trava por nota)', () async {
       final calls = <Completer<Either<Failure, ServiceOrderFiscalReconfirmResult>>>[];
       when(() => nfse.reconfirm(_aId)).thenAnswer((_) {
         final c = Completer<Either<Failure, ServiceOrderFiscalReconfirmResult>>();
@@ -800,6 +800,8 @@ void main() {
       _ActRec? stepAct;
       var stepHadOutcome = false;
       ServiceOrderState? stepStartState;
+      var stepEmits = 0;     // R16-SOC-02: as emissões do passo (o desfecho engolido exige a lista como 1ª)
+      var stepOk = true;     // R16-ADV-02: o desfecho do passo de completar (a causa do desfecho engolido é um get/post que FALHOU)
       var stepPlanShown = false;
       final violations = <String>[];
       String why() => 'seed $seed (direct=$direct)\n${trace.join('\n')}';
@@ -874,6 +876,7 @@ void main() {
       final sub = bloc.stream.listen((s) {
         final before = _shownOrNull(states);   // a tela ANTES desta emissão
         states.add(s);
+        stepEmits++;
         if (s is ServiceOrderListState) seen.addAll(s.items.map((i) => i.id));
         if (s is ServiceOrderDetailState) seen.add(s.order.id);
         final (isOutcome, about) = _outcome(s);
@@ -942,7 +945,8 @@ void main() {
                 }
               }
               final startState = stepStartState;
-              if (!stepHadOutcome && startState != null && _outcome(startState).$1) {
+              final swallowCause = stepKind == 'complete' && !stepOk && const {'get', 'post'}.contains(stepFlight?.kind);
+              if (!stepHadOutcome && startState is ServiceOrderActionFailure && stepEmits == 1 && swallowCause) {
                 count('D-F198 outcomeSwallowed');   // o desfecho do passo era IGUAL ao estado atual e o bloc o engoliu (limite aceito)
               } else if (!stepHadOutcome) {
                 violations.add('(2) lista emitida com o modelo em $last $os, sem desfecho no passo — ${why()}');
@@ -982,12 +986,16 @@ void main() {
             : _ActRec(actOs,
                 bornOnOpen: last == 'detail' && os == actOs && before is ServiceOrderDetailState && before.order.id == actOs && !before.saving,
                 opSeq: opSeq,
-                siblingInFlight: flights.any((x) => actKinds.contains(x.kind) && x.act != null && x.act!.os == actOs));
+                // R16-ADV-03 (gate adversarial da Rodada 16): o irmão em voo é QUALQUER parte da cadeia de outro ato da mesma OS (a chamada
+                // decisiva, a releitura, a voz, o efeito) — só a decisiva reprovava por engano a cascata da D-F201 vinda da saga a caminho
+                siblingInFlight: flights.any((x) => x.act != null && x.act!.os == actOs));
         if (actOs != null && before is ServiceOrderDetailState && before.order.id != actOs) count('beginOnOtherDetail');
         stepKind = 'add';
+        stepOk = true;
         stepEvent = e;
         stepFlight = null;
         stepHadOutcome = false;
+        stepEmits = 0;
         stepPlanShown = false;
         stepStartState = states.lastOrNull;
         if (!bloc.isClosed) bloc.add(e);                                              // o `_dispatch` da página (D-F184)
@@ -1004,6 +1012,7 @@ void main() {
         if (planOfTheWay >= 0 && rnd.nextBool()) i = planOfTheWay;
         final f = flights.removeAt(i);
         final ok = rnd.nextDouble() < okRate;
+        stepOk = ok;
         final planOwn = (last == 'view' || last == 'detail') && os == f.os;
         if (f.kind == 'post' && ok && last == 'open' && f.tag == 'open$openSeq') os = _newId;   // a OS a caminho ganha o id
         final at = states.length;
@@ -1013,6 +1022,7 @@ void main() {
         stepFlight = f;
         stepAct = null;
         stepHadOutcome = false;
+        stepEmits = 0;
         stepPlanShown = false;
         stepStartState = states.lastOrNull;
         f.finish(ok);
