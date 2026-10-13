@@ -46,14 +46,24 @@ class EstablishmentIssuerDatasourceImpl
 
   static const _base = '/v1/emitter';
 
-  Map<String, dynamic> _data(Map<String, dynamic> json) =>
-      json['data'] as Map<String, dynamic>? ?? const {};
+  /// F2B-RG-07/SOCD-08: `{ ok: true, data: {…} }` ou falha técnica (nunca "sem
+  /// certificado"/SE renascendo em H sobre `{}`); tipo trocado na leitura =
+  /// falha do catálogo — a seção só captura Failure (o TypeError deixava o
+  /// spinner para sempre).
+  T _read<T>(Map<String, dynamic> json, T Function(Map<String, dynamic>) parse) {
+    final data = envelopeData(json);
+    try {
+      return parse(data);
+    } on Failure {
+      rethrow;
+    } catch (e) {
+      throw invalidResponseFailure(e);
+    }
+  }
 
-  EstablishmentIssuerView _view(Map<String, dynamic> json) =>
-      EstablishmentIssuerView.fromJson(_data(json));
+  EstablishmentIssuerView _view(Map<String, dynamic> json) => _read(json, EstablishmentIssuerView.fromJson);
 
-  IssuerCertStatus _cert(Map<String, dynamic> json) =>
-      IssuerCertStatus.fromJson(_data(json));
+  IssuerCertStatus _cert(Map<String, dynamic> json) => _read(json, IssuerCertStatus.fromJson);
 
   @override
   Future<EstablishmentIssuerView> get() async => _view(await client.get(_base));

@@ -27,6 +27,15 @@ class LocalPrefs {
     return prefs.getString(_kSessionToken);
   }
 
+  /// A sessão salva relida do ARMAZENAMENTO (não do cache desta aba) — o
+  /// ouvinte de expiração compara com ela: outra aba pode ter entrado de novo
+  /// (F2B-RG-03: o cache desta aba ainda tinha o token velho).
+  Future<String?> getSessionTokenFresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    return prefs.getString(_kSessionToken);
+  }
+
   Future<void> setSessionToken(String? token) async {
     final prefs = await SharedPreferences.getInstance();
     if (token == null || token.isEmpty) {

@@ -259,12 +259,3 @@ class ServiceOrderFiscalTransmitBatchRequested extends ServiceOrderEvent {
   List<Object?> get props => [orderIds];
 }
 
-/// A tela SAIU (dispose da página): o lote em andamento para depois da nota em
-/// voo — D-F145 ("tela fechada para"). Gate adversarial da F2b (F2B-ADV-03): o
-/// Modular nunca fecha o bloc, então o `isClosed` sozinho não parava nada.
-class ServiceOrderFiscalBatchStopRequested extends ServiceOrderEvent {
-  const ServiceOrderFiscalBatchStopRequested();
-
-  @override
-  List<Object?> get props => const [];
-}

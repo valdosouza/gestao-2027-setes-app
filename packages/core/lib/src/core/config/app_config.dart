@@ -25,12 +25,17 @@ class AppConfig {
         ...urlProblems('API_URL', baseApiUrl),
       ];
 
+  /// Host DNS (rótulos) ou IP (o `Uri.host` do IPv6 vem sem colchetes).
+  static final _dnsHost = RegExp(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$');
+  static final _ipv6Host = RegExp(r'^[0-9a-f:.]+$');
+
   /// Por que [value] não serve de base de API (D-F146 + gate adversarial da
   /// F2b, F2B-ADV-10): vazia; sem esquema http(s) ou sem host (a URI nunca sai
   /// do navegador e a falha pareceria "rede caída"); `http://` fora de
   /// localhost (o navegador da produção é https — e o CORS da nfse-api só
   /// aceita http em localhost); com consulta ou fragmento. Barra final é
-  /// tolerada (o cliente a tira).
+  /// tolerada (o cliente a tira). Também o que o NAVEGADOR recusa e o Dart
+  /// aceita (F2B-RG-08): credenciais na URL, porta fora da faixa, host torto.
   static List<String> urlProblems(String name, String value) {
     final v = value.trim();
     if (v.isEmpty) return ['$name (vazia)'];
@@ -42,6 +47,11 @@ class AppConfig {
       return ['$name (http:// só em localhost — fora dele, https://: $v)'];
     }
     if (u.hasQuery || u.hasFragment) return ['$name (sem consulta nem fragmento: $v)'];
+    // o que o NAVEGADOR recusa e o Dart aceita (F2B-RG-08): sem isto cada ato
+    // viraria NetworkFailure = "desfecho desconhecido"
+    if (u.userInfo.isNotEmpty) return ['$name (sem credenciais na URL: $v)'];
+    if (u.hasPort && (u.port < 1 || u.port > 65535)) return ['$name (porta fora de 1–65535: $v)'];
+    if (!_dnsHost.hasMatch(u.host) && !_ipv6Host.hasMatch(u.host)) return ['$name (host fora da forma DNS/IP: $v)'];
     return const [];
   }
 }

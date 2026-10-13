@@ -15,8 +15,10 @@ class AppModule extends Module {
   List<Bind> get binds => [
         // D-F138 (F2b): UM token do produto (ProductToken) para as N APIs —
         // cada API tem o seu cliente (base de URL própria), todos leem o
-        // token daqui a cada requisição; 401 com token = sessão morta (o
-        // AppWidget volta ao login — uma vez, para todas as APIs)
+        // token daqui a cada requisição. 401 com token do EMISSOR (o setes-api)
+        // = sessão morta (o AppWidget volta ao login — uma vez, para todas as
+        // APIs); 401 de quem NÃO emitiu (nfse-api) só depois de o emissor
+        // confirmar (D-F148 — ProductToken.confirm, ligado no AppWidget)
         Bind.singleton<ProductToken>((_) => ProductToken()),
         Bind.singleton<ApiClient>((i) => ApiClient(session: i.get<ProductToken>())),
         // D-F4: a nfse-api (NFS-e) é falada DIRETO pelo app — datasource

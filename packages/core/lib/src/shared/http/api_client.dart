@@ -23,6 +23,11 @@ abstract final class ClientFailureCodes {
   static const sessionNotAccepted = 'SESSION_NOT_ACCEPTED';
 }
 
+/// As rotas de `/auth` que NÃO levam a sessão (o setes-api as serve sem o
+/// `authMiddleware`): o 401 delas é de negócio. Qualquer outra `/auth/…` (a
+/// `switch-institution`) leva o Bearer da sessão.
+const _publicAuthPaths = {'/auth/login', '/auth/select-institution', '/auth/recovery-password', '/auth/change-password'};
+
 /// O `data` OBJETO do envelope `{ ok: true, data: {…} }` — senão falha técnica
 /// [ClientFailureCodes.invalidResponse] (F2B-ADV-04: `{}` virava "não
 /// transmitida", "nada pendente" e "autorizada com chave vazia").
@@ -140,10 +145,11 @@ abstract class ProductApiClient {
       );
     }
     // o token da SESSÃO que esta requisição leva. O de seleção do login
-    // (overrideToken) não é sessão, e as rotas `/auth/*` (login, seleção,
-    // recuperação e troca de senha) não levam a sessão: o 401 delas é de
-    // NEGÓCIO (senha errada), nunca expiração (F2B-ADV-16).
-    final sessionToken = overrideToken == null && !path.startsWith('/auth/') ? session.value : null;
+    // (overrideToken) não é sessão, e as rotas PÚBLICAS de `/auth` (login,
+    // seleção, recuperação e troca de senha — LISTA, nunca o prefixo: a
+    // `/auth/switch-institution` exige a sessão — F2B-RG-04/SOCD-02) não a
+    // levam: o 401 delas é de NEGÓCIO (senha errada), nunca expiração (F2B-ADV-16).
+    final sessionToken = overrideToken == null && !_publicAuthPaths.contains(path) ? session.value : null;
     final bearer = overrideToken ?? sessionToken;
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -189,11 +195,14 @@ abstract class ProductApiClient {
       }
       // D-F148: quem não emitiu o token não decide sozinho que a sessão morreu
       if (await session.confirm(sessionToken) == SessionCheck.alive) {
+        // o suporte vê o código e a frase de ORIGEM (kid desconhecido ×
+        // institution divergente — F2B-SOCD-07), nunca só "não aceita"
+        final origin = [body['code'], body['error'] ?? body['ref']].whereType<String>().where((s) => s.isNotEmpty).join(': ');
         throw Failure(
           message: 'core.errors.sessionNotAccepted',
           statusCode: 401,
           code: ClientFailureCodes.sessionNotAccepted,
-          supportRef: (body['ref'] as String?) ?? (body['error'] as String?),
+          supportRef: origin.isEmpty ? null : origin,
         );
       }
       throw unauthorized;

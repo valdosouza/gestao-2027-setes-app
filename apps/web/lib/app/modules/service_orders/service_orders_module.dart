@@ -142,7 +142,16 @@ class ServiceOrdersModule extends Module {
               fiscalPending: i.get<ServiceOrderFiscalPendingList>(),
               fiscalTransmitBatch: i.get<ServiceOrderFiscalTransmitBatch>(),
               fiscalWaiveCancel:   i.get<ServiceOrderFiscalWaiveCancel>(),
-            )),
+            ),
+            // D-F156 (= Q-F164 (a), Valdo 2026-10-13 — F2B-ADV-03): o Modular 5
+            // só descarta Disposable/onDispose — sem isto o bloc NUNCA fechava.
+            // Fechar corta os dois lotes entre uma unidade e a próxima (o fiscal
+            // depois da nota em voo — D-F145; o de faturamento entre blocos —
+            // decide a Q-R5.2); o que já foi feito fica na lista
+            onDispose: (bloc) {
+              bloc.stopBatches();
+              bloc.close();
+            }),
       ];
 
   @override

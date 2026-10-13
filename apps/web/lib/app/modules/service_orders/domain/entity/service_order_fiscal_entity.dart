@@ -532,13 +532,16 @@ abstract final class FiscalCodes {
 /// Gate adversarial da F2b (F2B-ADV-01/ADV-04/ADV-12): também o 408/502/503/504
 /// SEM código da casa (o gateway — nginx/Plesk — desistiu antes da nfse-api, que
 /// pode estar com a tentativa em voo) e a resposta 2xx que não é o envelope ou
-/// não se lê (a resposta não diz o que aconteceu). O 500 da nfse-api segue como
-/// falha comum (Q-F163).
+/// não se lê (a resposta não diz o que aconteceu). D-F155 (= Q-F163 (a), Valdo
+/// 2026-10-13): o 500 da nfse-api (`INTERNAL` ou sem código) também — ela pode
+/// ter falhado DEPOIS de falar com o fisco. Só os ATOS usam este classificador;
+/// nas LEITURAS a falha segue comum ("indisponível").
 bool isUnknownAuthorityOutcome(Failure failure) {
   if (failure is NetworkFailure) return true;
   final code = failure.code ?? '';
   if (code == FiscalCodes.authorityUnknown || code == FiscalCodes.authorityUnavailable) return true;
   if (code == ClientFailureCodes.invalidResponse) return true;
+  if (failure.statusCode == 500 && (code.isEmpty || code == 'INTERNAL')) return true;
   return code.isEmpty && _gatewayStatuses.contains(failure.statusCode);
 }
 

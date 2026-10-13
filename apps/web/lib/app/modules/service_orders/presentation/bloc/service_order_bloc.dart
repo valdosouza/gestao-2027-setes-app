@@ -85,7 +85,6 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderFiscalPendingRequested>(_onFiscalPendingRequested);
     on<ServiceOrderFiscalTransmitBatchRequested>(
         _onFiscalTransmitBatchRequested);
-    on<ServiceOrderFiscalBatchStopRequested>((_, __) => _fiscalBatchStop = true);
   }
 
   final ServiceOrderGetlist getlist;
@@ -375,6 +374,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     // loading pela página.
     if (_batchRunning) return;
     _batchRunning = true;
+    _invoiceBatchStop = false;
     try {
       await _runBatch(event, emit);
     } finally {
@@ -392,10 +392,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     final parts = <BatchInvoiceReport>[];
     Failure? aborted;
     for (var start = 0; start < ids.length; start += batchInvoiceChunkSize) {
-      // M4 do gate: bloc fechado (módulo desmontado) = PARAR de enviar blocos —
-      // o que já rodou está na aba Faturadas; o resto continua aberto. A
-      // política para "fechou a aba do navegador" é a Q-R5.2 (Valdo).
-      if (isClosed) return;
+      // M4 do gate: a tela saiu (módulo desmontado) = PARAR de enviar blocos —
+      // o que já rodou está na aba Faturadas; o resto continua aberto.
+      // D-F156 (= Q-F164 (a) — decide a Q-R5.2): [stopBatches] (dispose da
+      // página e onDispose do módulo). O `isClosed` do bloc 8 só vira true
+      // DEPOIS de os handlers terminarem (o close os espera) — não serve de sinal.
+      if (isClosed || _invoiceBatchStop) return;
       final chunk = ids.sublist(
           start, (start + batchInvoiceChunkSize).clamp(0, ids.length));
       final result = await batchInvoice(chunk, event.input);
@@ -415,7 +417,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       );
       if (stop) break;
     }
-    if (isClosed) return;
+    if (isClosed || _invoiceBatchStop) return;
     final failure = aborted;
     if (failure != null && parts.length == 1) {
       // 1º bloco falhou: nada faturado, comportamento de sempre
@@ -707,6 +709,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _fiscalBatchStop = false;
     try {
       emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
+      // D-F156: [stopBatches] é o sinal (o `isClosed` só vira true depois de
+      // este handler terminar — o close do bloc 8 espera os handlers)
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
       emit(ServiceOrderFiscalBatchDone(report));
@@ -718,7 +722,19 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   bool _fiscalBatchRunning = false;
 
-  /// A tela saiu ([ServiceOrderFiscalBatchStopRequested]) — o lote para depois
-  /// da nota em voo (D-F145; F2B-ADV-03).
+  /// A tela saiu ([stopBatches]) — o lote fiscal para depois da nota em voo
+  /// (D-F145; F2B-ADV-03) e o de faturamento depois do bloco em voo (D-F156).
   bool _fiscalBatchStop = false;
+  bool _invoiceBatchStop = false;
+
+  /// A TELA SAIU — o dispose da página e o `onDispose` do módulo (D-F156 =
+  /// Q-F164 (a), Valdo 2026-10-13). Os dois lotes param depois da unidade em
+  /// voo (a nota no fisco; o bloco de faturamento): o que já foi feito fica na
+  /// lista; tela fechada = sem relatório. Síncrono e seguro com o bloc já
+  /// fechado (o `close()` do bloc 8 não interrompe handler em andamento — o
+  /// `isClosed` só vira true quando eles terminam).
+  void stopBatches() {
+    _fiscalBatchStop = true;
+    _invoiceBatchStop = true;
+  }
 }

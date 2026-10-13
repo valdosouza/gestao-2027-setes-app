@@ -72,9 +72,12 @@ class ServiceOrderCancelInvoice {
       final plan = await invoice.cancelPlan(orderId);
       final planFailure = plan.fold<Failure?>(
         (f) => f,
-        (p) => p.onlyAuthorityStands
-            ? null
-            : const Failure(message: 'forms.serviceOrder.fiscalSituationChanged', code: FiscalCodes.cancelPlanChanged),
+        (p) => p.orderId != 0 && p.orderId != orderId
+            // o plano de OUTRA nota nunca autoriza ir ao fisco (F2B-RG-05 — a 1ª leitura, no bloc, já conferia)
+            ? invalidResponseFailure('plano relido da OS ${p.orderId} para a OS $orderId')
+            : p.onlyAuthorityStands
+                ? null
+                : const Failure(message: 'forms.serviceOrder.fiscalSituationChanged', code: FiscalCodes.cancelPlanChanged),
       );
       if (planFailure != null) return Left(CancelSagaFailure(stage: CancelSagaStage.plan, failure: planFailure));
       final atFisco = await nfse.cancel(orderId, reason);

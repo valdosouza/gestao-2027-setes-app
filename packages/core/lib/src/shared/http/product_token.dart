@@ -31,6 +31,11 @@ class ProductToken {
   /// 401 de qualquer API expira (o comportamento da D-F138).
   Future<bool> Function()? confirmer;
 
+  /// Prazo da pergunta ao emissor (F2B-RG-06/SOCD-03): o `/api/core/me` que não
+  /// volta "não prova a morte" — a sessão fica, a tela diz que o serviço não a
+  /// reconheceu, e a próxima 401 pergunta de novo (nunca presa à pendurada).
+  Duration confirmTimeout = const Duration(seconds: 15);
+
   /// Confirmação em andamento (vários 401 juntos perguntam UMA vez).
   Future<bool>? _confirming;
   String? _confirmingToken;
@@ -96,7 +101,10 @@ class ProductToken {
     _confirming = done.future;
     _confirmingToken = sentToken;
     // Future.sync: o confirmador que lança SÍNCRONO também vira "não prova a morte"
-    Future<bool>.sync(ask).then((alive) => alive, onError: (Object _) => true).then((alive) {
+    Future<bool>.sync(ask)
+        .timeout(confirmTimeout, onTimeout: () => true)
+        .then((alive) => alive, onError: (Object _) => true)
+        .then((alive) {
       if (identical(_confirming, done.future)) {
         _confirming = null;
         _confirmingToken = null;

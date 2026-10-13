@@ -95,9 +95,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   @override
   void dispose() {
-    // D-F145: a tela saiu — o lote "Transmitir notas sem NFS-e" para depois da
-    // nota em voo (o bloc não é fechado pelo Modular — F2B-ADV-03)
-    _bloc.add(const ServiceOrderFiscalBatchStopRequested());
+    // D-F145/D-F156: a tela saiu — os lotes param depois da unidade em voo
+    // (síncrono; seguro com o bloc já fechado pelo onDispose do módulo)
+    _bloc.stopBatches();
     _tabs.dispose();
     _filter.dispose();
     super.dispose();

@@ -37,7 +37,7 @@ class _AppWidgetState extends State<AppWidget> {
       // várias abas dividem a sessão SALVA: só limpa se for a que expirou (a
       // aba velha não apaga o login novo da outra — F2B-ADV-11)
       final prefs = Modular.get<LocalPrefs>();
-      final stored = await prefs.getSessionToken();
+      final stored = await prefs.getSessionTokenFresh();
       final expired = Modular.get<ProductToken>().lastExpired;
       if (stored == null || stored == expired) await prefs.setSessionToken(null);
       Modular.get<ThemeCubit>().reset();

@@ -12,8 +12,8 @@
 // Nada aqui fala com servidor: repositórios mocktail e clientes falsos.
 //
 // CORRIGIDOS na sessão (rodam sempre — `[CORRIGIDO …]`): ADV-01 (408/502/503/504 sem código = desfecho desconhecido), ADV-02 (erro
-// sistêmico de credencial/cadastro para o lote), ADV-03 (a tela que sai PARA o lote — ServiceOrderFiscalBatchStopRequested no dispose;
-// fechar o bloc = Q-F164), ADV-04 (envelope estrito), ADV-05 (fotografia com garantia de progresso), ADV-07 (Transmitir com trava),
+// sistêmico de credencial/cadastro para o lote), ADV-03 (a tela que sai PARA o lote — stopBatches() no dispose da página e no onDispose do módulo
+// — D-F156), ADV-04 (envelope estrito), ADV-05 (fotografia com garantia de progresso), ADV-07 (Transmitir com trava),
 // ADV-08 (ordem dos avisos), ADV-09 (barreira desconhecida + id pedido), ADV-12 (tipo trocado = falha do catálogo / desconhecido no ato),
 // ADV-13 (clientes IRMÃOS), ADV-15 (ambiente desconhecido neutro). Ficam PULADOS só os que dependem de decisão: o 500 como desfecho
 // desconhecido (Q-F163) e o fechamento do bloc pelo Modular (Q-F164).
@@ -61,8 +61,6 @@ const _authorized = ServiceOrderTransmitResult(invoiceId: 0, attempt: 1, accessK
 /// monta Failure com o status e SEM code).
 const _gateway504 = Failure(message: 'core.errors.generic', statusCode: 504);
 
-const _skipQ163 = 'Q-F163 (decisão do Valdo): o 500 da nfse-api num ATO conta como desfecho desconhecido? — rode com --run-skipped';
-const _skipQ164 = 'Q-F164 (decisão do Valdo): o Modular fechar o bloc no onDispose (corta também o lote de faturamento — Q-R5.2) — rode com --run-skipped';
 
 /// O plano em que SÓ a NFS-e autorizada impede (a saga relê antes do fisco — D-F149).
 const _onlyAuthority = ServiceOrderCancelPlan(orderId: _orderId, fiscalRecord: true, blocks: [
@@ -91,14 +89,20 @@ class _FixedErpClient extends ApiClient {
   Future<Map<String, dynamic>> get(String path) async => reply;
 }
 
-/// Módulo de prova com a MESMA forma do bind do ServiceOrdersModule
-/// (`Bind.singleton<ServiceOrderBloc>` sem `onDispose`).
+/// Módulo de prova com a MESMA forma do bind do ServiceOrdersModule — D-F156:
+/// `Bind.singleton<ServiceOrderBloc>` COM `onDispose: close` (o teste ao lado
+/// confere que o módulo real tem o `onDispose`).
 class _BlocModule extends Module {
   _BlocModule(this.make);
   final ServiceOrderBloc Function() make;
 
   @override
-  List<Bind> get binds => [Bind.singleton<ServiceOrderBloc>((_) => make())];
+  List<Bind> get binds => [
+        Bind.singleton<ServiceOrderBloc>((_) => make(), onDispose: (bloc) {
+          bloc.stopBatches();
+          bloc.close();
+        }),
+      ];
 }
 
 /// O AppModule com os dois clientes em ORDEM TROCADA (refatoração inocente).
@@ -281,9 +285,11 @@ void main() {
       expect(isUnknownAuthorityOutcome(const Failure(message: 'x', statusCode: 409, code: FiscalCodes.resourceBusy)), isFalse);
     });
 
-    test('[Q-F163 — decisão] o 500 da nfse-api num ATO conta como desfecho desconhecido? (recomendado: sim — nada garante que o ato não aconteceu)', () {
+    test('[DECIDIDO D-F155 (= Q-F163 (a))] o 500 da nfse-api num ATO (INTERNAL ou sem código) é desfecho desconhecido — nada garante que o ato não aconteceu', () {
       expect(isUnknownAuthorityOutcome(const Failure(message: 'core.errors.generic', statusCode: 500)), isTrue);
-    }, skip: _skipQ163);
+      expect(isUnknownAuthorityOutcome(const Failure(message: 'Erro interno', statusCode: 500, code: 'INTERNAL')), isTrue);
+      expect(isUnknownAuthorityOutcome(const Failure(message: 'x', statusCode: 500, code: 'OUTRO_CODIGO')), isFalse);
+    });
 
     test('[CORRIGIDO F2B-ADV-01 MEDIUM] Transmitir com 504 do gateway diz "resultado incerto — consulte" (nunca falha seca)',
         () async {
@@ -407,7 +413,7 @@ void main() {
       bloc.add(const ServiceOrderFiscalTransmitBatchRequested([1, 2, 3]));
       await pumpEventQueue();
       expect(gates, hasLength(1), reason: 'a 1ª nota está "no fisco"');
-      bloc.add(const ServiceOrderFiscalBatchStopRequested()); // o dispose da página
+      bloc.stopBatches(); // o dispose da página
       await pumpEventQueue();
       for (var k = 0; k < 6; k++) {
         for (final g in gates.where((g) => !g.isCompleted)) {
@@ -424,17 +430,17 @@ void main() {
     test('[CORRIGIDO F2B-ADV-03] o dispose da página manda o sinal de parada (cerca no fonte)', () {
       final src = File('lib/app/modules/service_orders/presentation/page/service_order_page.dart').readAsStringSync();
       final dispose = RegExp(r'void dispose\(\) \{[\s\S]*?super\.dispose\(\);').firstMatch(src)!.group(0)!;
-      expect(dispose, contains('ServiceOrderFiscalBatchStopRequested()'));
+      expect(dispose, contains('_bloc.stopBatches();'));
     });
 
-    test('[Q-F164 — decisão] o bind do ServiceOrderBloc fecha o bloc quando o módulo é desmontado (corta também o lote de faturamento — Q-R5.2)', () {
+    test('[DECIDIDO D-F156 (= Q-F164 (a))] o bind do ServiceOrderBloc fecha o bloc quando o módulo é desmontado (corta também o lote de faturamento — Q-R5.2)', () {
       final bind = ServiceOrdersModule().binds.whereType<Bind<ServiceOrderBloc>>().single;
       // o Modular 5 só "descarta" valor `Disposable` ou com `onDispose`; o Bloc
       // não é Disposable (modular_core bind_context.dart `_executeDisposeImplementation`)
       expect(bind.onDispose, isNotNull);
-    }, skip: _skipQ164);
+    });
 
-    test('[Q-F164 — decisão] módulo desmontado SEM a página (o Modular sozinho) também pararia o lote se o bloc fosse fechado',
+    test('[DECIDIDO D-F156] módulo desmontado SEM a página (o Modular sozinho) também pararia o lote se o bloc fosse fechado',
         () async {
       final gates = <Completer<void>>[];
       when(() => nfse.transmit(any())).thenAnswer((_) async {
@@ -463,7 +469,7 @@ void main() {
           Modular.destroy();
         } catch (_) {}
       }
-    }, skip: _skipQ164);
+    });
   });
 
   // ---------------------------------------------------------------------

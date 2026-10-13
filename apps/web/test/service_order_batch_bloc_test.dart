@@ -143,6 +143,39 @@ void main() {
     });
   });
 
+  group('D-F156 (= Q-F164 (a) — decide a Q-R5.2): a tela SAI no meio do lote', () {
+    test('o bloco em voo termina; os blocos seguintes NÃO são enviados e não há relatório (o já faturado fica na aba Faturadas)', () async {
+      final gate = Completer<void>();
+      when(() => repo.batchInvoice(any(), any())).thenAnswer((inv) async {
+        await gate.future; // o 1º bloco está "no servidor"
+        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
+      });
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(120), input: _input));
+      await Future<void>.delayed(Duration.zero);
+      bloc.stopBatches(); // o dispose da página / o onDispose do módulo
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await sub.cancel();
+      await bloc.close();
+
+      expect(chamadas().map((c) => c.length), [50], reason: 'só o bloco que já estava em voo');
+      expect(states.whereType<ServiceOrderBatchInvoiceDone>(), isEmpty, reason: 'tela fechada = sem relatório');
+    });
+
+    test('a parada com o bloc OCIOSO não vaza para o próximo lote (zera no início)', () async {
+      faturaTudo();
+      final bloc = _bloc(repo);
+      bloc.stopBatches();
+      final states = await _run(bloc, _ids(60));
+      expect(chamadas().map((c) => c.length), [50, 10]);
+      expect(states.whereType<ServiceOrderBatchInvoiceDone>().single.report.requested, 60);
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {
