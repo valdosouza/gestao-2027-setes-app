@@ -847,7 +847,7 @@
       "fiscalBatchRefusedRow": "Order {}: {}",
       "fiscalBatchSummaryUncertainPart": "Uncertain — check: {}",
       "fiscalBatchSummaryNotTriedPart": "Not tried: {} — the batch stopped before them",
-      "fiscalBatchUncertainRow": "Order {}: uncertain result — check the status at the tax authority before transmitting again ({})",
+      "fiscalBatchUncertainRow": "Order {}: uncertain result — check the status at the tax authority before transmitting again",
       "fiscalBatchNotTriedRow": "Order {}: not tried — the batch stopped before it",
       "fiscalBatchStoppedUncertain": "The batch stopped after consecutive uncertain results (the tax authority or the service may be down) — check the uncertain invoices before transmitting again",
       "fiscalBatchStopped": "The batch stopped: {}",

@@ -212,6 +212,36 @@ void main() {
     });
   });
 
+  group('D-F174 (= Q-F182 (b)): entrar no detalhe invalida a recarga da lista em voo', () {
+    test('a lista lenta que responde DEPOIS de o detalhe abrir não emite — o operador fica na OS', () async {
+      final slow = Completer<Either<Failure, PagedResult<ServiceOrderListItem>>>();
+      var listCalls = 0;
+      when(() => repo.getList(any(), any(),
+              page: any(named: 'page'),
+              pageSize: any(named: 'pageSize'),
+              criteria: any(named: 'criteria')))
+          .thenAnswer((_) {
+        listCalls++;
+        return listCalls == 1 ? slow.future : Future.value(const Right(PagedResult.empty()));
+      });
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(const ServiceOrderListRequested(status: 'A', filter: ''));                    // fica no ar
+      await Future<void>.delayed(Duration.zero);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      slow.complete(const Right(PagedResult(items: [], page: 1, pageSize: 25, total: 5)));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      final shown = states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).toList();
+      expect(shown.last, isA<ServiceOrderDetailState>());
+    });
+  });
+
   group('bloco que falha inteiro (D27)', () {
     test('2º bloco falha → o 1º NÃO se perde: relatório agregado, ordens do 2º e do 3º como "tente de novo"',
         () async {

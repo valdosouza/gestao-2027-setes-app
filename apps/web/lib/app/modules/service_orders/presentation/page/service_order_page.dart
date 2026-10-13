@@ -740,10 +740,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     final lines = [
       // R7-SOC-02 (iii): a incerta leva o código e o ref (como as recusadas — F2B-ADV-14)
       for (final r in report.uncertainRows)
-        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: [
-          '${r.orderId}',
-          [r.code, if (r.supportRef.isNotEmpty) 'ref ${r.supportRef}'].where((s) => s.isNotEmpty).join(' · '),
-        ]),
+        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) + r.uncertainDetail,
       for (final r in report.refusedRows)
         'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
           '${r.orderId}',

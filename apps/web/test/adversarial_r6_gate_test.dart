@@ -315,7 +315,7 @@ void main() {
       expect(whileRunning.loading, isTrue, reason: 'o lote ainda rodava e a lista saiu "ociosa"');
     });
 
-    test('[FATO — base do R6-ADV-06] o fim do lote RECARREGA a lista e tira o operador do detalhe que ele abriu no meio (o lote parecia parado)', () async {
+    test('[DECIDIDO D-F174 (= Q-F182 (b)) — era o FATO base do R6-ADV-06] o fim do lote mostra o relatório e NÃO tira o operador do detalhe que ele abriu no meio', () async {
       final gate = Completer<void>();
       when(() => nfse.transmit(any())).thenAnswer((inv) async {
         if (inv.positionalArguments[0] == 1) await gate.future;
@@ -331,11 +331,15 @@ void main() {
       final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
       bloc.add(const ServiceOrderViewRequested(_orderId));                                   // o operador abre uma OS
       await detail;
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderFiscalBatchDone);
       gate.complete();
-      await bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      await done;
+      await pumpEventQueue(times: 20);
       await sub.cancel();
       await bloc.close();
-      expect(states.last, isA<ServiceOrderListState>());
+      final shown = states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).toList();
+      expect(shown.last, isA<ServiceOrderDetailState>(), reason: 'o operador segue na OS que abriu');
+      expect(states.whereType<ServiceOrderFiscalBatchDone>(), hasLength(1), reason: 'o relatório sai');
     });
   });
 }

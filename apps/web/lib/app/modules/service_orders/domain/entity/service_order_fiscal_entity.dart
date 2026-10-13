@@ -729,6 +729,13 @@ class FiscalTransmitBatchRow extends Equatable {
   /// Nota NÃO tentada (o lote parou antes dela).
   bool get notTried => code == abortedCode;
 
+  /// O complemento da linha INCERTA (D-F168): " (código · ref X)" SÓ quando existe — o gateway sem envelope (408/502/503/504) e o 500
+  /// cru chegam sem nenhum dos dois (gate socrático da Rodada 8, R8-SOC-02: a frase saía com "()").
+  String get uncertainDetail {
+    final detail = [code, if (supportRef.isNotEmpty) 'ref $supportRef'].where((s) => s.isNotEmpty).join(' · ');
+    return detail.isEmpty ? '' : ' ($detail)';
+  }
+
   @override
   List<Object?> get props => [orderId, ok, code, message, unknown, supportRef];
 }

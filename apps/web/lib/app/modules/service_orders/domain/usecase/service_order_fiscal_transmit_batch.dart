@@ -73,7 +73,8 @@ class ServiceOrderFiscalTransmitBatch {
         break;
       }
       unknownInARow = isUnknownAuthorityOutcome(failure) ? unknownInARow + 1 : 0;
-      if (unknownInARow >= maxConsecutiveUnknown) {
+      // R8-SOC-02: "o lote parou" só quando SOBROU nota — a 3ª incerta na ÚLTIMA nota não parou nada
+      if (unknownInARow >= maxConsecutiveUnknown && i < ids.length - 1) {
         stoppedBy = failure;
         i++;
         break;

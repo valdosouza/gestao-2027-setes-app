@@ -129,6 +129,14 @@ void main() {
     });
   });
 
+  group('R8-SOC-02 (gate socrático da Rodada 8): "o lote parou" só quando sobrou nota', () {
+    test('3 incertas seguidas nas 3 ÚLTIMAS notas: nada deixou de ser tentado — sem parada, sem não tentadas', () async {
+      when(() => nfse.transmit(any())).thenAnswer((_) async => const Left(Failure(message: 'gw', statusCode: 504)));
+      final r = await ServiceOrderFiscalTransmitBatch(repository: nfse)(_ids(3));
+      expect([r.uncertain, r.notTried, r.stoppedBy], [3, 0, null]);
+    });
+  });
+
   group('passo 2 — uma nota por vez, erro da nota não para o lote', () {
     test('transmite na ordem, ids repetidos contam uma vez, relatório agregado', () async {
       transmiteTudo();

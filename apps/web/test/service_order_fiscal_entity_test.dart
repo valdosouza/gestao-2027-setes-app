@@ -301,6 +301,18 @@ void main() {
       }
     });
 
+    test('R8-SOC-02: o complemento da incerta só com conteúdo — sem código nem ref (gateway sem envelope) nada de "()"', () {
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true).uncertainDetail, '');
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true).uncertainDetail, ' (INTERNAL)');
+      expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true, supportRef: 'ab12').uncertainDetail,
+          ' (INTERNAL · ref ab12)');
+      for (final lang in ['pt', 'en']) {
+        final json = File('assets/translations/$lang.json').readAsStringSync();
+        final row = RegExp('"fiscalBatchUncertainRow": "([^"]*)"').firstMatch(json)!.group(1)!;
+        expect([lang, '{}'.allMatches(row).length, row.contains('()')], [lang, 1, false]);
+      }
+    });
+
     test('R7-SOC-02: a não tentada se reconhece (notTried); a incerta guarda o ref; as chaves novas existem em pt e en', () {
       const aborted = FiscalTransmitBatchRow.aborted(orderId: 9, message: 'Registro em uso — tente novamente');
       const uncertain = FiscalTransmitBatchRow(orderId: 8, ok: false, code: FiscalCodes.resourceBusy, unknown: true, supportRef: 'R7X');

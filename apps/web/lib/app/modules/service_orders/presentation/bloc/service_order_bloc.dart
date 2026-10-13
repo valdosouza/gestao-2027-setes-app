@@ -227,6 +227,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       (full) async {
         _detail = full;
         await _loadFiscal(full);
+        // D-F174 (= Q-F182 (b), Valdo 2026-10-13 — R8-SOC-04): entrar no detalhe INVALIDA a recarga da lista em voo (a da página
+        // recriada, a final de um lote) — a resposta dela, que chegaria depois, tirava o operador da OS que ele abriu
+        _listGeneration++;
         emit(_detailState(full));
       },
     );
@@ -284,6 +287,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   Future<void> _onViewRequested(
       ServiceOrderViewRequested event, Emitter<ServiceOrderState> emit) async {
+    _listGeneration++;   // D-F174: a lista em voo não emite por cima do detalhe que vai abrir
     emit(ServiceOrderListState(
         loading: true, status: _status, filter: _filter, criteria: _criteria));
     await _reloadDetail(event.id, emit);
@@ -444,6 +448,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       return;
     }
     emit(ServiceOrderBatchInvoiceDone(BatchInvoiceReport.merge(parts)));
+    // D-F174: o operador abriu uma OS no meio do lote (que pode levar dezenas de minutos) — o fim mostra o relatório e NÃO o tira do
+    // detalhe; voltar à lista recarrega (BackToList)
+    if (_detail != null) return;
     await _reloadList(emit);
   }
 
@@ -733,6 +740,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       if (isClosed || _fiscalBatchStop) return;
       _fiscalBatchRunning = false;   // D-F169: a recarga final já sai livre
       emit(ServiceOrderFiscalBatchDone(report));
+      if (_detail != null) return;   // D-F174: com a OS aberta, só o relatório (voltar à lista recarrega)
       await _reloadList(emit);
     } finally {
       _fiscalBatchRunning = false;

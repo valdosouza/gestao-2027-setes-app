@@ -138,7 +138,7 @@ void main() {
           holes(m['fiscalBatchSummaryUncertainPart'] as String), holes(m['fiscalBatchSummaryNotTriedPart'] as String),
           holes(m['fiscalBatchUncertainRow'] as String), holes(m['fiscalBatchNotTriedRow'] as String),
           holes(m['fiscalBatchStoppedUncertain'] as String),
-        ], [1, 1, 2, 1, 0]);
+        ], [1, 1, 1, 1, 0]);   // R8-SOC-02: a incerta tem 1 lacuna (o complemento sai do código, só com conteúdo)
         expect((m['fiscalSubstitutedNeutralRow'] as String).isNotEmpty, isTrue);
       }
     });
