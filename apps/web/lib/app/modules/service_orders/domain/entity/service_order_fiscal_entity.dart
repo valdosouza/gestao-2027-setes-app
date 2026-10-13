@@ -734,7 +734,7 @@ class FiscalTransmitBatchRow extends Equatable {
   /// frente da nfse-api: 502/503/504 com página HTML; o 500 sem corpo) diz "HTTP 503" no lugar do código: o suporte sabe que foi o proxy.
   final int httpStatus;
 
-  /// D-F176: a rede caiu (`NetworkFailure`) — a linha diz "sem conexão"; o texto da exceção (o `supportRef` da rede) não vai à tela.
+  /// D-F176: a rede caiu (`NetworkFailure`) — a linha diz "sem resposta do serviço — rede, proxy ou tempo" (D-F181: no web a página de erro do proxy sem CORS também chega como `NetworkFailure`); o texto da exceção (o `supportRef` da rede) não vai à tela.
   final bool network;
 
   /// Nota NÃO tentada (o lote parou antes dela).
@@ -742,7 +742,7 @@ class FiscalTransmitBatchRow extends Equatable {
 
   /// O complemento da linha INCERTA (D-F168): " (código · ref X)" SÓ quando existe — o gateway sem envelope (408/502/503/504) e o 500
   /// cru chegam sem nenhum dos dois (gate socrático da Rodada 8, R8-SOC-02: a frase saía com "()").
-  /// D-F176: sem código, o status HTTP ("HTTP 503"); a rede caída não tem complemento aqui — a página diz "sem conexão" (localizado).
+  /// D-F176: sem código, o status HTTP ("HTTP 503"); a rede caída não tem complemento aqui — a página diz "sem resposta do serviço" (D-F181) (localizado).
   String get uncertainDetail {
     if (network) return '';
     final first = code.isNotEmpty ? code : (httpStatus > 0 ? 'HTTP $httpStatus' : '');

@@ -94,7 +94,7 @@ void main() {
       final src = File(_pageSrc).readAsStringSync();
       // D-F176: a página compõe a linha com "sem conexão" (rede) ou o complemento (código · ref · HTTP)
       expect(src, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
-      expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail)"));
+      expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));
       for (final row in r.uncertainRows) {
         final line = 'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${row.orderId}']) + row.uncertainDetail;
         expect(line, isNot(contains('()')), reason: line);

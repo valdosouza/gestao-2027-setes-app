@@ -157,7 +157,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// recriada no meio do lote (cruzar 1100 px — D-F160) pede a lista e, sem
   /// isto, a trava H1 dos botões reabria e a tela parecia ociosa com o lote
   /// rodando. Cada lote baixa a própria marca ANTES da recarga final.
-  bool get _batchInFlight => _batchRunning || _fiscalBatchRunning;
+  /// D-F179 (= Q-F187 (a), Valdo 2026-10-13 — R10-SOC-02/R10-ADV-01): a rotina
+  /// mensal e a fotografia das pendentes TAMBÉM — "travado pelo loading, como os
+  /// botões de lote" (D-F177) só vale se o loading durar o que a operação dura;
+  /// e cada uma com a SUA trava de reentrância (como o `_batchRunning`). Quem
+  /// impede operações longas DIFERENTES juntas é a página (todo botão longo é
+  /// `state.loading ? null`) — o bloc não cruza as travas (os dois lotes juntos
+  /// são um caso já provado da D-F169).
+  bool get _batchInFlight => _batchRunning || _fiscalBatchRunning || _monthlyRunning || _fiscalPendingRunning;
+  bool _monthlyRunning = false;
+  bool _fiscalPendingRunning = false;
 
   /// UM contador da TELA — "vale o último PEDIDO" (lista ou detalhe). Todo
   /// pedido de tela (recarregar a lista, ver/abrir OS, um ato que troca a tela
@@ -421,22 +430,30 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onMonthlyRunRequested(
       ServiceOrderMonthlyRunRequested event,
       Emitter<ServiceOrderState> emit) async {
-    _showListLoading(emit, supersede: false);
-    final result = await monthlyRun(event.year, event.month);
-    // D-F177 (= Q-F185 (a), Valdo 2026-10-13 — R9-SOC-03): a rotina leva minutos com N contratos — a OS aberta (ou a caminho) no meio
-    // fica; o desfecho aparece e voltar à lista recarrega (a regra da D-F174 em TODA saída longa)
-    await result.fold(
-      (failure) async {
-        emit(ServiceOrderActionFailure(failure));
-        if (_onDetail) return;
-        await _reloadList(emit);
-      },
-      (report) async {
-        emit(ServiceOrderMonthlyRunDone(report));
-        if (_onDetail) return;
-        await _reloadList(emit);
-      },
-    );
+    // D-F179: uma rotina por vez (o 2º clique é ignorado — o servidor protege a competência, mas não se manda o 2º)
+    if (_monthlyRunning) return;
+    _monthlyRunning = true;
+    try {
+      _showListLoading(emit, supersede: false);
+      final result = await monthlyRun(event.year, event.month);
+      _monthlyRunning = false;   // D-F169/D-F179: a recarga final já sai livre
+      // D-F177 (= Q-F185 (a), Valdo 2026-10-13 — R9-SOC-03): a rotina leva minutos com N contratos — a OS aberta (ou a caminho) no meio
+      // fica; o desfecho aparece e voltar à lista recarrega (a regra da D-F174 em TODA saída longa)
+      await result.fold(
+        (failure) async {
+          emit(ServiceOrderActionFailure(failure));
+          if (_onDetail) return;
+          await _reloadList(emit);
+        },
+        (report) async {
+          emit(ServiceOrderMonthlyRunDone(report));
+          if (_onDetail) return;
+          await _reloadList(emit);
+        },
+      );
+    } finally {
+      _monthlyRunning = false;
+    }
   }
 
   /// LOTE da cobrança mensal (D6/D7): o relatório volta no one-shot
@@ -775,22 +792,29 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// D-F145) → one-shot para a página confirmar.
   Future<void> _onFiscalPendingRequested(ServiceOrderFiscalPendingRequested event,
       Emitter<ServiceOrderState> emit) async {
-    if (_fiscalBatchRunning) return;
-    _showListLoading(emit, supersede: false);
-    final result = await fiscalPending();
-    // D-F177: a fotografia das pendentes (todas as páginas) pode demorar — a OS aberta no meio fica (a confirmação abre por cima dela)
-    await result.fold(
-      (failure) async {
-        emit(ServiceOrderActionFailure(failure));
-        if (_onDetail) return;
-        await _reloadList(emit);
-      },
-      (pending) async {
-        emit(ServiceOrderFiscalPendingLoaded(pending));
-        if (_onDetail) return;
-        await _reloadList(emit);
-      },
-    );
+    // D-F179: uma fotografia por vez (o 2º clique daria dois diálogos de confirmação) — e nunca com o lote fiscal no ar
+    if (_fiscalPendingRunning || _fiscalBatchRunning) return;
+    _fiscalPendingRunning = true;
+    try {
+      _showListLoading(emit, supersede: false);
+      final result = await fiscalPending();
+      _fiscalPendingRunning = false;   // D-F169/D-F179: a recarga final já sai livre
+      // D-F177: a fotografia das pendentes (todas as páginas) pode demorar — a OS aberta no meio fica (a confirmação abre por cima dela)
+      await result.fold(
+        (failure) async {
+          emit(ServiceOrderActionFailure(failure));
+          if (_onDetail) return;
+          await _reloadList(emit);
+        },
+        (pending) async {
+          emit(ServiceOrderFiscalPendingLoaded(pending));
+          if (_onDetail) return;
+          await _reloadList(emit);
+        },
+      );
+    } finally {
+      _fiscalPendingRunning = false;
+    }
   }
 
   /// 2º passo (confirmado): UM lote por vez; o lote roda no app, 1 nota por

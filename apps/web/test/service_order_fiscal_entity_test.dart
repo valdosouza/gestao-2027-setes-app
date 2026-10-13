@@ -307,7 +307,7 @@ void main() {
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true, httpStatus: 500).uncertainDetail, ' (INTERNAL)');
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, network: true, supportRef: 'ClientException').uncertainDetail, '');
       for (final lang in ['pt', 'en']) {
-        expect(File('assets/translations/$lang.json').readAsStringSync().contains('"fiscalBatchNoConnection"'), isTrue);
+        expect(File('assets/translations/$lang.json').readAsStringSync().contains('"fiscalBatchNoResponse"'), isTrue);
       }
     });
 

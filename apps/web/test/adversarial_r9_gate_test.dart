@@ -588,7 +588,7 @@ void main() {
       expect(callers, hasLength(1));
       final caller = callers.single.readAsStringSync();
       expect(caller, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
-      expect(caller, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail)"));   // D-F176
+      expect(caller, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));   // D-F176
     });
   });
 }

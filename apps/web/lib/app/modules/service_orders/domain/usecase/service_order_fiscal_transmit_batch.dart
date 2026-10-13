@@ -66,9 +66,13 @@ class ServiceOrderFiscalTransmitBatch {
       }
       // D-F168: o desfecho DESCONHECIDO é linha própria ("incerta — consulte"), nunca "recusada"
       // D-F176: o status HTTP e a rede caída viajam na linha (o texto da exceção da rede NÃO — não é código de suporte)
+      // D-F180 (= Q-F188 (a), Valdo 2026-10-13 — R10-SOC-04): o "ref" da linha só quando veio do envelope do SERVIDOR; a falha que o
+      // próprio app monta (`CLIENT_*` — resposta ilegível, configuração) leva o texto do Dart no supportRef: fica só o código (o texto
+      // inteiro segue na mensagem do ato avulso — F2B-ADV-12)
       final network = failure is NetworkFailure;
+      final clientMade = (failure.code ?? '').startsWith('CLIENT_');
       rows.add(FiscalTransmitBatchRow(orderId: id, ok: false, code: failure.code ?? '', message: failure.message,
-          unknown: isUnknownAuthorityOutcome(failure), supportRef: network ? '' : (failure.supportRef ?? ''),
+          unknown: isUnknownAuthorityOutcome(failure), supportRef: network || clientMade ? '' : (failure.supportRef ?? ''),
           httpStatus: failure.statusCode ?? 0, network: network));
       if (isSystemic(failure)) {
         stoppedBy = failure;

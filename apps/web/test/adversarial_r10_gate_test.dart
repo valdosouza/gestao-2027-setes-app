@@ -19,7 +19,9 @@
 //
 // CORREÇÕES na mesma sessão (= R10-SOC-01/R10-SOC-03 do gate socrático): R10-ADV-02 (a marca "a caminho" só morre onde o `_detail`
 // nasce, ou na falha) e R10-ADV-03 (o ato no detalhe confere a tela que capturou ao começar — `_stillOnDetail`) — as provas FATO
-// viraram `[CORRIGIDO …]` (a mesma sequência, o comportamento novo) e os ACHADOS rodam sempre. R10-ADV-01 aguarda o Valdo (Q-F187).
+// viraram `[CORRIGIDO …]` (a mesma sequência, o comportamento novo) e os ACHADOS rodam sempre. Valdo 2026-10-13 ("Q-F187 a Q-F189 -
+// siga recomendações"): D-F179 (R10-ADV-01 — a trava H1 completa), D-F180 (o "ref" da linha só do servidor) e D-F181 (a frase neutra da
+// rede) — as provas FATO delas viraram `[DECIDIDO …]`.
 
 import 'dart:async';
 import 'dart:convert';
@@ -72,8 +74,6 @@ PagedResult<ServiceOrderListItem> _page(List<int> ids, {int page = 1, int? total
 ServiceOrderState _shown(List<ServiceOrderState> states) =>
     states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).last;
 
-const _skipAchado = 'ACHADO do gate R10 — descreve o comportamento CERTO; hoje falha (ver o FATO irmão). '
-    'Rodar: flutter test --run-skipped test/adversarial_r10_gate_test.dart';
 
 void main() {
   late ServiceOrderRepoMock repo;
@@ -133,7 +133,7 @@ void main() {
   //    botões de lote (H1)"
   // ---------------------------------------------------------------------
   group('D-F177 — a trava da rotina mensal', () {
-    test('[FATO — prova do R10-ADV-01] a trava da rotina mensal é SÓ o `state.loading` da página: com a rotina no ar (minutos com N contratos), qualquer recarga da lista que o operador pede no spinner (trocar de ABA, filtro, pesquisa avançada — todos ativos no loading; a página recriada no resize) sai com `loading: false` — a rotina não entra no `_batchInFlight` da D-F169 — e REABRE os botões: a 2ª rotina mensal é disparada (o bloc não tem trava de reentrância para ela) e o lote de faturamento também, em paralelo com a rotina. O mesmo no passo 1 do lote fiscal ("Transmitir pendentes"): duas fotografias em voo, dois diálogos de confirmação', () async {
+    test('[DECIDIDO D-F179 — era o FATO do R10-ADV-01] a trava da rotina mensal era SÓ o `state.loading` da página: com a rotina no ar (minutos com N contratos), qualquer recarga da lista que o operador pede no spinner (trocar de ABA, filtro, pesquisa avançada — todos ativos no loading; a página recriada no resize) sai com `loading: false` — a rotina não entra no `_batchInFlight` da D-F169 — e REABRE os botões: a 2ª rotina mensal é disparada (o bloc não tem trava de reentrância para ela) e o lote de faturamento também, em paralelo com a rotina. O mesmo no passo 1 do lote fiscal ("Transmitir pendentes"): duas fotografias em voo, dois diálogos de confirmação', () async {
       final run = Completer<Either<Failure, MonthlyRunReport>>();
       var runs = 0;
       when(() => repo.monthlyRun(2026, 10)).thenAnswer((_) {
@@ -150,25 +150,25 @@ void main() {
       bloc.add(const ServiceOrderListRequested(status: 'F'));                       // troca de aba no spinner
       await pumpEventQueue(times: 20);
       final mid = _shown(states) as ServiceOrderListState;
-      expect([mid.status, mid.loading, runs], ['F', false, 1], reason: 'a lista da aba sai LIVRE com a rotina no ar');
+      expect([mid.status, mid.loading, runs], ['F', true, 1], reason: 'D-F179: a lista da aba sai EM LOADING com a rotina no ar');
       bloc.add(const ServiceOrderListRequested(status: 'A'));
       await pumpEventQueue(times: 20);
-      bloc.add(const ServiceOrderMonthlyRunRequested(year: 2026, month: 10));         // o botão está habilitado
-      bloc.add(const ServiceOrderBatchInvoiceRequested(orderIds: [1], input: _input));
+      bloc.add(const ServiceOrderMonthlyRunRequested(year: 2026, month: 10));         // mesmo disparado direto no bloc
       await pumpEventQueue(times: 20);
-      expect(runs, 2, reason: 'a 2ª rotina mensal foi ao servidor com a 1ª no ar');
-      verify(() => repo.batchInvoice(any(), any())).called(1);                         // e o lote, em paralelo com a rotina
+      expect(runs, 1, reason: 'D-F179: a 2ª rotina mensal NÃO vai ao servidor com a 1ª no ar');
+      // o lote de faturamento: a página o desabilita (a lista segue em loading); o bloc não cruza as travas (D-F169 prova os dois lotes juntos)
       run.complete(const Right(MonthlyRunReport(processed: 1)));
       await pumpEventQueue(times: 20);
       await sub.cancel();
       await bloc.close();
+      expect((_shown(states) as ServiceOrderListState).loading, isFalse, reason: 'o fim da rotina recarrega a lista LIVRE');
       expect(File(_pageSrc).readAsStringSync(), contains('onPressed: state.loading ? null : _openMonthlyRun,'));
       expect(File(_blocSrc).readAsStringSync(),
-          matches(RegExp(r'_onMonthlyRunRequested\([^)]*\) async \{\s*_showListLoading\(emit, supersede: false\);')),
-          reason: 'nenhuma trava de reentrância antes de ir ao servidor (o lote tem `_batchRunning`)');
+          matches(RegExp(r'_onMonthlyRunRequested\([^)]*\) async \{\s*//[^\n]*\n\s*if \(_monthlyRunning\) return;\s*_monthlyRunning = true;')),
+          reason: 'D-F179: a trava de reentrância ANTES de ir ao servidor');
     });
 
-    test('[FATO — prova do R10-ADV-01, passo 1 do lote fiscal] "Transmitir pendentes" com a fotografia no ar: trocar de aba (A e de volta a F) devolve a lista LIVRE e o botão reabre; o 2º clique manda a 2ª fotografia (a guarda é só `_fiscalBatchRunning`) — duas `FiscalPendingLoaded` = dois diálogos "N notas sem NFS-e — transmitir agora?"', () async {
+    test('[DECIDIDO D-F179 — era o FATO do R10-ADV-01, passo 1 do lote fiscal] "Transmitir pendentes" com a fotografia no ar: trocar de aba (A e de volta a F) devolvia a lista LIVRE e o botão reabria; o 2º clique manda a 2ª fotografia (a guarda é só `_fiscalBatchRunning`) — duas `FiscalPendingLoaded` = dois diálogos "N notas sem NFS-e — transmitir agora?"', () async {
       final pending = Completer<Either<Failure, PagedResult<ServiceOrderFiscalPending>>>();
       var asks = 0;
       when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize'))).thenAnswer((_) {
@@ -184,17 +184,17 @@ void main() {
       await pumpEventQueue(times: 20);
       bloc.add(const ServiceOrderListRequested(status: 'F'));
       await pumpEventQueue(times: 20);
-      expect((_shown(states) as ServiceOrderListState).loading, isFalse);
+      expect((_shown(states) as ServiceOrderListState).loading, isTrue, reason: 'D-F179: a aba trocada sai EM LOADING com a fotografia no ar');
       bloc.add(const ServiceOrderFiscalPendingRequested());
       await pumpEventQueue();
       pending.complete(const Right(PagedResult(items: [ServiceOrderFiscalPending(invoiceId: 9)], page: 1, pageSize: 100, total: 1)));
       await pumpEventQueue(times: 20);
       await sub.cancel();
       await bloc.close();
-      expect([asks, states.whereType<ServiceOrderFiscalPendingLoaded>().length], [2, 2]);
+      expect([asks, states.whereType<ServiceOrderFiscalPendingLoaded>().length], [1, 1], reason: 'uma fotografia, UM diálogo');
     });
 
-    test('[ACHADO R10-ADV-01 LOW] com a rotina mensal no ar a trava NÃO reabre: a lista pedida no meio (aba, filtro, página recriada) sai em loading, como no lote (D-F169), e uma 2ª rotina (ou um lote) não vai ao servidor — "travado pelo loading, como os botões de lote (H1)" (D-F177) só vale se o loading durar o que a rotina dura. Correção sugerida: a rotina mensal (e o passo 1 do lote fiscal) entram no `_batchInFlight` + trava de reentrância no handler, como o `_batchRunning`', () async {
+    test('[CORRIGIDO R10-ADV-01 LOW — D-F179] com a rotina mensal no ar a trava NÃO reabre: a lista pedida no meio (aba, filtro, página recriada) sai em loading, como no lote (D-F169), e uma 2ª rotina (ou um lote) não vai ao servidor — "travado pelo loading, como os botões de lote (H1)" (D-F177) só vale se o loading durar o que a rotina dura. Correção sugerida: a rotina mensal (e o passo 1 do lote fiscal) entram no `_batchInFlight` + trava de reentrância no handler, como o `_batchRunning`', () async {
       final run = Completer<Either<Failure, MonthlyRunReport>>();
       var runs = 0;
       when(() => repo.monthlyRun(2026, 10)).thenAnswer((_) {
@@ -216,7 +216,7 @@ void main() {
       await sub.cancel();
       await bloc.close();
       expect([mid.loading, runs], [true, 1]);
-    }, skip: _skipAchado);
+    });
   });
 
   // ---------------------------------------------------------------------
@@ -233,9 +233,11 @@ void main() {
       await pumpEventQueue(times: 20);
       bloc.add(const ServiceOrderMonthlyRunRequested(year: 2026, month: 10));
       await pumpEventQueue();
-      bloc.add(const ServiceOrderListRequested(filter: '73'));                      // o filtro no spinner → lista LIVRE
+      bloc.add(const ServiceOrderListRequested(filter: '73'));                      // o filtro no spinner
       await pumpEventQueue(times: 20);
-      expect((_shown(states) as ServiceOrderListState).loading, isFalse);
+      // D-F179: a lista sai EM LOADING com a rotina no ar (a tela não oferece mais a OS faturada no meio — a sequência segue pelo bloc,
+      // a garantia da marca "a caminho" vale para qualquer pedido de detalhe)
+      expect((_shown(states) as ServiceOrderListState).loading, isTrue);
       bloc.add(const ServiceOrderViewRequested(_billedId));                          // a OS faturada: GET ok, a voz demora
       await pumpEventQueue(times: 20);
       verify(() => repo.getById(_billedId)).called(1);
@@ -422,7 +424,7 @@ void main() {
     /// A linha como a PÁGINA a compõe (`_showFiscalBatchSummary` — cerca abaixo).
     String uncertainLine(FiscalTransmitBatchRow r) =>
         'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +
-        (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail);
+        (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail);
 
     test('[RESISTIU] a matriz de falhas de um ato: 502/503/504/408 do proxy sem corpo → "(HTTP N)"; 500 cru → "(HTTP 500)"; 500 INTERNAL com ref → "(INTERNAL · ref X)"; 409 RESOURCE_BUSY → "(RESOURCE_BUSY)"; 2xx fora do envelope → "(CLIENT_INVALID_RESPONSE)"; rede caída (com ou sem detalhe) → "(sem conexão)" e NUNCA o texto da exceção; nenhuma linha com "()"; 401/403/422 não são incertas (recusadas — o 401 e o 403 param o lote); o status HTTP nunca aparece quando há código', () async {
       final r = await batch({
@@ -445,7 +447,7 @@ void main() {
         ' (${ClientFailureCodes.invalidResponse})',
       ]);
       for (final id in [9, 10]) {
-        expect([byId[id]!.network, byId[id]!.supportRef, uncertainLine(byId[id]!).endsWith(' (sem conexão)')], [true, '', true]);
+        expect([byId[id]!.network, byId[id]!.supportRef, uncertainLine(byId[id]!).endsWith(' (sem resposta do serviço — rede, proxy ou tempo)')], [true, '', true]);
       }
       for (final row in r.uncertainRows) {
         final line = uncertainLine(row);
@@ -455,20 +457,21 @@ void main() {
       final stop = await batch({1: const UnauthorizedFailure(), 2: const Failure(message: 'x', statusCode: 503)});
       expect([stop.uncertain, stop.refused, stop.notTried], [0, 1, 1]);
       final src = File(_pageSrc).readAsStringSync();
-      expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail)"));
+      expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));
     });
 
-    test('[FATO — base da Q-F187-ADV-01 (analisado: navegador)] no app WEB, a nfse-api é OUTRA origem (CORS — `corsFor` na nfse-api, origem do build no Plesk): a página 502/503/504 do PROXY da hospedagem não leva `Access-Control-Allow-Origin` e o navegador NÃO entrega a resposta ao app — o `http` do Flutter Web lança `ClientException: XMLHttpRequest error.`, que o `ApiClient` vira `NetworkFailure` (todo erro do envio que não é de configuração). O "HTTP 503" da D-F176 só aparece se o proxy puser CORS na página de erro (ou no Android); no web o operador lê "(sem conexão)" com a rede BOA — o suporte vai atrás da internet do cliente, e o proxy (o caso que motivou a D-F176) some. A frase principal ("resultado incerto — consulte") segue certa', () async {
+    test('[DECIDIDO D-F181 — era o FATO base da Q-F187-ADV-01 (analisado: navegador); a frase virou NEUTRA] no app WEB, a nfse-api é OUTRA origem (CORS — `corsFor` na nfse-api, origem do build no Plesk): a página 502/503/504 do PROXY da hospedagem não leva `Access-Control-Allow-Origin` e o navegador NÃO entrega a resposta ao app — o `http` do Flutter Web lança `ClientException: XMLHttpRequest error.`, que o `ApiClient` vira `NetworkFailure` (todo erro do envio que não é de configuração). O "HTTP 503" da D-F176 só aparece se o proxy puser CORS na página de erro (ou no Android); no web o operador lê "(sem conexão)" com a rede BOA — o suporte vai atrás da internet do cliente, e o proxy (o caso que motivou a D-F176) some. A frase principal ("resultado incerto — consulte") segue certa', () async {
       final core = File('../../packages/core/lib/src/shared/http/api_client.dart').readAsStringSync();
       expect(core, matches(RegExp(r'\} catch \(e\) \{\s*throw NetworkFailure\(detail: e\.toString\(\)\);')));
       final r = await batch({1: const NetworkFailure(detail: 'ClientException: XMLHttpRequest error., uri=https://nfse.setes.example/v1/nfse/invoices/1/transmit')});
-      expect(uncertainLine(r.rows.single), 'Ordem 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo (sem conexão)');
+      expect(uncertainLine(r.rows.single), 'Ordem 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo (sem resposta do serviço — rede, proxy ou tempo)');
     });
 
-    test('[FATO — base da Q-F187-ADV-02] a D-F176 tirou da linha o texto da exceção da REDE, mas a outra falha cujo `supportRef` é texto cru do Dart segue na tela: a resposta 2xx que o datasource não lê (`invalidResponseFailure` no `_guard` do repositório — F2B-ADV-12) é incerta e a linha leva o erro do Dart como "ref"', () async {
+    test('[DECIDIDO D-F180 — era o FATO base da Q-F187-ADV-02] a D-F176 tirou da linha o texto da exceção da REDE, mas a outra falha cujo `supportRef` é texto cru do Dart seguia na tela: a resposta 2xx que o datasource não lê (`invalidResponseFailure` no `_guard` do repositório — F2B-ADV-12) é incerta e a linha leva o erro do Dart como "ref"', () async {
       final r = await batch({1: invalidResponseFailure("type 'int' is not a subtype of type 'String?' in type cast")});
-      expect(r.rows.single.uncertainDetail,
-          " (${ClientFailureCodes.invalidResponse} · ref type 'int' is not a subtype of type 'String?' in type cast)");
+      expect(r.rows.single.uncertainDetail, ' (${ClientFailureCodes.invalidResponse})', reason: 'D-F180: falha montada pelo app = só o código');
+      final server = await batch({1: const Failure(message: 'x', statusCode: 500, code: 'INTERNAL', supportRef: 'abc123')});
+      expect(server.rows.single.uncertainDetail, ' (INTERNAL · ref abc123)', reason: 'o ref do SERVIDOR segue');
     });
   });
 

@@ -743,7 +743,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       // R7-SOC-02 (iii): a incerta leva o código e o ref (como as recusadas — F2B-ADV-14)
       for (final r in report.uncertainRows)
         'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +
-            (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoConnection'.tr()})' : r.uncertainDetail),   // D-F176
+            (r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail),   // D-F176/D-F181 (frase neutra: rede, proxy ou tempo)
       for (final r in report.refusedRows)
         'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
           '${r.orderId}',
