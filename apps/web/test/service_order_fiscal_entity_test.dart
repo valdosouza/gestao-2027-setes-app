@@ -10,6 +10,8 @@
 //     e o predicado "só o fisco impede" que libera a saga;
 // (4) os resultados das ações e o relatório do lote (contadores recontados).
 
+import 'dart:io';
+
 import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
@@ -280,6 +282,20 @@ void main() {
       expect(r.refusedRows.map((e) => e.orderId), [2, 3]);
       expect(r.rows.last.code, FiscalTransmitBatchRow.abortedCode);
       expect(r.stoppedBy!.statusCode, 403);
+    });
+
+    test('D-F168 (= Q-F176 (a)): o desfecho DESCONHECIDO tem contador e linhas próprios — nunca "recusada"', () {
+      final r = FiscalTransmitBatchReport.fromEntries(const [
+        FiscalTransmitBatchRow(orderId: 1, ok: true),
+        FiscalTransmitBatchRow(orderId: 2, ok: false, code: FiscalCodes.resourceBusy, message: 'Nota em uso', unknown: true),
+        FiscalTransmitBatchRow(orderId: 3, ok: false, code: FiscalCodes.dpsRejected, message: 'E0123'),
+      ]);
+      expect([r.transmitted, r.refused, r.uncertain], [1, 1, 1]);
+      expect([r.refusedRows.single.orderId, r.uncertainRows.single.orderId], [3, 2]);
+      for (final lang in ['pt', 'en']) {
+        final json = File('assets/translations/$lang.json').readAsStringSync();
+        expect([lang, json.contains('"fiscalBatchSummaryUncertain"'), json.contains('"fiscalBatchUncertainRow"')], [lang, true, true]);
+      }
     });
   });
 }

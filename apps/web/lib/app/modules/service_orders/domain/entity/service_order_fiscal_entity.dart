@@ -699,13 +699,15 @@ class FiscalTransmitBatchRow extends Equatable {
     required this.ok,
     this.code = '',
     this.message = '',
+    this.unknown = false,
   });
 
   /// Nota que NÃO foi tentada porque o lote PAROU (erro sistêmico antes dela).
   const FiscalTransmitBatchRow.aborted(
       {required this.orderId, required this.message})
       : ok = false,
-        code = abortedCode;
+        code = abortedCode,
+        unknown = false;
 
   static const abortedCode = 'BATCH_ABORTED';
 
@@ -714,8 +716,13 @@ class FiscalTransmitBatchRow extends Equatable {
   final String code;
   final String message;
 
+  /// D-F168 (= Q-F176 (a), Valdo 2026-10-13 — R6-ADV-05): desfecho
+  /// DESCONHECIDO do ato no fisco (D-F155/D-F163 — [isUnknownAuthorityOutcome]):
+  /// a NFS-e PODE ter sido autorizada — "incerta, consulte", nunca "recusada".
+  final bool unknown;
+
   @override
-  List<Object?> get props => [orderId, ok, code, message];
+  List<Object?> get props => [orderId, ok, code, message, unknown];
 }
 
 /// Relatório do lote — contadores SEMPRE recontados das linhas.
@@ -723,12 +730,18 @@ class FiscalTransmitBatchReport extends Equatable {
   const FiscalTransmitBatchReport({
     this.transmitted = 0,
     this.refused = 0,
+    this.uncertain = 0,
     this.rows = const [],
     this.stoppedBy,
   });
 
   final int transmitted;
+
+  /// Recusadas + não tentadas (o lote parou) — o desfecho desconhecido NÃO entra.
   final int refused;
+
+  /// D-F168: desfecho DESCONHECIDO — "incertas, consulte".
+  final int uncertain;
   final List<FiscalTransmitBatchRow> rows;
 
   /// O erro SISTÊMICO que parou o lote (null = rodou até o fim).
@@ -737,17 +750,22 @@ class FiscalTransmitBatchReport extends Equatable {
   int get requested => rows.length;
 
   List<FiscalTransmitBatchRow> get refusedRows =>
-      rows.where((r) => !r.ok).toList();
+      rows.where((r) => !r.ok && !r.unknown).toList();
+
+  /// D-F168: as notas de desfecho DESCONHECIDO (consultar antes de repetir).
+  List<FiscalTransmitBatchRow> get uncertainRows =>
+      rows.where((r) => !r.ok && r.unknown).toList();
 
   factory FiscalTransmitBatchReport.fromEntries(
           List<FiscalTransmitBatchRow> rows, {Failure? stoppedBy}) =>
       FiscalTransmitBatchReport(
         transmitted: rows.where((r) => r.ok).length,
-        refused:     rows.where((r) => !r.ok).length,
+        refused:     rows.where((r) => !r.ok && !r.unknown).length,
+        uncertain:   rows.where((r) => !r.ok && r.unknown).length,
         rows:        List.unmodifiable(rows),
         stoppedBy:   stoppedBy,
       );
 
   @override
-  List<Object?> get props => [transmitted, refused, rows, stoppedBy];
+  List<Object?> get props => [transmitted, refused, uncertain, rows, stoppedBy];
 }

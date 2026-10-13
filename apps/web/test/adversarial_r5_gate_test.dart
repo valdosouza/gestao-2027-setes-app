@@ -186,7 +186,7 @@ void main() {
       final stop = await runWith({1: const Left(_internal), 2: const Left(_bare500), 3: const Left(_internal), 4: const Right(_authorizedTx)}, [1, 2, 3, 4]);
       expect([stop.stoppedBy, stop.transmitted, stop.rows.length], [_internal, 0, 4]);
       final goOn = await runWith({1: const Left(_internal), 2: const Right(_authorizedTx), 3: const Left(_internal), 4: const Left(_internal)}, [1, 2, 3, 4]);
-      expect([goOn.stoppedBy, goOn.transmitted, goOn.refused], [null, 1, 3]);
+      expect([goOn.stoppedBy, goOn.transmitted, goOn.refused, goOn.uncertain], [null, 1, 0, 3]);   // D-F168: desconhecido = incerta
     });
 
     test('[DECIDIDO D-F163 (= Q-F171 (a))] 409 RESOURCE_BUSY num ATO: a nfse-api devolve-o quando a gravação da voz DEPOIS do fisco esbarra numa trava (lock wait → `contentionToHttpError`, `transmission.ts` (g)/(5)) — a NFS-e pode ter sido autorizada/cancelada. Pela razão da D-F155 seria desconhecido; hoje é "tente de novo"',

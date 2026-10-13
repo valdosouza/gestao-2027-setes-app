@@ -152,6 +152,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         effectFailure: _effectFailure,
       );
 
+  /// D-F169 (= Q-F177 (a), Valdo 2026-10-13 — R6-ADV-06/R6-SOC-08): um lote
+  /// (faturamento ou fiscal) no ar = a lista sai SEMPRE em loading — a página
+  /// recriada no meio do lote (cruzar 1100 px — D-F160) pede a lista e, sem
+  /// isto, a trava H1 dos botões reabria e a tela parecia ociosa com o lote
+  /// rodando. Cada lote baixa a própria marca ANTES da recarga final.
+  bool get _batchInFlight => _batchRunning || _fiscalBatchRunning;
+
   Future<void> _reloadList(Emitter<ServiceOrderState> emit) async {
     _detail = null;
     _fiscal = null;
@@ -173,7 +180,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         }
         emit(ServiceOrderActionFailure(failure));
         emit(ServiceOrderListState(
-        status: _status, filter: _filter, criteria: _criteria));
+        loading: _batchInFlight, status: _status, filter: _filter, criteria: _criteria));
       },
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →
@@ -186,6 +193,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         _page = paged.page;
         _pageSize = paged.pageSize;
         emit(ServiceOrderListState(
+          // D-F169: com um lote no ar, a lista sai em loading (a trava H1 continua)
+          loading: _batchInFlight,
           items: paged.items,
           status: _status,
           filter: _filter,
@@ -419,6 +428,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     }
     if (isClosed || _invoiceBatchStop) return;
     final failure = aborted;
+    _batchRunning = false;   // D-F169: a recarga final já sai livre
     if (failure != null && parts.length == 1) {
       // 1º bloco falhou: nada faturado, comportamento de sempre
       emit(ServiceOrderActionFailure(failure));
@@ -713,6 +723,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       // nota — o close do bloc 8 não interrompe este handler (R5-SOC-02)
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
+      _fiscalBatchRunning = false;   // D-F169: a recarga final já sai livre
       emit(ServiceOrderFiscalBatchDone(report));
       await _reloadList(emit);
     } finally {

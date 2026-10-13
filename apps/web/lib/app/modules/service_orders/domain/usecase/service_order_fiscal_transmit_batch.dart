@@ -64,7 +64,9 @@ class ServiceOrderFiscalTransmitBatch {
         rows.add(FiscalTransmitBatchRow(orderId: id, ok: true));
         continue;
       }
-      rows.add(FiscalTransmitBatchRow(orderId: id, ok: false, code: failure.code ?? '', message: failure.message));
+      // D-F168: o desfecho DESCONHECIDO é linha própria ("incerta — consulte"), nunca "recusada"
+      rows.add(FiscalTransmitBatchRow(orderId: id, ok: false, code: failure.code ?? '', message: failure.message,
+          unknown: isUnknownAuthorityOutcome(failure)));
       if (isSystemic(failure)) {
         stoppedBy = failure;
         i++;

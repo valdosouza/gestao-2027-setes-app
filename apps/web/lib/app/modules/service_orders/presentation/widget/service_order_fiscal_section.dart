@@ -83,10 +83,16 @@ class ServiceOrderFiscalSection extends StatelessWidget {
     return [
       Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 8),
+        // gate socrático da Rodada 6 (R6-SOC-01): "a decisão já foi registrada"
+        // SÓ quando o ERP diz (dispensa gravada ou nota cancelada) — com o efeito
+        // indisponível ou `cancel` (homologação — D-F80/D-F83: em H não há
+        // "manter") a frase é a neutra; a linha do efeito diz o que falta
         child: SetesText(
           _substitutionUndecided
               ? 'forms.serviceOrder.fiscalSubstitutedRow'.tr()
-              : 'forms.serviceOrder.fiscalSubstitutedDecidedRow'.tr(),
+              : (effect?.cancelWaiver != null || order.isCancelled)
+                  ? 'forms.serviceOrder.fiscalSubstitutedDecidedRow'.tr()
+                  : 'forms.serviceOrder.fiscalSubstitutedNeutralRow'.tr(),
           style: TextStyle(
               color: theme.colorScheme.error, fontWeight: FontWeight.w600),
         ),

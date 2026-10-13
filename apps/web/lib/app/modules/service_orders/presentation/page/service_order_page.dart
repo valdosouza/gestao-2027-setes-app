@@ -711,26 +711,34 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
   }
 
   /// Resumo do lote pela ponte: transmitidas/recusadas + uma linha por
-  /// recusa (código do fisco ou da nossa regra + mensagem).
+  /// recusa (código do fisco ou da nossa regra + mensagem). D-F168 (= Q-F176
+  /// (a)): o desfecho DESCONHECIDO tem contador e linha próprios ("incerta —
+  /// consulte") — a NFS-e pode ter sido autorizada; nunca "recusada".
   Future<void> _showFiscalBatchSummary(FiscalTransmitBatchReport report) {
     final stopped = report.stoppedBy;
     final summary = [
-      'forms.serviceOrder.fiscalBatchSummary'
-          .tr(args: ['${report.transmitted}', '${report.refused}']),
+      report.uncertain == 0
+          ? 'forms.serviceOrder.fiscalBatchSummary'
+              .tr(args: ['${report.transmitted}', '${report.refused}'])
+          : 'forms.serviceOrder.fiscalBatchSummaryUncertain'.tr(args: [
+              '${report.transmitted}', '${report.refused}', '${report.uncertain}']),
       if (stopped != null)
         'forms.serviceOrder.fiscalBatchStopped'.tr(args: [stopped.message.tr()]),
     ].join('\n');
-    if (report.refused == 0) {
+    if (report.refused == 0 && report.uncertain == 0) {
       return showSuccessFeedback(
           context, 'forms.serviceOrder.fiscalBatchSummary',
           args: ['${report.transmitted}', '${report.refused}']);
     }
-    final lines = report.refusedRows
-        .map((r) => 'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
-              '${r.orderId}',
-              [r.code, r.message.tr()].where((s) => s.isNotEmpty).join(' — '),   // F2B-ADV-14
-            ]))
-        .join('\n');
+    final lines = [
+      for (final r in report.uncertainRows)
+        'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']),
+      for (final r in report.refusedRows)
+        'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
+          '${r.orderId}',
+          [r.code, r.message.tr()].where((s) => s.isNotEmpty).join(' — '),   // F2B-ADV-14
+        ]),
+    ].join('\n');
     return showInfoFeedback(context, '$summary\n$lines');
   }
 

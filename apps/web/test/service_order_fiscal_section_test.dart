@@ -246,6 +246,37 @@ void main() {
       expect(find.text('Manter a nota'), findsNothing);
     });
 
+    testWidgets('R6-SOC-01: efeito do ERP INDISPONÍVEL com a substituição na voz → frase neutra, nunca "a decisão já foi registrada"', (tester) async {
+      await _pump(tester, const ServiceOrderDetailState(
+        order: _invoiced,
+        fiscal: ServiceOrderFiscalView(
+          state: NfseState.cancelled,
+          currentAttempt: 1,
+          substitution: ServiceOrderFiscalSubstitution(substituteAccessKey: 'SUBSTITUTA-123'),
+        ),
+        effectFailure: Failure(message: 'ERP fora', statusCode: 503),
+      ));
+
+      expect(find.textContaining('a decisão sobre a nota já foi registrada'), findsNothing);
+      expect(find.text('NFS-e SUBSTITUÍDA no fisco (e105102).'), findsOneWidget);
+    });
+
+    testWidgets('R6-SOC-01: efeito cancel (homologação — em H não há "manter") com a substituição → frase neutra + "cancele a nota"', (tester) async {
+      await _pump(tester, const ServiceOrderDetailState(
+        order: _invoiced,
+        fiscal: ServiceOrderFiscalView(
+          state: NfseState.cancelled,
+          currentAttempt: 1,
+          substitution: ServiceOrderFiscalSubstitution(substituteAccessKey: 'SUBSTITUTA-123'),
+        ),
+        effect: ServiceOrderFiscalEffect(effect: FiscalEffect.cancel),
+      ));
+
+      expect(find.textContaining('a decisão sobre a nota já foi registrada'), findsNothing);
+      expect(find.text('NFS-e SUBSTITUÍDA no fisco (e105102).'), findsOneWidget);
+      expect(find.textContaining('cancele a nota'), findsOneWidget);
+    });
+
     testWidgets('busy: todos os botões desabilitados (nada duplo no fisco)', (tester) async {
       await _pump(tester, const ServiceOrderDetailState(
         order: _invoiced,
