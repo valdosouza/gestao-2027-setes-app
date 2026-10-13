@@ -28,6 +28,15 @@ function Test-ApiUrl([string]$name, [string]$value) {
   if (-not [string]::IsNullOrEmpty($uri.UserInfo)) { throw "$name com credenciais na URL: $v" }
   if (-not [string]::IsNullOrEmpty($uri.Query) -or -not [string]::IsNullOrEmpty($uri.Fragment)) { throw "$name com consulta ou fragmento (o app recusa): $v" }
   if ($uri.Port -lt 1 -or $uri.Port -gt 65535) { throw "$name com porta fora de 1-65535: $v" }
+  # R5-ADV-08: a MESMA regra de host do app (AppConfig.urlProblems) + o que o navegador recusa
+  if ($uri.HostNameType -eq [UriHostNameType]::IPv6) {
+    if ([Net.IPAddress]::Parse($uri.Host.Trim('[', ']')).Equals([Net.IPAddress]::IPv6Any)) { throw "$name com endereco nao especificado (::): $v" }
+  } elseif ($uri.HostNameType -eq [UriHostNameType]::IPv4) {
+    if ($uri.Host -eq '0.0.0.0') { throw "$name com endereco nao especificado (0.0.0.0): $v" }
+  } else {
+    if ($uri.Host -cnotmatch '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$') { throw "$name com host fora da forma DNS (ponto final, sublinhado...): $v" }
+    if ($uri.Host.Split('.')[-1] -match '^(\d+|0x[0-9a-f]*)$') { throw "$name com host que termina em numero e nao e IPv4 valido (o navegador recusa): $v" }
+  }
 }
 
 Test-ApiUrl 'API_URL' $ApiUrl

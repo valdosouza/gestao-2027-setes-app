@@ -119,6 +119,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       itemId: (c) => c.id,
       itemLabel: (c) => c.display,
     );
+    // R5-ADV-07: a tela pode ter saído durante o diálogo — o bloc fechado
+    // pelo onDispose (D-F156) lança StateError no add
+    if (!mounted) return;
     if (picked != null) {
       _bloc.add(ServiceOrderOpenRequested(picked.id));
     }
@@ -131,6 +134,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       context: context,
       builder: (_) => const _MonthlyRunDialog(),
     );
+    if (!mounted) return; // R5-ADV-07
     if (competence != null) {
       _bloc.add(ServiceOrderMonthlyRunRequested(
           year: competence.$1, month: competence.$2));
@@ -210,6 +214,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
       current: current,
       datasource: _searchDatasource,
     );
+    if (!mounted) return; // R5-ADV-07
     if (values != null) _applyCriteria(values);
   }
 

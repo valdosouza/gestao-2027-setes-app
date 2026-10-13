@@ -184,9 +184,9 @@ abstract class ProductApiClient {
     // a própria string, então o PT do backend chega intacto).
     if (response.statusCode == 401) {
       final unauthorized = UnauthorizedFailure(
-        message: (body['error'] as String?) ?? 'core.errors.unauthorized',
-        code: body['code'] as String?,
-        supportRef: body['ref'] as String?,
+        message: _textOf(body['error']) ?? 'core.errors.unauthorized',
+        code: _textOf(body['code']),
+        supportRef: _textOf(body['ref']),
       );
       if (sessionToken == null) throw unauthorized;
       if (issuesSession) {
@@ -197,7 +197,7 @@ abstract class ProductApiClient {
       if (await session.confirm(sessionToken) == SessionCheck.alive) {
         // o suporte vê o código e a frase de ORIGEM (kid desconhecido ×
         // institution divergente — F2B-SOCD-07), nunca só "não aceita"
-        final origin = [body['code'], body['error'] ?? body['ref']].whereType<String>().where((s) => s.isNotEmpty).join(': ');
+        final origin = [_textOf(body['code']), _textOf(body['error']) ?? _textOf(body['ref'])].whereType<String>().where((s) => s.isNotEmpty).join(': ');
         throw Failure(
           message: 'core.errors.sessionNotAccepted',
           statusCode: 401,
@@ -209,14 +209,14 @@ abstract class ProductApiClient {
     }
     if (response.statusCode >= 400) {
       throw Failure(
-        message: (body['error'] as String?) ?? 'core.errors.generic',
+        message: _textOf(body['error']) ?? 'core.errors.generic',
         statusCode: response.statusCode,
-        fields: (body['fields'] as List<dynamic>? ?? [])
+        fields: (body['fields'] is List ? body['fields'] as List<dynamic> : const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .map(FailureField.fromJson)
             .toList(),
-        code: body['code'] as String?,
-        supportRef: body['ref'] as String?,
+        code: _textOf(body['code']),
+        supportRef: _textOf(body['ref']),
       );
     }
     if (strictEnvelope && (json == null || json['ok'] != true)) {
@@ -269,3 +269,7 @@ class NfseApiClient extends ProductApiClient {
     super.session,
   }) : super(issuesSession: false, strictEnvelope: true);
 }
+
+/// O campo de texto do envelope de erro — `null` se veio de outro tipo (o JSON
+/// de erro de um gateway/WAF: `{"error": {...}}`): nunca TypeError (R5-ADV-09).
+String? _textOf(Object? v) => v is String ? v : null;

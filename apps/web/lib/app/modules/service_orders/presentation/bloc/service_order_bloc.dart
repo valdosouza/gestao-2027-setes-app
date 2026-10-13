@@ -395,8 +395,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       // M4 do gate: a tela saiu (módulo desmontado) = PARAR de enviar blocos —
       // o que já rodou está na aba Faturadas; o resto continua aberto.
       // D-F156 (= Q-F164 (a) — decide a Q-R5.2): [stopBatches] (dispose da
-      // página e onDispose do módulo). O `isClosed` do bloc 8 só vira true
-      // DEPOIS de os handlers terminarem (o close os espera) — não serve de sinal.
+      // página e onDispose do módulo). O close do bloc 8 NÃO interrompe este
+      // handler (só cancela as emissões) — por isso o sinal é conferido a CADA bloco.
       if (isClosed || _invoiceBatchStop) return;
       final chunk = ids.sublist(
           start, (start + batchInvoiceChunkSize).clamp(0, ids.length));
@@ -709,8 +709,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     _fiscalBatchStop = false;
     try {
       emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
-      // D-F156: [stopBatches] é o sinal (o `isClosed` só vira true depois de
-      // este handler terminar — o close do bloc 8 espera os handlers)
+      // D-F156: [stopBatches] (ou o bloc fechado) é o sinal, conferido a CADA
+      // nota — o close do bloc 8 não interrompe este handler (R5-SOC-02)
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
       emit(ServiceOrderFiscalBatchDone(report));
@@ -731,8 +731,10 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// Q-F164 (a), Valdo 2026-10-13). Os dois lotes param depois da unidade em
   /// voo (a nota no fisco; o bloco de faturamento): o que já foi feito fica na
   /// lista; tela fechada = sem relatório. Síncrono e seguro com o bloc já
-  /// fechado (o `close()` do bloc 8 não interrompe handler em andamento — o
-  /// `isClosed` só vira true quando eles terminam).
+  /// fechado. Conhecimento negativo (R5-SOC-02, sonda no bloc 8.1.4): o
+  /// `close()` termina logo e o `isClosed` vira true, mas o handler em
+  /// andamento NÃO é interrompido — segue até o fim com as emissões viradas
+  /// no-op; por isso os laços conferem o sinal a cada unidade.
   void stopBatches() {
     _fiscalBatchStop = true;
     _invoiceBatchStop = true;
