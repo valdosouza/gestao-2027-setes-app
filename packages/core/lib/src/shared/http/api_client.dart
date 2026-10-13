@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../error/failure.dart';
 import 'product_token.dart';
+
+/// D-F205: o código curto e ESTÁVEL que a falha de rede leva no lugar do texto do Dart (a linha "Informe o código … ao suporte").
+String networkFailureCode(String serviceLabel) => 'NETWORK · $serviceLabel';
 
 /// Códigos de falha que o PRÓPRIO cliente produz (não vêm da API).
 abstract final class ClientFailureCodes {
@@ -79,6 +83,7 @@ abstract class ProductApiClient {
     ProductToken? session,
     required this.issuesSession,
     required this.strictEnvelope,
+    required this.serviceLabel,
   })  : _client = client ?? http.Client(),
         baseUrl = _normalize(baseUrl),
         session = session ?? ProductToken();
@@ -90,6 +95,10 @@ abstract class ProductApiClient {
 
   /// O token do produto (compartilhado entre os clientes das N APIs).
   final ProductToken session;
+
+  /// D-F205 (= P-01 (a), Valdo 2026-10-13 — passeio logado da F2b): o NOME do serviço no código curto da falha de rede
+  /// (`NETWORK · setes-api` / `NETWORK · nfse-api`) — o suporte sabe QUAL serviço não respondeu, sem URL nem texto do Dart.
+  final String serviceLabel;
 
   /// Esta API EMITE o token (o setes-api): o 401 dela com o token da sessão =
   /// a sessão morreu. As outras confirmam com o emissor antes (D-F148).
@@ -168,7 +177,10 @@ abstract class ProductApiClient {
     } on ArgumentError catch (e) {
       throw Failure(message: 'core.errors.configuration', code: ClientFailureCodes.configuration, supportRef: '${e.message}');
     } catch (e) {
-      throw NetworkFailure(detail: e.toString());
+      // D-F205: no navegador a resposta do proxy sem CORS (502/503/504) chega como `ClientException: Failed to fetch, uri=…` — o texto
+      // cru (com a URL interna) vai só para o LOG; a tela mostra o código curto do serviço que não respondeu
+      developer.log('falha de rede em $serviceLabel $path: $e', name: 'ApiClient');
+      throw NetworkFailure(detail: networkFailureCode(serviceLabel));
     }
 
     Map<String, dynamic>? json;
@@ -243,7 +255,7 @@ class ApiClient extends ProductApiClient {
     super.client,
     super.baseUrl = AppConfig.baseApiUrl,
     super.session,
-  }) : super(issuesSession: true, strictEnvelope: false);
+  }) : super(issuesSession: true, strictEnvelope: false, serviceLabel: 'setes-api');
 
   /// D-F148: o EMISSOR confirma a sessão (`GET /api/core/me`). 401 = morreu (a
   /// própria requisição já expira a sessão); qualquer outro erro não prova a
@@ -272,7 +284,7 @@ class NfseApiClient extends ProductApiClient {
     super.client,
     super.baseUrl = AppConfig.nfseApiUrl,
     super.session,
-  }) : super(issuesSession: false, strictEnvelope: true);
+  }) : super(issuesSession: false, strictEnvelope: true, serviceLabel: 'nfse-api');
 }
 
 /// O campo de texto do envelope de erro — `null` se veio de outro tipo (o JSON

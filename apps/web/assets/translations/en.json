@@ -4,7 +4,7 @@
   },
   "core": {
     "errors": {
-      "network": "Connection failure with the server",
+      "network": "No response from the service — network, proxy or timeout.",
       "unauthorized": "Not authorized",
       "session": "Invalid or expired session",
       "generic": "The operation could not be completed",
@@ -96,7 +96,8 @@
     "ok": "OK",
     "configTooltip": "Settings for this screen",
     "close": "Close",
-    "retry": "Try again"
+    "retry": "Try again",
+    "loadFailed": "The list could not be loaded."
   },
   "lookup": {
     "countries": "List of Countries",

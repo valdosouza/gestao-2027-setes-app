@@ -4,7 +4,7 @@
   },
   "core": {
     "errors": {
-      "network": "Falha de conexão com o servidor",
+      "network": "Sem resposta do serviço — rede, proxy ou tempo.",
       "unauthorized": "Não autorizado",
       "session": "Sessão inválida ou expirada",
       "generic": "Não foi possível concluir a operação",
@@ -96,7 +96,8 @@
     "ok": "OK",
     "configTooltip": "Configurações desta tela",
     "close": "Fechar",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "loadFailed": "Não foi possível carregar a lista."
   },
   "lookup": {
     "countries": "Lista de Países",

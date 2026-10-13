@@ -345,7 +345,7 @@ void main() {
       await bloc.close();
       final notice = states.whereType<ServiceOrderFiscalNotice>().single;
       expect([notice.messageKey, notice.detail], ['forms.serviceOrder.fiscalOutcomeUnknown', 'core.errors.network']);
-      expect(notice.detail!.tr(), 'Falha de conexão com o servidor');
+      expect(notice.detail!.tr(), 'Sem resposta do serviço — rede, proxy ou tempo.');   // D-F204 (= D-F188): a frase da rede é NEUTRA no app inteiro
       // a chave neutra da LINHA do lote segue com UM uso na página
       final uses = RegExp('fiscalBatchNoResponse').allMatches(File(_pageSrc).readAsStringSync()).length;
       expect(uses, 1);

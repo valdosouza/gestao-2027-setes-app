@@ -86,9 +86,12 @@ class Failure extends Equatable {
 }
 
 class NetworkFailure extends Failure {
-  /// [detail] é a exceção técnica original (ex.: `ClientException: Failed to
-  /// fetch, uri=...`) — reaproveita a linha de código de suporte (R2) para
-  /// expor a causa real em vez do "falha de conexão" genérico sem pista.
+  /// [detail] vai na linha de código de suporte (R2). D-F205 (Valdo 2026-10-13 —
+  /// passeio logado da F2b): o `ApiClient` passa o código CURTO do serviço que
+  /// não respondeu (`NETWORK · setes-api` / `NETWORK · nfse-api` —
+  /// [networkFailureCode]); a exceção crua do Dart (com a URL interna) vai só
+  /// para o log. No navegador ela nunca foi pista: o 502 do proxy sem CORS e a
+  /// rede caída chegam IGUAIS ("Failed to fetch").
   const NetworkFailure({super.message = 'core.errors.network', String? detail})
       : super(supportRef: detail);
 }

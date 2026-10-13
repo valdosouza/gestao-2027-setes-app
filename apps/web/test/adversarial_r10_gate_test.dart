@@ -462,7 +462,8 @@ void main() {
 
     test('[DECIDIDO D-F181 — era o FATO base da Q-F187-ADV-01 (analisado: navegador); a frase virou NEUTRA] no app WEB, a nfse-api é OUTRA origem (CORS — `corsFor` na nfse-api, origem do build no Plesk): a página 502/503/504 do PROXY da hospedagem não leva `Access-Control-Allow-Origin` e o navegador NÃO entrega a resposta ao app — o `http` do Flutter Web lança `ClientException: XMLHttpRequest error.`, que o `ApiClient` vira `NetworkFailure` (todo erro do envio que não é de configuração). O "HTTP 503" da D-F176 só aparece se o proxy puser CORS na página de erro (ou no Android); no web o operador lê "(sem conexão)" com a rede BOA — o suporte vai atrás da internet do cliente, e o proxy (o caso que motivou a D-F176) some. A frase principal ("resultado incerto — consulte") segue certa', () async {
       final core = File('../../packages/core/lib/src/shared/http/api_client.dart').readAsStringSync();
-      expect(core, matches(RegExp(r'\} catch \(e\) \{\s*throw NetworkFailure\(detail: e\.toString\(\)\);')));
+      // D-F205 (passeio logado da F2b): o `ApiClient` passa o código CURTO do serviço (o texto cru vai ao log) — a falha segue NetworkFailure
+      expect(core, matches(RegExp(r'\} catch \(e\) \{[\s\S]*?throw NetworkFailure\(detail: networkFailureCode\(serviceLabel\)\);')));
       final r = await batch({1: const NetworkFailure(detail: 'ClientException: XMLHttpRequest error., uri=https://nfse.setes.example/v1/nfse/invoices/1/transmit')});
       expect(uncertainLine(r.rows.single), 'Nota 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo (sem resposta do serviço — rede, proxy ou tempo)');
     });

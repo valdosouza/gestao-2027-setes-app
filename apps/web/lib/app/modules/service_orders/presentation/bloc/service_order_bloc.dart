@@ -314,7 +314,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         }
         emit(ServiceOrderActionFailure(failure));
         emit(ServiceOrderListState(
-        loading: _batchInFlight, status: _status, filter: _filter, criteria: _criteria));
+            loading: _batchInFlight, status: _status, filter: _filter, criteria: _criteria, loadFailed: true));   // D-F206
       },
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →

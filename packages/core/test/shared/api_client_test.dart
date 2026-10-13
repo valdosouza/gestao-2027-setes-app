@@ -99,6 +99,18 @@ void main() {
       final api = ApiClient(client: MockClient((_) async => throw Exception('Failed to fetch')), baseUrl: 'http://erp');
       await expectLater(api.get('/x'), throwsA(isA<NetworkFailure>()));
     });
+    test('D-F205: a falha de rede leva o código CURTO do serviço (nunca o texto do Dart nem a URL) — setes-api e nfse-api', () async {
+      final boom = MockClient((_) async => throw Exception('ClientException: Failed to fetch, uri=http://erp.interno/api/x'));
+      final setes = ApiClient(client: boom, baseUrl: 'http://erp.interno');
+      final nfse = NfseApiClient(client: boom, baseUrl: 'http://nfse.interno');
+      for (final (api, code) in [(setes as ProductApiClient, 'NETWORK · setes-api'), (nfse, 'NETWORK · nfse-api')]) {
+        await expectLater(
+            api.get('/x'),
+            throwsA(isA<NetworkFailure>()
+                .having((f) => f.supportRef, 'ref', code)
+                .having((f) => '${f.supportRef}'.contains('http') || '${f.supportRef}'.contains('ClientException'), 'vaza', isFalse)));
+      }
+    });
   });
 
   test('AppConfig.missingConfiguration aponta NFSE_API_URL quando o build não a define (D-F146)', () {

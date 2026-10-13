@@ -392,10 +392,10 @@ void main() {
       return (issuer!, os!);
     }
 
-    test('[FATO R12-ADV-03] a frase neutra da D-F185 vive só no repositório da OS (`ServiceOrderNfseRepositoryImpl._guard`); a OUTRA porta do app para a nfse-api — o Emissor fiscal do estabelecimento (`EstablishmentIssuerDatasourceImpl`: GET/PUT/DELETE `/v1/emitter*`, o mesmo `NfseApiClient`, o mesmo proxy na frente) — devolve a MESMA falta de resposta com `core.errors.network` ("Falha de conexão com o servidor"), e a seção a entrega crua à ponte (`showFailureFeedback(context, failure)`): a frase de conexão que a D-F181/D-F185 tirou dos atos fiscais', () async {
+    test('[CORRIGIDO D-F204 — era o FATO R12-ADV-03; a frase da rede é NEUTRA no app inteiro] a frase neutra da D-F185 vive só no repositório da OS (`ServiceOrderNfseRepositoryImpl._guard`); a OUTRA porta do app para a nfse-api — o Emissor fiscal do estabelecimento (`EstablishmentIssuerDatasourceImpl`: GET/PUT/DELETE `/v1/emitter*`, o mesmo `NfseApiClient`, o mesmo proxy na frente) — devolve a MESMA falta de resposta com `core.errors.network` ("Falha de conexão com o servidor"), e a seção a entrega crua à ponte (`showFailureFeedback(context, failure)`): a frase de conexão que a D-F181/D-F185 tirou dos atos fiscais', () async {
       final (issuer, os) = await bothFailures();
       expect([issuer is NetworkFailure, os is NetworkFailure, issuer.supportRef == os.supportRef], [true, true, true]);
-      expect([issuer.message.tr(), os.message.tr()], ['Falha de conexão com o servidor', 'Sem resposta do serviço — rede, proxy ou tempo.']);
+      expect([issuer.message.tr(), os.message.tr()], ['Sem resposta do serviço — rede, proxy ou tempo.', 'Sem resposta do serviço — rede, proxy ou tempo.']);
       final section = File(_issuerSectionSrc).readAsStringSync();
       expect(RegExp(r'showFailureFeedback\(context, failure\)').allMatches(section).length, 2);
     });
@@ -429,10 +429,10 @@ void main() {
           [CancelSagaStage.invoice, 'core.errors.network', CancelSagaStage.plan, 'core.errors.network']);
     });
 
-    test('[ACHADO R12-ADV-03 LOW] D-F185 ("a frase NEUTRA … só nas chamadas à nfse-api") em TODA chamada do app à nfse-api: o Emissor fiscal (salvar a habilitação, enviar/remover o A1, ler a visão) sem resposta diz a frase neutra, como os atos fiscais da OS. Correção sugerida: a troca da mensagem numa peça da borda da nfse-api (ou no `NfseApiClient`), não no repositório de UM módulo', () async {
+    test('[CORRIGIDO D-F204 — era o ACHADO R12-ADV-03 LOW] D-F185 ("a frase NEUTRA … só nas chamadas à nfse-api") em TODA chamada do app à nfse-api: o Emissor fiscal (salvar a habilitação, enviar/remover o A1, ler a visão) sem resposta diz a frase neutra, como os atos fiscais da OS. Correção sugerida: a troca da mensagem numa peça da borda da nfse-api (ou no `NfseApiClient`), não no repositório de UM módulo', () async {
       final (issuer, os) = await bothFailures();
       expect(issuer.message.tr(), os.message.tr());
-    }, skip: 'R12-ADV-03 LOW — D-F188 (= Q-F195-SOC-02 (b)): decidido JUNTO com o core.errors.network do app inteiro, depois do 502/504 provocado no passeio logado');
+    });
   });
 
   // ---------------------------------------------------------------------

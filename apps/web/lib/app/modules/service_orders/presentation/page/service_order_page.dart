@@ -504,6 +504,25 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   Widget _buildListBody(ServiceOrderListState state) {
     if (state.loading) return const SetesCircularProgressIndicator();
+    if (state.loadFailed) {
+      // D-F206: a carga falhou — o erro com "Tentar novamente" (o diálogo da ponte já disse o porquê), nunca a lista vazia
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 12),
+            SetesText('register.loadFailed'.tr()),
+            const SizedBox(height: 16),
+            SetesButton(
+              label: 'register.retry'.tr(),
+              icon: Icons.refresh,
+              onPressed: () => _dispatch(ServiceOrderListRequested(status: state.status, filter: state.filter, page: state.page)),
+            ),
+          ],
+        ),
+      );
+    }
     if (state.items.isEmpty) {
       return Center(child: SetesText('register.emptyList'.tr()));
     }
@@ -870,8 +889,13 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             showValidationFeedback(context,
                 '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
           } else if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
-            // recusa de critério da pesquisa avançada cai no else (aviso "critério removido")
-            showValidationFeedback(context, '$about${failure.fields.first.message.tr()}');
+            // recusa de critério da pesquisa avançada cai no else (aviso "critério removido"). P-04 (passeio logado da F2b,
+            // 2026-10-13): sem campo montado para ancorar, a mensagem PRINCIPAL vai junto da do campo — ela diz o que corrigir e onde
+            // ("Código de tributação municipal "0102" fora da forma do DPS … — corrija a regra de ISS"); a do campo sozinha ("Esperado
+            // 3 dígitos") não dizia nada (o `showUnanchoredServerField` da skill mensagem-e-validacao: campo + mensagem)
+            final main = failure.message.tr();
+            final field = failure.fields.first.message.tr();
+            showValidationFeedback(context, '$about${main == field ? main : '$main\n• $field'}');
           } else {
             showFailureFeedback(context, failure, about: about);
           }

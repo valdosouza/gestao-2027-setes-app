@@ -24,9 +24,14 @@ class ServiceOrderListState extends ServiceOrderState {
     this.pageSize,
     this.total,
     this.criteria = SearchCriteriaValues.empty,
+    this.loadFailed = false,
   });
 
   final List<ServiceOrderListItem> items;
+
+  /// D-F206 (= P-03 (a), Valdo 2026-10-13 — passeio logado da F2b): a CARGA da lista falhou — a tela mostra o erro com "Tentar
+  /// novamente", nunca "Não encontramos nenhum registro" (a falha não é uma lista vazia).
+  final bool loadFailed;
 
   /// Critérios APLICADOS da pesquisa avançada (chips + recarga).
   final SearchCriteriaValues criteria;
@@ -43,7 +48,7 @@ class ServiceOrderListState extends ServiceOrderState {
 
   @override
   List<Object?> get props =>
-      [items, loading, status, filter, page, pageSize, total, criteria];
+      [items, loading, status, filter, page, pageSize, total, criteria, loadFailed];
 }
 
 /// Modo detalhe da OS (buildável). [saving] desabilita as ações enquanto
