@@ -235,6 +235,11 @@ void main() {
       final sub = bloc.stream.listen(states.add);
       bloc.add(const ServiceOrderListRequested(status: 'A', filter: ''));
       await pumpEventQueue();
+      // R10-SOC-03 (gate do delta combinado): o faturamento parte do detalhe ABERTO (é onde a página o oferece) e só troca a aba se a tela
+      // ainda é ele — abrir a OS com a recarga das Abertas em voo é o caminho da tela
+      when(() => repo.getById(7)).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      bloc.add(const ServiceOrderViewRequested(7));
+      await pumpEventQueue(times: 20);
       bloc.add(const ServiceOrderInvoiceRequested(orderId: 7, input: _input));
       await pumpEventQueue();
       expect(calls, hasLength(2));

@@ -176,8 +176,28 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   int? _pendingDetailScreen;
 
   /// A tela é (ou vai ser) o detalhe — o fim de um lote só mostra o relatório.
+  /// R10-SOC-01 (gate socrático do delta da Rodada 10): "aberto" e "a caminho" são UM estado — a marca só morre no MESMO ponto em que o
+  /// `_detail` nasce (ou em que a falha volta à lista), nunca entre o GET da OS e a voz do fisco.
   bool get _onDetail =>
       _detail != null || (_pendingDetailScreen != null && _pendingDetailScreen == _screenGeneration);
+
+  /// R10-SOC-03 (dica do gate socrático da Rodada 10): um ato NO detalhe só re-emite tela se a tela que ele capturou ao começar ainda é o
+  /// detalhe ABERTO — nenhum pedido de tela depois dele (o contador — página recriada, D-F160) e o detalhe não saiu (um lote confirmado
+  /// por cima dele troca a tela pela lista sem subir o contador — D-F174). Senão, só o one-shot do desfecho; a tela de agora fica.
+  bool _stillOnDetail(int screen) => screen == _screenGeneration && _detail != null;
+
+  /// O começo de um ato NO detalhe: marca saving e devolve a tela capturada (R10-SOC-03).
+  int _beginDetailAct(Emitter<ServiceOrderState> emit) {
+    final detail = _detail;
+    if (detail != null) emit(_detailState(detail, saving: true));
+    return _screenGeneration;
+  }
+
+  /// O fim SEM recarga de um ato no detalhe: o detalhe volta (sem saving) só se a tela ainda é ele (R10-SOC-03).
+  void _endDetailAct(int screen, Emitter<ServiceOrderState> emit) {
+    final detail = _detail;
+    if (detail != null && _stillOnDetail(screen)) emit(_detailState(detail));
+  }
 
   /// A tela vira a LISTA em loading (um ato de lista começou — lote, rotina
   /// mensal, pendentes, abrir/ver OS): o detalhe SAI (`_detail` nulo —
@@ -248,22 +268,29 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
 
   /// Recarrega o detalhe (o totalizer é recalculado no servidor a cada
   /// operação de item).
-  /// [generation] = o pedido de tela que trouxe o detalhe (ver/abrir OS); sem
-  /// ele (um ato NO detalhe — item, faturar, fisco), vale a tela de agora: se
-  /// outra tela foi pedida enquanto o GET voava, o detalhe não volta por cima.
-  Future<void> _reloadDetail(int id, Emitter<ServiceOrderState> emit, {int? generation}) async {
+  /// [generation] = o pedido de tela que trouxe o detalhe (ver/abrir OS) ou a
+  /// tela que um ato NO detalhe capturou ao começar; se outra tela foi pedida
+  /// enquanto o GET voava, o detalhe não volta por cima. [act] (R10-SOC-03): a
+  /// recarga de um ATO no detalhe aberto — também não volta se o detalhe SAIU
+  /// no meio (um lote confirmado por cima dele).
+  Future<void> _reloadDetail(int id, Emitter<ServiceOrderState> emit, {int? generation, bool act = false}) async {
     final screen = generation ?? _screenGeneration;
+    bool live() => act ? _stillOnDetail(screen) : screen == _screenGeneration;
+    if (!live()) return;   // o ato terminou com a tela já em outro lugar: nem pede a OS
     final result = await get(id);
-    if (screen != _screenGeneration) return;
-    if (_pendingDetailScreen == screen) _pendingDetailScreen = null;
+    if (!live()) return;
     await result.fold(
       (failure) async {
+        // R10-SOC-01: a marca morre aqui (a falha volta à lista)…
+        if (_pendingDetailScreen == screen) _pendingDetailScreen = null;
         emit(ServiceOrderActionFailure(failure));
         await _reloadList(emit);
       },
       (full) async {
         final fiscal = await _fetchFiscal(full);
-        if (screen != _screenGeneration) return;
+        if (!live()) return;
+        // …ou aqui, JUNTO com o `_detail` (R10-SOC-01 — antes morria antes da voz do fisco e o fim da rotina mensal achava "lista")
+        if (_pendingDetailScreen == screen) _pendingDetailScreen = null;
         // R9-SOC-04/R9-ADV-03: o `_detail` e a voz do fisco nascem JUNTOS, no
         // ponto em que o detalhe é EMITIDO — uma carga abandonada nunca deixa a
         // voz de A no detalhe de B (D-F174 lê o `_detail` no fim dos lotes)
@@ -343,19 +370,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onCancelRequested(
       ServiceOrderCancelRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) {
-      emit(_detailState(detail, saving: true));
-    }
+    final screen = _beginDetailAct(emit);
     final result = await delete(event.id);
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
       (_) async {
         emit(const ServiceOrderActionSuccess('forms.serviceOrder.canceled'));
-        await _reloadList(emit);
+        if (_stillOnDetail(screen)) await _reloadList(emit);
       },
     );
   }
@@ -363,19 +387,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onItemSaveRequested(
       ServiceOrderItemSaveRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) {
-      emit(_detailState(detail, saving: true));
-    }
+    final screen = _beginDetailAct(emit);
     final result = await itemSave(event.orderId, event.itemId, event.input);
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
       (_) async {
         emit(const ServiceOrderActionSuccess('register.saved'));
-        await _reloadDetail(event.orderId, emit);
+        await _reloadDetail(event.orderId, emit, generation: screen, act: true);
       },
     );
   }
@@ -383,19 +404,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onItemRemoveRequested(
       ServiceOrderItemRemoveRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) {
-      emit(_detailState(detail, saving: true));
-    }
+    final screen = _beginDetailAct(emit);
     final result = await itemDelete(event.orderId, event.itemId);
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
       (_) async {
         emit(const ServiceOrderActionSuccess('register.deleted'));
-        await _reloadDetail(event.orderId, emit);
+        await _reloadDetail(event.orderId, emit, generation: screen, act: true);
       },
     );
   }
@@ -511,15 +529,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onInvoiceRequested(
       ServiceOrderInvoiceRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) {
-      emit(_detailState(detail, saving: true));
-    }
+    final screen = _beginDetailAct(emit);
     final result = await invoice(event.orderId, event.input);
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
       (invoiceResult) async {
         emit(ServiceOrderActionSuccess(
@@ -527,7 +542,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           args: [invoiceResult.invoiceNumber],
         ));
         // Fluxo do processo: a OS faturada aparece na aba Faturadas —
-        // troca de aba SEMPRE volta à página 1.
+        // troca de aba SEMPRE volta à página 1. R10-SOC-03: só se a tela ainda é
+        // o detalhe (outra tela pedida no meio vence — vale o último pedido)
+        if (!_stillOnDetail(screen)) return;
         _status = 'F';
         _page = 1;
         await _reloadList(emit);
@@ -542,30 +559,30 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// Ação fiscal de detalhe: marca saving, roda [run], falha vai INTEIRA ao
   /// one-shot e o detalhe volta como estava; sucesso passa o resultado a
   /// [onSuccess], que decide o feedback e se recarrega.
+  /// R10-SOC-03: [onSuccess] recebe a tela capturada ao começar.
   Future<void> _fiscalAction<T>(
     Emitter<ServiceOrderState> emit,
     Future<Either<Failure, T>> Function() run,
-    Future<void> Function(T result) onSuccess,
+    Future<void> Function(T result, int screen) onSuccess,
   ) async {
-    final detail = _detail;
-    if (detail != null) emit(_detailState(detail, saving: true));
+    final screen = _beginDetailAct(emit);
     final result = await run();
     await result.fold(
       (failure) async {
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
-      onSuccess,
+      (r) => onSuccess(r, screen),
     );
   }
 
   /// Desfecho DESCONHECIDO de um ato no fisco (502/503/rede — D-F139): nunca
   /// "não aconteceu". Aviso "resultado incerto — consulte" e o detalhe RELÊ (a
   /// tentativa pode estar em voo). Devolve true quando tratou.
-  Future<bool> _unknownOutcome(Failure failure, int orderId, Emitter<ServiceOrderState> emit) async {
+  Future<bool> _unknownOutcome(Failure failure, int orderId, int screen, Emitter<ServiceOrderState> emit) async {
     if (!isUnknownAuthorityOutcome(failure)) return false;
     emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalOutcomeUnknown', detail: failure.message));
-    await _reloadDetail(orderId, emit);
+    await _reloadDetail(orderId, emit, generation: screen, act: true);
     return true;
   }
 
@@ -578,18 +595,17 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     if (_transmitting) return;
     _transmitting = true;
     try {
-      final detail = _detail;
-      if (detail != null) emit(_detailState(detail, saving: true));
+      final screen = _beginDetailAct(emit);
       final result = await transmit(event.orderId);
       await result.fold(
         (failure) async {
-          if (await _unknownOutcome(failure, event.orderId, emit)) return;
+          if (await _unknownOutcome(failure, event.orderId, screen, emit)) return;
           emit(ServiceOrderActionFailure(failure));
-          await _reloadDetail(event.orderId, emit);   // a tentativa R/F entra na linha do tempo
+          await _reloadDetail(event.orderId, emit, generation: screen, act: true);   // a tentativa R/F entra na linha do tempo
         },
         (r) async {
           emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [r.accessKey ?? '']));
-          await _reloadDetail(event.orderId, emit);
+          await _reloadDetail(event.orderId, emit, generation: screen, act: true);
         },
       );
     } finally {
@@ -603,7 +619,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// nos dois casos (o "consultado em" muda sempre).
   Future<void> _onFiscalRefreshRequested(ServiceOrderFiscalRefreshRequested event,
           Emitter<ServiceOrderState> emit) =>
-      _fiscalAction(emit, () => fiscalRefresh(event.orderId), (result) async {
+      _fiscalAction(emit, () => fiscalRefresh(event.orderId), (result, screen) async {
         if (!result.changed) {
           emit(const ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshUnchanged'));
         } else if (result.kind == FiscalTransmissionKind.authorized ||
@@ -612,7 +628,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         } else {
           emit(const ServiceOrderActionSuccess('forms.serviceOrder.fiscalRefreshChanged'));
         }
-        await _reloadDetail(event.orderId, emit);
+        await _reloadDetail(event.orderId, emit, generation: screen, act: true);
       });
 
   /// Reconferir (nfse-api — D-F109): o veredito só escolhe a FRASE
@@ -620,14 +636,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// "Cancelar nota" lê o PLANO de novo (quem decide).
   Future<void> _onFiscalReconfirmRequested(ServiceOrderFiscalReconfirmRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) emit(_detailState(detail, saving: true));
+    final screen = _beginDetailAct(emit);
     final result = await fiscalReconfirm(event.orderId);
     await result.fold(
       (failure) async {
-        if (await _unknownOutcome(failure, event.orderId, emit)) return;
+        if (await _unknownOutcome(failure, event.orderId, screen, emit)) return;
         emit(ServiceOrderActionFailure(failure));
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       },
       (r) async {
         final key = r.found
@@ -636,7 +651,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
                 ? 'forms.serviceOrder.fiscalReconfirmProven'
                 : 'forms.serviceOrder.fiscalReconfirmNotProven';
         emit(ServiceOrderFiscalNotice(key, detail: r.verdict));
-        await _reloadDetail(event.orderId, emit);
+        await _reloadDetail(event.orderId, emit, generation: screen, act: true);
       },
     );
   }
@@ -644,19 +659,17 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// XML: one-shot [ServiceOrderFiscalXmlReady] — a página abre em nova aba.
   Future<void> _onFiscalXmlRequested(ServiceOrderFiscalXmlRequested event,
           Emitter<ServiceOrderState> emit) =>
-      _fiscalAction(emit, () => fiscalXml(event.orderId), (xml) async {
+      _fiscalAction(emit, () => fiscalXml(event.orderId), (xml, screen) async {
         emit(ServiceOrderFiscalXmlReady(xml));
-        final detail = _detail;
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       });
 
   /// DANFSe: one-shot [ServiceOrderFiscalDanfseReady].
   Future<void> _onFiscalDanfseRequested(ServiceOrderFiscalDanfseRequested event,
           Emitter<ServiceOrderState> emit) =>
-      _fiscalAction(emit, () => fiscalDanfse(event.orderId), (base64) async {
+      _fiscalAction(emit, () => fiscalDanfse(event.orderId), (base64, screen) async {
         emit(ServiceOrderFiscalDanfseReady(base64));
-        final detail = _detail;
-        if (detail != null) emit(_detailState(detail));
+        _endDetailAct(screen, emit);
       });
 
   /// 1º passo de todo cancelamento (D-F140): o PLANO do ERP → one-shot; a
@@ -664,15 +677,16 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// 503 voz indisponível) vai à ponte.
   Future<void> _onCancelFlowRequested(ServiceOrderCancelFlowRequested event,
           Emitter<ServiceOrderState> emit) =>
-      _fiscalAction(emit, () => cancelPlanGet(event.orderId), (plan) async {
-        final detail = _detail;
+      _fiscalAction(emit, () => cancelPlanGet(event.orderId), (plan, screen) async {
         if (plan.orderId != 0 && plan.orderId != event.orderId) {
           // o servidor respondeu o plano de OUTRA nota: nunca decidir por ele
           emit(ServiceOrderActionFailure(invalidResponseFailure('plano da OS ${plan.orderId} para a OS ${event.orderId}')));
-          if (detail != null) emit(_detailState(detail));
+          _endDetailAct(screen, emit);
           return;
         }
-        if (detail != null) emit(_detailState(detail));
+        // R10-SOC-03: a decisão do cancelamento só abre sobre o detalhe que a pediu (a tela mudou no meio = nada a decidir aqui)
+        if (!_stillOnDetail(screen)) return;
+        _endDetailAct(screen, emit);
         emit(ServiceOrderCancelPlanReady(plan.withOrderId(event.orderId)));
       });
 
@@ -685,8 +699,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     if (_invoiceCancelling) return;
     _invoiceCancelling = true;
     try {
-      final detail = _detail;
-      if (detail != null) emit(_detailState(detail, saving: true));
+      final screen = _beginDetailAct(emit);
       final result = await cancelInvoice(event.orderId, event.reason, atAuthority: event.atAuthority);
       await result.fold(
         (saga) async {
@@ -699,7 +712,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
               emit(ServiceOrderActionFailure(f));
             }
           } else if (saga.stage == CancelSagaStage.authority) {
-            if (await _unknownOutcome(f, event.orderId, emit)) return;
+            if (await _unknownOutcome(f, event.orderId, screen, emit)) return;
             emit(ServiceOrderActionFailure(f));
           } else if (f.code == FiscalCodes.invoiceNotCancellable) {
             // a situação mudou (ex.: outra aba já cancelou a nota): diz e relê —
@@ -713,12 +726,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           } else {
             emit(ServiceOrderActionFailure(f));
           }
-          await _reloadDetail(event.orderId, emit);
+          await _reloadDetail(event.orderId, emit, generation: screen, act: true);
         },
         (outcome) async {
           emit(ServiceOrderActionSuccess('forms.serviceOrder.invoiceCancelled', args: [outcome.result.invoiceNumber]));
           if (outcome.warnings.isNotEmpty) emit(ServiceOrderFiscalWarnings(outcome.warnings));
-          await _reloadDetail(event.orderId, emit);
+          await _reloadDetail(event.orderId, emit, generation: screen, act: true);
         },
       );
     } finally {
@@ -735,23 +748,22 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     if (_invoiceCancelling) return;
     _invoiceCancelling = true;
     try {
-      final detail = _detail;
-      if (detail != null) emit(_detailState(detail, saving: true));
+      final screen = _beginDetailAct(emit);
       final result = await fiscalWaiveCancel(event.orderId, event.reason);
       await result.fold(
         (failure) async {
           emit(ServiceOrderActionFailure(failure));
           if (failure.code == FiscalCodes.cancelWaiverNotApplicable) {
-            await _reloadDetail(event.orderId, emit);
-          } else if (detail != null) {
-            emit(_detailState(detail));
+            await _reloadDetail(event.orderId, emit, generation: screen, act: true);
+          } else {
+            _endDetailAct(screen, emit);
           }
         },
         (waiver) async {
           emit(ServiceOrderActionSuccess(waiver.alreadyWaived
               ? 'forms.serviceOrder.fiscalKeepAlready'
               : 'forms.serviceOrder.fiscalKeepDone'));
-          await _reloadDetail(event.orderId, emit);
+          await _reloadDetail(event.orderId, emit, generation: screen, act: true);
         },
       );
     } finally {

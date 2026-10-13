@@ -531,7 +531,8 @@ void main() {
       final src = File(_blocSrc).readAsStringSync();
       expect(RegExp(r'if \(_onDetail\) return;').allMatches(src).length, 7);   // + D-F177: rotina mensal (2) e pendentes (2)
       expect(src, isNot(contains('_listGeneration')));
-      expect(src, matches(RegExp(r'final fiscal = await _fetchFiscal\(full\);\s*if \(screen != _screenGeneration\) return;')));
+      // R10-SOC-03: a conferência do pedido virou `live()` (o contador e, num ato, o detalhe ainda aberto)
+      expect(src, matches(RegExp(r'final fiscal = await _fetchFiscal\(full\);\s*if \(!live\(\)\) return;')));
       expect(src, matches(RegExp(r'_effectFailure = fiscal\.effectFailure;\s*_detail = full;\s*emit\(_detailState\(full\)\);')));
       expect(src, matches(RegExp(r'if \(failure != null && parts\.length == 1\) \{[^}]*if \(_onDetail\) return;\s*await _reloadList\(emit\);')));
     });

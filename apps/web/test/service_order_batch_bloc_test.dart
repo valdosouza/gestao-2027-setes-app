@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:setes_web/app/shared/search/search_criterion.dart';
 import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_entity.dart';
+import 'package:setes_web/app/modules/service_orders/domain/entity/service_order_fiscal_entity.dart';
 import 'package:setes_web/app/modules/service_orders/domain/repository/service_order_repository.dart';
 import 'package:setes_web/app/modules/service_orders/presentation/bloc/service_order_bloc.dart';
 
@@ -361,6 +362,133 @@ void main() {
       verify(() => repo.getById(7)).called(1);                                                   // uma carga só — sem releitura
       final last = states.where((s) => s is ServiceOrderListState || s is ServiceOrderDetailState).last as ServiceOrderDetailState;
       expect(last.order.status, 'A');
+    });
+  });
+
+  group('R10-SOC-01/03 (gate socrático do delta da Rodada 10): "a caminho" até o detalhe NASCER; o ato confere a tela que capturou', () {
+    List<ServiceOrderState> shownOf(List<ServiceOrderState> s) =>
+        s.where((x) => x is ServiceOrderListState || x is ServiceOrderDetailState).toList();
+
+    Future<void> slowVoiceDetail(NfseRepoMock nfse, InvoiceRepoMock invoice, Completer<void> voice) async {
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'F')));
+      when(() => nfse.getView(any())).thenAnswer((_) async {
+        await voice.future;
+        return const Right(ServiceOrderFiscalView());
+      });
+      when(() => invoice.fiscalEffect(any())).thenAnswer((_) async => const Right(ServiceOrderFiscalEffect()));
+    }
+
+    test('R10-SOC-01: a rotina mensal termina ENTRE o GET da OS faturada e a voz do fisco → o operador FICA na OS (a marca só morre quando o detalhe nasce)', () async {
+      final gate = Completer<void>();
+      final voice = Completer<void>();
+      final nfse = NfseRepoMock();
+      final invoice = InvoiceRepoMock();
+      when(() => repo.monthlyRun(any(), any())).thenAnswer((_) async {
+        await gate.future;
+        return const Right(MonthlyRunReport(processed: 3));
+      });
+      await slowVoiceDetail(nfse, invoice, voice);
+      final bloc = buildServiceOrderBloc(repo: repo, nfse: nfse, invoice: invoice);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(const ServiceOrderMonthlyRunRequested(year: 2026, month: 10));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const ServiceOrderViewRequested(7));                                             // a OS faturada: a voz do fisco demora
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderMonthlyRunDone);
+      gate.complete();                                                                           // a rotina termina AQUI
+      await done;
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      voice.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      expect(shownOf(states).last, isA<ServiceOrderDetailState>());
+      verifyNever(() => repo.getList(any(), any(),
+          page: any(named: 'page'), pageSize: any(named: 'pageSize'), criteria: any(named: 'criteria')));
+    });
+
+    test('R10-SOC-01: a fotografia das pendentes termina na mesma janela → o operador FICA na OS', () async {
+      final gate = Completer<void>();
+      final voice = Completer<void>();
+      final nfse = NfseRepoMock();
+      final invoice = InvoiceRepoMock();
+      when(() => nfse.pending(page: any(named: 'page'), pageSize: any(named: 'pageSize'))).thenAnswer((_) async {
+        await gate.future;
+        return const Right(PagedResult.empty());
+      });
+      await slowVoiceDetail(nfse, invoice, voice);
+      final bloc = buildServiceOrderBloc(repo: repo, nfse: nfse, invoice: invoice);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(const ServiceOrderFiscalPendingRequested());
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderFiscalPendingLoaded);
+      gate.complete();
+      await done;
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      voice.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      expect(shownOf(states).last, isA<ServiceOrderDetailState>());
+    });
+
+    test('R10-SOC-03: o ato no detalhe FALHA depois que a tela virou lista (página recriada) → o desfecho aparece e o detalhe NÃO volta por cima', () async {
+      final slow = Completer<Either<Failure, Unit>>();
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      when(() => repo.itemDelete(any(), any())).thenAnswer((_) => slow.future);
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      bloc.add(const ServiceOrderItemRemoveRequested(orderId: 7, itemId: 1));
+      await Future<void>.delayed(Duration.zero);
+      final list = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      bloc.add(const ServiceOrderListRequested(status: 'A', filter: ''));                       // a página recriada (D-F160) pede a lista
+      await list;
+      final failed = bloc.stream.firstWhere((s) => s is ServiceOrderActionFailure);
+      slow.complete(const Left(Failure(message: 'busy', statusCode: 409)));
+      await failed;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+      await bloc.close();
+      expect(shownOf(states).last, isA<ServiceOrderListState>());
+    });
+
+    test('R10-SOC-03: o ato no detalhe dá CERTO depois que um lote foi confirmado por cima dele → o detalhe não ressuscita sobre o lote e o fim do lote recarrega a lista', () async {
+      final slow = Completer<Either<Failure, Unit>>();
+      final gate = Completer<void>();
+      when(() => repo.getById(any())).thenAnswer((_) async => const Right(ServiceOrderFull(id: 7, customerId: 1, status: 'A')));
+      when(() => repo.itemDelete(any(), any())).thenAnswer((_) => slow.future);
+      when(() => repo.batchInvoice(any(), any())).thenAnswer((inv) async {
+        await gate.future;
+        return Right(_reportFor(inv.positionalArguments[0] as List<int>));
+      });
+      final bloc = _bloc(repo);
+      final states = <ServiceOrderState>[];
+      final sub = bloc.stream.listen(states.add);
+      final detail = bloc.stream.firstWhere((s) => s is ServiceOrderDetailState);
+      bloc.add(const ServiceOrderViewRequested(7));
+      await detail;
+      bloc.add(const ServiceOrderItemRemoveRequested(orderId: 7, itemId: 1));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(ServiceOrderBatchInvoiceRequested(orderIds: _ids(3), input: _input));           // o lote confirmado por cima do detalhe
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      slow.complete(const Right(unit));                                                         // o ato termina com o lote no ar
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      final done = bloc.stream.firstWhere((s) => s is ServiceOrderListState && !s.loading);
+      gate.complete();
+      await done;
+      await sub.cancel();
+      await bloc.close();
+      verify(() => repo.getById(7)).called(1);                                                   // o ato NÃO releu o detalhe sobre o lote
+      expect(states.whereType<ServiceOrderBatchInvoiceDone>(), hasLength(1));
+      expect((shownOf(states).last as ServiceOrderListState).loading, isFalse);
     });
   });
 
