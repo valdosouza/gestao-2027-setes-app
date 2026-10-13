@@ -481,7 +481,12 @@ void main() {
           trace.add('${e.runtimeType}${e.props}');
           final shownNow = _shownOrNull(states);
           if (longOps.contains(e.runtimeType)) {
-            if (shownNow is ServiceOrderDetailState) replacedByLongOp = shownNow.order.id;
+            if (shownNow is ServiceOrderDetailState) {
+              replacedByLongOp = shownNow.order.id;
+              // R15-SOC-04 (ii): o caso POSITIVO da cerca da D-F193 — o lote confirmado por cima do detalhe aberto, com uma leitura dele no ar
+              count('longOpOverDetail');
+              if (flights.any((f) => f.label == 'get ${shownNow.order.id}')) count('longOpOverDetailRereadInFlight');
+            }
           } else if (e is ServiceOrderViewRequested || e is ServiceOrderOpenRequested || e is ServiceOrderListRequested ||
               e is ServiceOrderBackToListPressed) {
             replacedByLongOp = null;
@@ -674,6 +679,10 @@ void main() {
       // R14-SOC-03 (gate socrático da Rodada 14): com a D-F193 e a D-F194 em vigor, os dois contadores que eram só impressos viram CERCA —
       // um detalhe ressuscitado sobre operação longa ou um plano da OS a caminho descartado reprova o fuzz
       expect([cover['resurrectedOverLongOp'] ?? 0, cover['planDroppedOnTheWay'] ?? 0], [0, 0], reason: 'D-F193/D-F194: $cover');
+      // R15-SOC-04 (ii) (gate socrático da Rodada 15): a cerca acima não passa por vacuidade — o fuzz confirmou lotes POR CIMA do detalhe
+      // aberto (as sementes são fixas: o número é estável). O caso com a releitura do detalhe NO AR (`longOpOverDetailRereadInFlight`,
+      // impresso) é raro no gerador; quem o prova é o grupo dirigido do R13-ADV-01 acima (`rereadInFlightThenLoteConfirmed`)
+      expect(cover['longOpOverDetail'] ?? 0, greaterThan(2), reason: 'o fuzz quase não confirmou lote sobre detalhe: $cover');
     }, timeout: const Timeout(Duration(minutes: 6)));
   });
 }

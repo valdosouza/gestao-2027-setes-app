@@ -272,6 +272,8 @@ void main() {
         plan.complete(const Right(ServiceOrderCancelPlan(orderId: _aId, cancellable: true)));
         await pumpEventQueue(times: 20);
         expect(states.sublist(at), isEmpty, reason: 'o plano da A com ${superseding.runtimeType} por cima');
+        // R15-SOC-04 (iii): o plano FOI pedido (e chegou) — o "nada emitido" acima não passa por vacuidade
+        verify(() => invoice.cancelPlan(_aId)).called(1);
         await sub.cancel();
         await bloc.close();
       }
@@ -518,6 +520,7 @@ void main() {
         _Flight? stepFlight;
         var stepHadOutcome = false;
         ServiceOrderState? stepStartState;   // o estado do bloc no começo do passo (o `emit` IGUAL ao atual é engolido — Equatable)
+        var stepEmits = 0;                   // R15-SOC-04 (i): as emissões do passo corrente (a tolerância do desfecho engolido exige a 1ª)
         var stepPlanShown = false;
         final violations = <String>[];
         String why() => 'seed $seed\n${trace.join('\n')}';
@@ -584,6 +587,7 @@ void main() {
         bool onWay() => last == 'view' || last == 'open';
         final sub = bloc.stream.listen((s) {
           states.add(s);
+          stepEmits++;
           final (isOutcome, about) = _outcome(s);
           if (isOutcome) {
             stepHadOutcome = true;
@@ -613,8 +617,10 @@ void main() {
           } else if (s is ServiceOrderListState) {
             if (stepKind == 'complete') {
               if (onWay() || last == 'detail') {
-                if (!stepHadOutcome && stepStartState is ServiceOrderActionFailure) {
-                  // R14-ADV-02: o desfecho do passo era IGUAL ao estado atual (a mesma falha, o mesmo número) e o bloc o engoliu
+                if (!stepHadOutcome && stepStartState is ServiceOrderActionFailure && stepEmits == 1) {
+                  // R14-ADV-02: o desfecho do passo era IGUAL ao estado atual (a mesma falha, o mesmo número) e o bloc o engoliu — R15-SOC-04 (i):
+                  // só quando a lista é a 1ª emissão do passo (o desfecho engolido vem ANTES dela); um passo que emitiu outra coisa antes da
+                  // lista sem desfecho é violação, parta de onde partir
                   count('R14-ADV-02 outcomeSwallowed');
                 } else if (!stepHadOutcome) {
                   violations.add('(2) lista emitida com o modelo em $last $os, sem desfecho no passo — ${why()}');
@@ -648,6 +654,7 @@ void main() {
           stepEvent = e;
           stepFlight = null;
           stepHadOutcome = false;
+          stepEmits = 0;
           stepPlanShown = false;
           stepStartState = states.lastOrNull;
           if (!bloc.isClosed) bloc.add(e);                                              // o `_dispatch` da página (D-F184)
@@ -673,6 +680,7 @@ void main() {
           stepEvent = null;
           stepFlight = f;
           stepHadOutcome = false;
+          stepEmits = 0;
           stepPlanShown = false;
           stepStartState = states.lastOrNull;
           f.finish(ok);

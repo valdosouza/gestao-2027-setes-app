@@ -1,5 +1,9 @@
 part of 'service_order_bloc.dart';
 
+/// CONHECIMENTO NEGATIVO (D-F198 = Q-F197-ADV-02 (a), gate adversarial da Rodada 14; R15-SOC-06): todo estado é `Equatable` e o bloc
+/// DESCARTA um estado IGUAL ao último emitido — dois avisos idênticos seguidos (mesma chave, mesmos args, mesma OS) viram UM, e o
+/// "último emitido" pode ter aparecido há MINUTOS (um ato que termina fora da OS não emite mais nada: o 2º "Consultar" igual, 3 min
+/// depois, não é anunciado). Nenhuma regra pode CONTAR avisos iguais seguidos.
 sealed class ServiceOrderState extends Equatable {
   const ServiceOrderState();
 
@@ -163,9 +167,7 @@ class ServiceOrderFiscalBatchDone extends ServiceOrderState {
   List<Object?> get props => [report, noteNumbers];
 }
 
-/// CONHECIMENTO NEGATIVO (D-F198 = Q-F197-ADV-02 (a), gate adversarial da Rodada 14): os one-shots são `Equatable` e o bloc DESCARTA um
-/// estado IGUAL ao atual — dois avisos idênticos seguidos (mesma chave, mesmos args, mesma OS) viram UM. O texto perdido é sempre o mesmo
-/// que acabou de aparecer; nenhuma regra pode CONTAR avisos iguais seguidos.
+/// D-F198: um one-shot IGUAL ao último estado emitido é descartado (ver [ServiceOrderState]).
 ///
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
 /// alimenta placeholders da chave (ex.: nº da fatura gerada).
