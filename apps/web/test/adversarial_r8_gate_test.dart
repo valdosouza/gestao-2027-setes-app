@@ -92,7 +92,7 @@ void main() {
     test('[CORRIGIDO R8-ADV-03 LOW — R8-SOC-02 (a)] a linha INCERTA ganhou "({código · ref})" (R7-SOC-02 iii), mas a falha que mais vira "incerta" — o PROXY na frente da nfse-api (502/503/504 com página HTML: sem `code` nem `ref`) e o 500 sem corpo da casa — não tem nenhum dos dois: a frase termina com "()" VAZIO ("Ordem 1: resultado incerto — consulte a situação no fisco antes de transmitir de novo ()"). O certo: sem código e sem ref, nada de parênteses (ou o status HTTP no lugar)', () async {
       final r = await usecase({1: const Left(_proxy503), 2: const Left(_proxy502), 3: const Left(_bare500)}, [1, 2, 3]);
       final src = File(_pageSrc).readAsStringSync();
-      // D-F176: a página compõe a linha com "sem conexão" (rede) ou o complemento (código · ref · HTTP)
+      // D-F176/D-F181: a página compõe a linha com a frase neutra da rede ("sem resposta do serviço — rede, proxy ou tempo") ou o complemento (código · ref · HTTP)
       expect(src, contains(r"'forms.serviceOrder.fiscalBatchUncertainRow'.tr(args: ['${r.orderId}']) +"));
       expect(src, contains(r"(r.network ? ' (${'forms.serviceOrder.fiscalBatchNoResponse'.tr()})' : r.uncertainDetail)"));
       for (final row in r.uncertainRows) {
@@ -109,7 +109,7 @@ void main() {
       // D-F176 (= Q-F184 (b)): sem código da casa, o STATUS HTTP (o suporte sabe que foi o proxy); nunca "()"
       expect(r.uncertainRows.map((row) => row.uncertainDetail).toList(), [' (HTTP 503)', ' (HTTP 502)', ' (HTTP 500)']);
       final net = await usecase({4: const Left(NetworkFailure(detail: 'ClientException: Failed to fetch, uri=https://nfse.example/v1/nfse/invoices/4/transmit')), 5: const Left(_internal)}, [4, 5]);
-      // D-F176: a rede caída não leva o texto da exceção à tela — a página diz "sem conexão"
+      // D-F176: a rede caída não leva o texto da exceção à tela — a página diz a frase neutra (D-F181)
       expect([net.uncertainRows[0].network, net.uncertainRows[0].supportRef, net.uncertainRows[0].uncertainDetail], [true, '', '']);
       expect(net.uncertainRows[1].uncertainDetail, ' (INTERNAL · ref ab12cd)');
     });

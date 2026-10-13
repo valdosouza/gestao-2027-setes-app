@@ -301,7 +301,15 @@ void main() {
       }
     });
 
-    test('D-F176 (= Q-F184 (b)): sem código, o status HTTP ("HTTP 503"); a rede caída sem complemento (a página diz "sem conexão")', () {
+    test('R11-SOC-04 (cerca): TODO código de `ClientFailureCodes` está em `ClientFailureCodes.all` — a lista que a D-F180 usa para tirar o "ref" da falha montada pelo app', () {
+      final src = File('../../packages/core/lib/src/shared/http/api_client.dart').readAsStringSync();
+      final body = src.substring(src.indexOf('abstract final class ClientFailureCodes'), src.indexOf('static const all'));
+      final declared = RegExp(r"static const \w+ = '([A-Z_]+)';").allMatches(body).map((m) => m.group(1)).toSet();
+      expect(declared, isNotEmpty);
+      expect(ClientFailureCodes.all, declared, reason: 'código novo do cliente entra na lista');
+    });
+
+    test('D-F176 (= Q-F184 (b)) + D-F181: sem código, o status HTTP ("HTTP 503"); a rede caída sem complemento (a página diz a frase neutra)', () {
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, httpStatus: 503).uncertainDetail, ' (HTTP 503)');
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, unknown: true, httpStatus: 500, supportRef: 'x1').uncertainDetail, ' (HTTP 500 · ref x1)');
       expect(const FiscalTransmitBatchRow(orderId: 1, ok: false, code: 'INTERNAL', unknown: true, httpStatus: 500).uncertainDetail, ' (INTERNAL)');

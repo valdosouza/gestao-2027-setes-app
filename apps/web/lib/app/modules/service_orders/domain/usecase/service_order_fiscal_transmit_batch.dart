@@ -70,7 +70,8 @@ class ServiceOrderFiscalTransmitBatch {
       // próprio app monta (`CLIENT_*` — resposta ilegível, configuração) leva o texto do Dart no supportRef: fica só o código (o texto
       // inteiro segue na mensagem do ato avulso — F2B-ADV-12)
       final network = failure is NetworkFailure;
-      final clientMade = (failure.code ?? '').startsWith('CLIENT_');
+      // R11-SOC-04: a falha montada pelo app pela LISTA (`ClientFailureCodes.all`), não pelo prefixo `CLIENT_`
+      final clientMade = ClientFailureCodes.all.contains(failure.code);
       rows.add(FiscalTransmitBatchRow(orderId: id, ok: false, code: failure.code ?? '', message: failure.message,
           unknown: isUnknownAuthorityOutcome(failure), supportRef: network || clientMade ? '' : (failure.supportRef ?? ''),
           httpStatus: failure.statusCode ?? 0, network: network));

@@ -21,6 +21,11 @@ abstract final class ClientFailureCodes {
   /// setes-api) a aceita — a sessão fica; a tela diz que o serviço não a
   /// reconheceu (configuração de chave, institution divergente).
   static const sessionNotAccepted = 'SESSION_NOT_ACCEPTED';
+
+  /// TODOS os códigos acima — a falha MONTADA pelo app (o `supportRef` dela, quando há, é texto do Dart, nunca referência do
+  /// servidor). Gate socrático do delta da Rodada 11 (R11-SOC-04): quem precisa distinguir (a linha do lote — D-F180) lê ESTA lista, não
+  /// um prefixo de texto; código novo aqui entra nela (cerca no teste do app).
+  static const all = {invalidResponse, configuration, sessionNotAccepted};
 }
 
 /// As rotas de `/auth` que NÃO levam a sessão (o setes-api as serve sem o
