@@ -5,7 +5,7 @@
 //     — e uma falha não esconde a outra fonte;
 // (2) os botões vêm do `state` do servidor, do `effect` do ERP e do
 //     privilégio — nunca de coluna crua: Transmitir só nos estados
-//     transmissíveis e com TRANSMITIR; Cancelar NFS-e só na autorizada e com
+//     transmissíveis e com TRANSMITIR; "Cancelar nota" (D-F150 — rótulo neutro) na autorizada e com
 //     CANCELAR; "Aplicar o cancelamento na nota" só no efeito `apply`;
 //     "Manter a nota" só no `decide`;
 // (3) todo cancelamento pede o MESMO fluxo (o plano — D-F140): os três botões
@@ -108,7 +108,7 @@ void main() {
 
       expect(find.text('Efeito na nota indisponível: Situação no fisco indisponível'), findsOneWidget);
       expect(find.text('Consultar'), findsOneWidget);
-      expect(find.text('Cancelar NFS-e'), findsOneWidget);
+      expect(find.text('Cancelar nota'), findsOneWidget);
     });
   });
 
@@ -133,7 +133,7 @@ void main() {
       expect(find.text('Transmitir'), findsNothing);
     });
 
-    testWidgets('autorizada: chave/nº da vigente, Consultar/XML/DANFSe e "Cancelar NFS-e" pede o PLANO', (tester) async {
+    testWidgets('autorizada: chave/nº da vigente, Consultar/XML/DANFSe e "Cancelar nota" pede o PLANO', (tester) async {
       final calls = await _pump(tester, const ServiceOrderDetailState(
         order: _invoiced,
         fiscal: _authorized,
@@ -142,18 +142,35 @@ void main() {
 
       expect(find.text('Transmitir'), findsNothing, reason: 'autorizada não é transmissível');
       expect(find.text('41069021234567800019900001000000000704'), findsOneWidget);
-      for (final label in ['Consultar', 'XML', 'DANFSe', 'Cancelar NFS-e']) {
+      for (final label in ['Consultar', 'XML', 'DANFSe', 'Cancelar nota']) {
         await tester.tap(find.text(label));
       }
       expect(calls.list, ['refresh', 'xml', 'danfse', 'cancel-flow']);
     });
 
-    testWidgets('autorizada sem o privilégio CANCELAR: sem "Cancelar NFS-e"', (tester) async {
+    testWidgets('autorizada sem o privilégio CANCELAR: sem "Cancelar nota"; sem TRANSMITIR: sem "Consultar" (a nfse-api exige — F2B-SOC-11)', (tester) async {
       CurrentInterface.value = _iface(['TRANSMITIR']);
       await _pump(tester, const ServiceOrderDetailState(order: _invoiced, fiscal: _authorized));
 
-      expect(find.text('Cancelar NFS-e'), findsNothing);
+      expect(find.text('Cancelar nota'), findsNothing);
       expect(find.text('Consultar'), findsOneWidget);
+
+      CurrentInterface.value = _iface(['CANCELAR']);
+      await _pump(tester, const ServiceOrderDetailState(order: _invoiced, fiscal: _authorized));
+      expect(find.text('Consultar'), findsNothing);
+      expect(find.text('Cancelar nota'), findsOneWidget);
+    });
+
+    testWidgets('F2B-SOC-11: voz indisponível NÃO esconde "Aplicar o cancelamento na nota" (só depende do efeito do ERP); a falha mostra o código de suporte (F2B-SOC-10)', (tester) async {
+      final calls = await _pump(tester, const ServiceOrderDetailState(
+        order: _invoiced,
+        fiscalFailure: Failure(message: 'Fisco indisponível', statusCode: 503, supportRef: 'REF-77'),
+        effect: ServiceOrderFiscalEffect(effect: FiscalEffect.apply),
+      ));
+
+      expect(find.textContaining('REF-77'), findsOneWidget);
+      await tester.tap(find.text('Aplicar o cancelamento na nota'));
+      expect(calls.list, ['cancel-flow']);
     });
 
     testWidgets('rejeitada (R): cabe transmitir de novo', (tester) async {
@@ -165,7 +182,7 @@ void main() {
       ));
 
       expect(find.text('Transmitir'), findsOneWidget);
-      expect(find.text('Cancelar NFS-e'), findsNothing);
+      expect(find.text('Cancelar nota'), findsNothing);
     });
 
     testWidgets('efeito apply: a frase + "Aplicar o cancelamento na nota" pede o MESMO fluxo do plano', (tester) async {
@@ -178,7 +195,7 @@ void main() {
       expect(find.text('O fisco cancelou a NFS-e — falta cancelar a nota no sistema.'), findsOneWidget);
       await tester.tap(find.text('Aplicar o cancelamento na nota'));
       expect(calls.list, ['cancel-flow']);
-      expect(find.text('Cancelar NFS-e'), findsNothing);
+      expect(find.text('Cancelar nota'), findsNothing);
     });
 
     testWidgets('efeito cancel (de ofício / homologação): "Cancelar nota" pelo plano', (tester) async {
@@ -248,7 +265,7 @@ void main() {
       effect: ServiceOrderFiscalEffect(effect: FiscalEffect.apply),
     ));
 
-    for (final label in ['Transmitir', 'Cancelar NFS-e', 'Aplicar o cancelamento na nota', 'Cancelar nota', 'Manter a nota']) {
+    for (final label in ['Transmitir', 'Cancelar nota', 'Aplicar o cancelamento na nota', 'Cancelar nota', 'Manter a nota']) {
       expect(find.text(label), findsNothing, reason: label);
     }
     expect(find.text('O fisco cancelou a NFS-e — falta cancelar a nota no sistema.'), findsNothing);

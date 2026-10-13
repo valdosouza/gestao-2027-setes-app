@@ -43,15 +43,18 @@ void main() {
       expect(ServiceOrderFiscalEvent.fromJson({'attempt': 1, 'event': 1}).kind, '');
     });
 
-    test('visão vazia: nunca transmitida, nada disponível, cabe transmitir', () {
+    test('visão SEM state: desconhecido, sem ação (F2B-SOC-06 — ausência nunca é "nunca transmitida"); state none explícito: cabe transmitir', () {
       final v = ServiceOrderFiscalView.fromJson(const {});
-      expect(v.state, NfseState.none);
+      expect(v.state, NfseState.unknown);
+      expect(v.canTransmitState, isFalse);
       expect(v.currentAttempt, isNull);
       expect(v.current, isNull);
-      expect(v.canTransmitState, isTrue);
       expect(v.localCancelPending, isFalse);
       expect(v.isSubstituted, isFalse);
       expect(v.xmlAvailable, isFalse);
+      final none = ServiceOrderFiscalView.fromJson(const {'state': 'none'});
+      expect([none.state, none.canTransmitState], [NfseState.none, isTrue]);
+      expect(ServiceOrderFiscalView.fromJson(const {'state': 7}).state, NfseState.unknown, reason: 'tipo trocado = desconhecido');
     });
 
     test('a vigente é a que o SERVIDOR escolheu (currentAttempt), não a última da lista', () {

@@ -1,3 +1,4 @@
+import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,6 +46,13 @@ class ServiceOrderFiscalSection extends StatelessWidget {
   bool get busy => state.saving;
   ServiceOrderFiscalView? get fiscal => state.fiscal;
   ServiceOrderFiscalEffect? get effect => state.effect;
+
+  /// O texto da falha + o código de suporte do alarme (F2B-SOC-10 — o `ref` do
+  /// 503 da D-F130 chega à tela para o usuário informar ao suporte).
+  String _withRef(String text, Failure failure) {
+    final ref = failure.supportRef;
+    return ref == null || ref.isEmpty ? text : '$text — ${'feedback.supportRef'.tr(args: [ref])}';
+  }
 
   Widget _row(String text, {TextStyle? style}) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
@@ -141,8 +149,7 @@ class ServiceOrderFiscalSection extends StatelessWidget {
             children: [
               if (failure != null)
                 _row(
-                  'forms.serviceOrder.fiscalUnavailable'
-                      .tr(args: [failure.message.tr()]),
+                  _withRef('forms.serviceOrder.fiscalUnavailable'.tr(args: [failure.message.tr()]), failure),
                   style: TextStyle(color: theme.colorScheme.error),
                 )
               else if (tx == null)
@@ -194,8 +201,8 @@ class ServiceOrderFiscalSection extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: SetesText(
-                    'forms.serviceOrder.fiscalEffectUnavailable'
-                        .tr(args: [state.effectFailure!.message.tr()]),
+                    _withRef('forms.serviceOrder.fiscalEffectUnavailable'.tr(args: [state.effectFailure!.message.tr()]),
+                        state.effectFailure!),
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 )
@@ -212,56 +219,67 @@ class ServiceOrderFiscalSection extends StatelessWidget {
                     fx.cancelWaiver!.reason,
                   ])),
                 ),
-              if (view != null) ...[
+              // as ações de cada FONTE aparecem pelo que ELA diz (F2B-SOC-11: a voz
+              // indisponível escondia "Aplicar o cancelamento na nota", que só
+              // depende do efeito do ERP)
+              if (view != null || fx != null) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    // Transmitir: pelo ESTADO do servidor (nunca transmitida ou
-                    // última tentativa R/F); nota cancelada é documento encerrado
-                    if (view.canTransmitState &&
-                        !order.isCancelled &&
-                        CurrentInterface.can('TRANSMITIR'))
-                      SetesButton(
-                        label: 'forms.serviceOrder.fiscalTransmit'.tr(),
-                        icon: Icons.cloud_upload_outlined,
-                        loading: busy,
-                        onPressed: busy ? null : onTransmit,
-                      ),
-                    if (view.currentAttempt != null)
-                      SetesButton(
-                        label: 'forms.serviceOrder.fiscalRefresh'.tr(),
-                        icon: Icons.sync,
-                        kind: SetesButtonKind.secondary,
-                        loading: busy,
-                        onPressed: busy ? null : onFiscalRefresh,
-                      ),
-                    if (view.xmlAvailable)
-                      SetesButton(
-                        label: 'forms.serviceOrder.fiscalXml'.tr(),
-                        icon: Icons.code,
-                        kind: SetesButtonKind.secondary,
-                        loading: busy,
-                        onPressed: busy ? null : onFiscalXml,
-                      ),
-                    if (view.danfseAvailable)
-                      SetesButton(
-                        label: 'forms.serviceOrder.fiscalDanfse'.tr(),
-                        icon: Icons.picture_as_pdf_outlined,
-                        kind: SetesButtonKind.secondary,
-                        loading: busy,
-                        onPressed: busy ? null : onFiscalDanfse,
-                      ),
-                    // Cancelar NFS-e: atalho do MESMO fluxo pelo plano (D-F140)
-                    if (view.state == NfseState.authorized && !order.isCancelled && canCancel)
-                      SetesButton(
-                        label: 'forms.serviceOrder.fiscalCancel'.tr(),
-                        icon: Icons.cancel_outlined,
-                        kind: SetesButtonKind.secondary,
-                        loading: busy,
-                        onPressed: busy ? null : onCancelInvoice,
-                      ),
+                    if (view != null) ...[
+                      // Transmitir: pelo ESTADO do servidor (nunca transmitida ou
+                      // última tentativa R/F); nota cancelada é documento encerrado
+                      if (view.canTransmitState &&
+                          !order.isCancelled &&
+                          CurrentInterface.can('TRANSMITIR'))
+                        SetesButton(
+                          label: 'forms.serviceOrder.fiscalTransmit'.tr(),
+                          icon: Icons.cloud_upload_outlined,
+                          loading: busy,
+                          onPressed: busy ? null : onTransmit,
+                        ),
+                      // Consultar: a nfse-api exige TRANSMITIR (a consulta ativa
+                      // pode fechar a tentativa — F2B-SOC-11)
+                      if (view.currentAttempt != null && CurrentInterface.can('TRANSMITIR'))
+                        SetesButton(
+                          label: 'forms.serviceOrder.fiscalRefresh'.tr(),
+                          icon: Icons.sync,
+                          kind: SetesButtonKind.secondary,
+                          loading: busy,
+                          onPressed: busy ? null : onFiscalRefresh,
+                        ),
+                      if (view.xmlAvailable)
+                        SetesButton(
+                          label: 'forms.serviceOrder.fiscalXml'.tr(),
+                          icon: Icons.code,
+                          kind: SetesButtonKind.secondary,
+                          loading: busy,
+                          onPressed: busy ? null : onFiscalXml,
+                        ),
+                      if (view.danfseAvailable)
+                        SetesButton(
+                          label: 'forms.serviceOrder.fiscalDanfse'.tr(),
+                          icon: Icons.picture_as_pdf_outlined,
+                          kind: SetesButtonKind.secondary,
+                          loading: busy,
+                          onPressed: busy ? null : onFiscalDanfse,
+                        ),
+                      // NFS-e autorizada: "Cancelar nota" — o MESMO fluxo pelo
+                      // plano (D-F140). D-F150 (= Q-F162 (a)): rótulo NEUTRO; o
+                      // que acontece no fisco a frase do PLANO diz (com barreira
+                      // `authorized`: cancelar a NFS-e no fisco e a nota; sem — em
+                      // homologação —: só a nota)
+                      if (view.state == NfseState.authorized && !order.isCancelled && canCancel)
+                        SetesButton(
+                          label: 'forms.serviceOrder.cancelInvoice'.tr(),
+                          icon: Icons.cancel_outlined,
+                          kind: SetesButtonKind.secondary,
+                          loading: busy,
+                          onPressed: busy ? null : onCancelInvoice,
+                        ),
+                    ],
                     // D-F140: o fisco cancelou e a nota não — o humano APLICA
                     // (pelo plano; nunca automático)
                     if (fx?.effect == FiscalEffect.apply && !order.isCancelled && canCancel)

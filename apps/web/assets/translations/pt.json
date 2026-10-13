@@ -7,7 +7,10 @@
       "network": "Falha de conexão com o servidor",
       "unauthorized": "Não autorizado",
       "session": "Sessão inválida ou expirada",
-      "generic": "Não foi possível concluir a operação"
+      "generic": "Não foi possível concluir a operação",
+      "configuration": "Configuração do app inválida — a URL de uma API do produto está faltando ou torta (acione o suporte)",
+      "invalidResponse": "O servidor respondeu num formato inesperado (acione o suporte)",
+      "sessionNotAccepted": "Este serviço não reconheceu a sua sessão, embora o ERP a aceite — tente de novo mais tarde ou acione o suporte"
     }
   },
   "feedback": {
@@ -382,6 +385,7 @@
       "issuerDocsHelp": "Ambiente de emissão e série da NFS-e. O documento fica habilitado depois da migração da emissão e com certificado válido.",
       "issuerModelSE": "NFS-e (Padrão Nacional)",
       "issuerEnvironment": "Ambiente de emissão",
+      "issuerEnvironmentRequired": "Escolha o ambiente de emissão (homologação ou produção)",
       "issuerSerie": "Série do documento",
       "issuerSerieInvalid": "Informe a série do documento entre 1 e 49999",
       "issuerBadgeEnabled": "Habilitado",
@@ -841,6 +845,7 @@
       "fiscalBatchSummary": "Transmitidas: {} · Recusadas: {}",
       "fiscalBatchRefusedRow": "Ordem {}: {}",
       "fiscalBatchStopped": "O lote parou: {}",
+      "fiscalBatchCapped": "Teto de {} notas por lote — o restante fica para o próximo lote.",
       "listInvoiceCell": "Nota {}",
       "fiscalStateNone": "Sem NFS-e",
       "fiscalSealAuthorized": "NFS-e {}",

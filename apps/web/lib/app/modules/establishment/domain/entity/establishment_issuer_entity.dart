@@ -150,7 +150,9 @@ class EstablishmentIssuer extends Equatable {
   /// 'SE' NFS-e nacional · '55' NF-e · '65' NFC-e.
   final String model;
 
-  /// 'H' homologação · 'P' produção (ambiente de EMISSÃO do modelo).
+  /// 'H' homologação · 'P' produção (ambiente de EMISSÃO do modelo). Vindo da
+  /// API sem o campo (ou fora do domínio) = '' — DESCONHECIDO, nunca 'H'
+  /// (F2B-ADV-15: salvar a série trocaria P → H calado).
   final String environment;
 
   /// Série do documento (1–5 dígitos).
@@ -169,7 +171,7 @@ class EstablishmentIssuer extends Equatable {
   factory EstablishmentIssuer.fromJson(Map<String, dynamic> json) =>
       EstablishmentIssuer(
         model:       '${json['model'] ?? ''}',
-        environment: json['environment'] as String? ?? 'H',
+        environment: kIssuerEnvironments.contains(json['environment']) ? json['environment'] as String : '',
         serie:       '${json['serie'] ?? ''}',
         enabled:     json['enabled'] == true,
         authority:   json['authority'] as String? ?? '',

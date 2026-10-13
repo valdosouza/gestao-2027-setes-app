@@ -45,8 +45,9 @@ class ServiceOrderNfseDatasourceImpl implements ServiceOrderNfseDatasource {
 
   static const _base = '/v1/nfse/invoices';
 
-  Map<String, dynamic> _data(Map<String, dynamic> json) =>
-      json['data'] as Map<String, dynamic>? ?? const {};
+  /// F2B-ADV-04: `{ ok: true, data: {…} }` ou falha técnica — nunca `{}` virando
+  /// "não transmitida"/"autorizada".
+  Map<String, dynamic> _data(Map<String, dynamic> json) => envelopeData(json);
 
   @override
   Future<ServiceOrderFiscalView> getView(int invoiceId) async =>
@@ -83,6 +84,6 @@ class ServiceOrderNfseDatasourceImpl implements ServiceOrderNfseDatasource {
   @override
   Future<PagedResult<ServiceOrderFiscalPending>> pending({int page = 1, int pageSize = 100}) async {
     final json = await client.get('$_base/pending?interfaceKey=service-orders&page=$page&pageSize=$pageSize');
-    return PagedResult.fromJson(json, ServiceOrderFiscalPending.fromJson);
+    return PagedResult.fromJson(envelopePage(json), ServiceOrderFiscalPending.fromJson);
   }
 }

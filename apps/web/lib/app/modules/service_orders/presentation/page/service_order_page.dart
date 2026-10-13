@@ -95,6 +95,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
 
   @override
   void dispose() {
+    // D-F145: a tela saiu — o lote "Transmitir notas sem NFS-e" para depois da
+    // nota em voo (o bloc não é fechado pelo Modular — F2B-ADV-03)
+    _bloc.add(const ServiceOrderFiscalBatchStopRequested());
     _tabs.dispose();
     _filter.dispose();
     super.dispose();
@@ -599,6 +602,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     }
     final barrier = plan.fiscalBarrier;
     if (barrier == null) {
+      // defesa em profundidade (F2B-SOC-07/ADV-09): sem barreira E sem
+      // bloqueio, mas o servidor disse que não cabe — não pede o motivo
+      if (!plan.cancellable) {
+        await showValidationFeedback(context, 'forms.serviceOrder.cancelInvoiceBlocked'.tr());
+        return;
+      }
       final reason = await showCancelInvoiceDialog(context, number);
       if (reason == null || !mounted) return;
       _bloc.add(ServiceOrderCancelConfirmed(
@@ -680,10 +689,13 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           context, 'forms.serviceOrder.fiscalNothingPending'.tr());
       return;
     }
+    // F2B-SOC-13: o teto do lote é dito na confirmação (nunca calado)
+    final capped = pending.length >= fiscalBatchMaxNotes
+        ? '\n${'forms.serviceOrder.fiscalBatchCapped'.tr(args: ['$fiscalBatchMaxNotes'])}'
+        : '';
     final decision = await askDecision(
       context,
-      message: 'forms.serviceOrder.fiscalTransmitPendingAsk'
-          .tr(args: ['${pending.length}']),
+      message: '${'forms.serviceOrder.fiscalTransmitPendingAsk'.tr(args: ['${pending.length}'])}$capped',
       yesLabel: 'forms.serviceOrder.fiscalTransmit'.tr(),
     );
     if (decision != SetesDecision.yes || !mounted) return;
@@ -709,7 +721,7 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     final lines = report.refusedRows
         .map((r) => 'forms.serviceOrder.fiscalBatchRefusedRow'.tr(args: [
               '${r.orderId}',
-              [r.code, r.message].where((s) => s.isNotEmpty).join(' — '),
+              [r.code, r.message.tr()].where((s) => s.isNotEmpty).join(' — '),   // F2B-ADV-14
             ]))
         .join('\n');
     return showInfoFeedback(context, '$summary\n$lines');
@@ -773,8 +785,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
           }
           if (state is ServiceOrderFiscalNotice) {
             final text = state.messageKey.tr(args: state.args);
+            // F2B-ADV-14: o detalhe pode ser chave i18n (core.errors.*)
             showInfoFeedback(context,
-                state.detail == null || state.detail!.isEmpty ? text : '$text\n${state.detail}');
+                state.detail == null || state.detail!.isEmpty ? text : '$text\n${state.detail!.tr()}');
             return;
           }
           if (state is ServiceOrderActionSuccess) {

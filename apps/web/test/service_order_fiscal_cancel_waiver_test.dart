@@ -84,11 +84,10 @@ void main() {
       expect(r.alreadyWaived, isFalse);
     });
 
-    test('resposta sem data não quebra (orderId 0, não mantida antes)', () async {
+    test('resposta sem o envelope (sem data) é FALHA técnica — nunca "decisão registrada" inventada (F2B-ADV-04)', () async {
       final ds = ServiceOrderInvoiceDatasourceImpl(client: _FakeClient(response: const {'ok': true}));
-      final r = await ds.cancelWaiver(_orderId, _reason);
-      expect(r.orderId, 0);
-      expect(r.alreadyWaived, isFalse);
+      await expectLater(ds.cancelWaiver(_orderId, _reason),
+          throwsA(isA<Failure>().having((f) => f.code, 'code', ClientFailureCodes.invalidResponse)));
     });
 
     test('409 da API chega INTACTO ao repositório como Left (ponte trata)', () async {

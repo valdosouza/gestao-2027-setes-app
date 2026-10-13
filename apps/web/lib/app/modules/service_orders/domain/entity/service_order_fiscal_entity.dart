@@ -47,6 +47,10 @@ abstract final class NfseState {
   /// D-F130 (selo da LISTA de OS): a voz do fisco ilegível agora no ERP.
   static const unavailable = 'unavailable';
 
+  /// Só do APP: a resposta não trouxe o `state` (F2B-SOC-06 — ausência nunca
+  /// é "nunca transmitida"): neutro, sem ação.
+  static const unknown = 'unknown';
+
   /// Estados em que cabe transmitir (de novo): nunca transmitida, ou a última
   /// tentativa fechou sem NFS-e (R/F). O servidor reconfere (409).
   static const transmittable = {none, rejected, failed};
@@ -221,7 +225,7 @@ class ServiceOrderFiscalView extends Equatable {
 
   factory ServiceOrderFiscalView.fromJson(Map<String, dynamic> json) =>
       ServiceOrderFiscalView(
-        state:          json['state'] as String? ?? NfseState.none,
+        state:          json['state'] is String ? json['state'] as String : NfseState.unknown,
         currentAttempt: jsonInt(json['currentAttempt']),
         transmissions: (json['transmissions'] as List<dynamic>? ?? [])
             .map((e) => ServiceOrderFiscalTransmission.fromJson(
@@ -426,13 +430,22 @@ class ServiceOrderCancelPlan extends Equatable {
   /// D16 do operador (F2A3-SOC-12): null quando o cancelamento não toca o caixa.
   final bool? cashierOpen;
 
-  /// A barreira fiscal do plano (null = o fisco não barra).
+  /// A barreira fiscal do plano (null = o fisco não barra). Bloco `fiscal` SEM
+  /// barreira tipada = barreira DESCONHECIDA (F2B-ADV-09 — nunca "o fisco não
+  /// barra"): a tela mostra a mensagem e não oferece ação.
   FiscalBarrier? get fiscalBarrier {
     for (final b in blocks) {
-      if (b.field == 'fiscal') return b.barrier;
+      if (b.field == 'fiscal') return b.barrier ?? const FiscalBarrier(kind: FiscalBarrierKind.unknown);
     }
     return null;
   }
+
+  /// O mesmo plano com o id da OS que a TELA pediu (F2B-ADV-09: resposta sem
+  /// `orderId` virava 0 e a saga iria para a nota 0).
+  ServiceOrderCancelPlan withOrderId(int id) => ServiceOrderCancelPlan(
+        orderId: id, invoiceNumber: invoiceNumber, cancellable: cancellable, blocks: blocks,
+        fiscalRecord: fiscalRecord, touchesCash: touchesCash, cashierOpen: cashierOpen,
+      );
 
   /// Bloqueios que NÃO são do fisco (título, boleto, cheque…).
   List<CancelPlanBlock> get localBlocks =>
@@ -506,15 +519,30 @@ abstract final class FiscalCodes {
   static const resourceBusy = 'RESOURCE_BUSY';
   static const cutoverPending = 'FISCAL_CUTOVER_PENDING';
   static const voiceUnavailable = 'FISCAL_VOICE_UNAVAILABLE';
+
+  /// Só do APP (D-F149): o plano relido antes do fisco não é mais "só a NFS-e
+  /// autorizada impede" — a saga não vai ao fisco.
+  static const cancelPlanChanged = 'CANCEL_PLAN_CHANGED';
 }
 
 /// Desfecho DESCONHECIDO de um ato no fisco (D-F139: nunca "não aconteceu"):
 /// resposta ambígua (502), fisco fora (503) ou a rede caiu no meio — a
 /// tentativa pode estar em voo; a tela RELÊ e oferece "Consultar".
-bool isUnknownAuthorityOutcome(Failure failure) =>
-    failure is NetworkFailure ||
-    failure.code == FiscalCodes.authorityUnknown ||
-    failure.code == FiscalCodes.authorityUnavailable;
+///
+/// Gate adversarial da F2b (F2B-ADV-01/ADV-04/ADV-12): também o 408/502/503/504
+/// SEM código da casa (o gateway — nginx/Plesk — desistiu antes da nfse-api, que
+/// pode estar com a tentativa em voo) e a resposta 2xx que não é o envelope ou
+/// não se lê (a resposta não diz o que aconteceu). O 500 da nfse-api segue como
+/// falha comum (Q-F163).
+bool isUnknownAuthorityOutcome(Failure failure) {
+  if (failure is NetworkFailure) return true;
+  final code = failure.code ?? '';
+  if (code == FiscalCodes.authorityUnknown || code == FiscalCodes.authorityUnavailable) return true;
+  if (code == ClientFailureCodes.invalidResponse) return true;
+  return code.isEmpty && _gatewayStatuses.contains(failure.statusCode);
+}
+
+const _gatewayStatuses = {408, 502, 503, 504};
 
 /// Teto do motivo do "Manter a nota" (DTO da API: 1–255).
 const int fiscalCancelWaiverReasonMax = 255;

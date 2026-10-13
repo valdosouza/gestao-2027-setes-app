@@ -76,6 +76,7 @@ class ServiceOrderDetailState extends ServiceOrderState {
 /// autorizada como único impedimento → cancelar no fisco e na nota;
 /// reconferir → reconferir; o resto → mostrar os bloqueios).
 class ServiceOrderCancelPlanReady extends ServiceOrderState {
+  /// [plan] sempre com o `orderId` que a TELA pediu (F2B-ADV-09).
   const ServiceOrderCancelPlanReady(this.plan);
   final ServiceOrderCancelPlan plan;
 

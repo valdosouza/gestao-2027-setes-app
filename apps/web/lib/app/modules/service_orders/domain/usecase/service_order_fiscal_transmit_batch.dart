@@ -28,10 +28,24 @@ class ServiceOrderFiscalTransmitBatch {
     return failure is UnauthorizedFailure ||
         failure.statusCode == 403 ||
         code.startsWith('FISCAL_CERT_') ||
-        code == 'FISCAL_ISSUER_MISSING' ||
-        code == FiscalCodes.cutoverPending ||
-        code == 'FISCAL_MASTER_KEY_UNAVAILABLE';
+        _systemicCodes.contains(code);
   }
+
+  /// Valem para TODAS as notas do estabelecimento — continuar só empilha
+  /// tentativas (e queima nDPS + voz F permanente em cada nota). Gates da F2b
+  /// (F2B-SOC-03/ADV-02): o fisco recusou o A1 no mTLS, a cadeia do servidor do
+  /// fisco não é confiável, o cadastro do emitente está incompleto; D-F148: o
+  /// serviço não reconheceu a sessão; configuração do app torta.
+  static const _systemicCodes = {
+    'FISCAL_ISSUER_MISSING',
+    FiscalCodes.cutoverPending,
+    'FISCAL_MASTER_KEY_UNAVAILABLE',
+    'FISCAL_AUTHORITY_AUTH_FAILED',
+    'FISCAL_AUTHORITY_CHAIN_UNTRUSTED',
+    'FISCAL_EMITTER_INCOMPLETE',
+    ClientFailureCodes.sessionNotAccepted,
+    ClientFailureCodes.configuration,
+  };
 
   /// [shouldStop] = a tela fechou (bloc fechado): para sem relatório.
   Future<FiscalTransmitBatchReport> call(List<int> orderIds, {bool Function()? shouldStop}) async {

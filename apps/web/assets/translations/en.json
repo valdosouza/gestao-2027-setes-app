@@ -7,7 +7,10 @@
       "network": "Connection failure with the server",
       "unauthorized": "Not authorized",
       "session": "Invalid or expired session",
-      "generic": "The operation could not be completed"
+      "generic": "The operation could not be completed",
+      "configuration": "Invalid app configuration — the URL of a product API is missing or malformed (contact support)",
+      "invalidResponse": "The server answered in an unexpected format (contact support)",
+      "sessionNotAccepted": "This service did not recognize your session, although the ERP accepts it — try again later or contact support"
     }
   },
   "feedback": {
@@ -382,6 +385,7 @@
       "issuerDocsHelp": "Issuing environment and series of the NFS-e. The document is enabled after the issuing migration and with a valid certificate.",
       "issuerModelSE": "NFS-e (National Standard)",
       "issuerEnvironment": "Issuing environment",
+      "issuerEnvironmentRequired": "Choose the issuing environment (homologation or production)",
       "issuerSerie": "Document series",
       "issuerSerieInvalid": "Enter the document series between 1 and 49999",
       "issuerBadgeEnabled": "Enabled",
@@ -841,6 +845,7 @@
       "fiscalBatchSummary": "Transmitted: {} · Refused: {}",
       "fiscalBatchRefusedRow": "Order {}: {}",
       "fiscalBatchStopped": "The batch stopped: {}",
+      "fiscalBatchCapped": "Up to {} invoices per batch — the rest stays for the next batch.",
       "listInvoiceCell": "Invoice {}",
       "fiscalStateNone": "No NFS-e",
       "fiscalSealAuthorized": "NFS-e {}",

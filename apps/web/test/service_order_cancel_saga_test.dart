@@ -37,8 +37,13 @@ const _local = ServiceOrderInvoiceCancelResult(orderId: _orderId, invoiceNumber:
 const _atFisco = ServiceOrderFiscalCancelResult(invoiceId: _orderId, warnings: ['Evento arquivado com atraso']);
 const _authorizedVoice = ServiceOrderFiscalView(state: NfseState.authorized, currentAttempt: 1);
 
+/// O plano em que SÓ a NFS-e autorizada impede (a saga pode ir ao fisco — D-F149).
+const _onlyAuthority = ServiceOrderCancelPlan(orderId: _orderId, fiscalRecord: true, blocks: [
+  CancelPlanBlock(field: 'fiscal', message: 'NFS-e autorizada', barrier: FiscalBarrier(kind: FiscalBarrierKind.authorized)),
+]);
+
 /// Cliente de mentira que grava as chamadas — serve às DUAS APIs.
-mixin _Recorder on ApiClient {
+mixin _Recorder on ProductApiClient {
   final calls = <String>[];
   Map<String, dynamic> reply = const {'ok': true, 'data': <String, dynamic>{}};
 
@@ -66,9 +71,42 @@ void main() {
   setUp(() {
     nfse = NfseRepoMock();
     invoice = InvoiceRepoMock();
+    // D-F149: com atAuthority a saga RELÊ o plano antes do fisco
+    when(() => invoice.cancelPlan(_orderId)).thenAnswer((_) async => const Right(_onlyAuthority));
   });
 
   group('saga (usecase de composição)', () {
+    test('D-F149: o plano relido antes do fisco MUDOU (título baixado no meio) → a saga NÃO vai ao fisco nem ao ERP', () async {
+      when(() => invoice.cancelPlan(_orderId)).thenAnswer((_) async => const Right(ServiceOrderCancelPlan(orderId: _orderId, blocks: [
+            CancelPlanBlock(field: 'fiscal', message: 'NFS-e autorizada', barrier: FiscalBarrier(kind: FiscalBarrierKind.authorized)),
+            CancelPlanBlock(field: 'title', message: 'Título 7650/1 tem baixa', ref: '7650/1'),
+          ])));
+
+      final r = await ServiceOrderCancelInvoice(nfse: nfse, invoice: invoice)(_orderId, _reason, atAuthority: true);
+
+      expect(r.fold((f) => [f.stage, f.failure.code], (_) => null), [CancelSagaStage.plan, FiscalCodes.cancelPlanChanged]);
+      verifyNever(() => nfse.cancel(any(), any()));
+      verifyNever(() => invoice.cancel(any(), any()));
+    });
+
+    test('D-F149: o plano relido não se lê (503 da voz) → nada é feito (stage plan)', () async {
+      const down = Failure(message: 'Situação no fisco indisponível', statusCode: 503, code: FiscalCodes.voiceUnavailable);
+      when(() => invoice.cancelPlan(_orderId)).thenAnswer((_) async => const Left(down));
+
+      final r = await ServiceOrderCancelInvoice(nfse: nfse, invoice: invoice)(_orderId, _reason, atAuthority: true);
+
+      expect(r, const Left<CancelSagaFailure, ServiceOrderCancelOutcome>(CancelSagaFailure(stage: CancelSagaStage.plan, failure: down)));
+      verifyNever(() => nfse.cancel(any(), any()));
+    });
+
+    test('sem o fisco ("Aplicar o cancelamento na nota") o plano NÃO é relido pela saga (a tela acabou de lê-lo; o POST refaz)', () async {
+      when(() => invoice.cancel(_orderId, _reason)).thenAnswer((_) async => const Right(_local));
+
+      await ServiceOrderCancelInvoice(nfse: nfse, invoice: invoice)(_orderId, _reason, atAuthority: false);
+
+      verifyNever(() => invoice.cancelPlan(any()));
+    });
+
     test('atAuthority: o fisco PRIMEIRO, depois a nota; avisos do fisco no desfecho', () async {
       final order = <String>[];
       when(() => nfse.cancel(_orderId, _reason)).thenAnswer((_) async {
@@ -244,6 +282,18 @@ void main() {
       expect(notice.messageKey, 'forms.serviceOrder.fiscalLocalCancelPending');
       expect(notice.detail, 'Abra o caixa');
       expect((states.last as ServiceOrderDetailState).effect!.effect, FiscalEffect.apply);
+    });
+
+    test('D-F149 no bloc: o plano relido mudou → aviso "a situação mudou" + relê; o fisco nunca é chamado', () async {
+      when(() => repo.getById(_orderId)).thenAnswer((_) async => const Right(_order));
+      when(() => invoice.cancelPlan(_orderId)).thenAnswer((_) async => const Right(ServiceOrderCancelPlan(orderId: _orderId)));
+
+      final states = await run(await opened(),
+          const ServiceOrderCancelConfirmed(orderId: _orderId, reason: _reason, atAuthority: true));
+
+      expect(states.whereType<ServiceOrderFiscalNotice>().single.messageKey, 'forms.serviceOrder.fiscalSituationChanged');
+      verifyNever(() => nfse.cancel(any(), any()));
+      verify(() => repo.getById(_orderId)).called(2);
     });
 
     test('a situação mudou (INVOICE_NOT_CANCELLABLE): aviso próprio + relê', () async {

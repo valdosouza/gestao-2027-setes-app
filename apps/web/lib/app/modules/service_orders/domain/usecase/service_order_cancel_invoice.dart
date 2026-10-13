@@ -3,15 +3,17 @@ import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 
 import '../entity/service_order_entity.dart';
+import '../entity/service_order_fiscal_entity.dart';
 import '../repository/service_order_invoice_repository.dart';
 import '../repository/service_order_nfse_repository.dart';
 
 /// Em que passo a saga do cancelamento parou — a tela diz a coisa certa:
-/// [authority] = o fisco não cancelou (ou o desfecho é desconhecido — o K
+/// [plan] = o plano RELIDO logo antes do fisco (D-F149) não deixa ir (ou não se
+/// leu) — nada foi feito; [authority] = o fisco não cancelou (ou o desfecho é desconhecido — o K
 /// pode estar em voo: releia e consulte); [invoice] = a nota no ERP não foi
 /// cancelada (se o fisco JÁ cancelou, o efeito fica `apply` — a tela oferece
 /// "Aplicar o cancelamento na nota").
-enum CancelSagaStage { authority, invoice }
+enum CancelSagaStage { plan, authority, invoice }
 
 class CancelSagaFailure extends Equatable {
   const CancelSagaFailure({required this.stage, required this.failure, this.authorityCancelled = false});
@@ -49,6 +51,14 @@ class ServiceOrderCancelOutcome extends Equatable {
 /// depois do fisco ter cancelado, nada fica guardado aqui — a tela relê o
 /// efeito (`apply`) e oferece "Aplicar o cancelamento na nota", que é esta
 /// mesma saga com [atAuthority] = false.
+///
+/// D-F149 (= Q-F161 (a), Valdo 2026-10-13 — gate socrático da F2b, F2B-SOC-02):
+/// com [atAuthority], o PLANO é relido IMEDIATAMENTE antes do fisco — entre a
+/// leitura da tela e a confirmação passa o tempo HUMANO (o motivo digitado), e
+/// um título baixado ou o caixa fechado nesse meio fariam o fisco cancelar e a
+/// nota ficar. Se ele não for mais "só a NFS-e autorizada impede", a saga NÃO
+/// vai ao fisco. A janela que sobra (a chamada ao fisco, segundos) é aceita e
+/// se recupera pelo efeito `apply`.
 class ServiceOrderCancelInvoice {
   const ServiceOrderCancelInvoice({required this.nfse, required this.invoice});
 
@@ -59,6 +69,14 @@ class ServiceOrderCancelInvoice {
       int orderId, String reason, {required bool atAuthority}) async {
     var warnings = const <String>[];
     if (atAuthority) {
+      final plan = await invoice.cancelPlan(orderId);
+      final planFailure = plan.fold<Failure?>(
+        (f) => f,
+        (p) => p.onlyAuthorityStands
+            ? null
+            : const Failure(message: 'forms.serviceOrder.fiscalSituationChanged', code: FiscalCodes.cancelPlanChanged),
+      );
+      if (planFailure != null) return Left(CancelSagaFailure(stage: CancelSagaStage.plan, failure: planFailure));
       final atFisco = await nfse.cancel(orderId, reason);
       final refused = atFisco.fold<Failure?>((f) => f, (r) {
         warnings = r.warnings;

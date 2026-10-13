@@ -33,8 +33,10 @@ class ServiceOrderInvoiceDatasourceImpl implements ServiceOrderInvoiceDatasource
 
   final ApiClient client;
 
-  Map<String, dynamic> _data(Map<String, dynamic> json) =>
-      json['data'] as Map<String, dynamic>? ?? const {};
+  /// F2B-ADV-04: `{ ok: true, data: {…} }` ou falha técnica (o plano, o efeito
+  /// e o cancelamento decidem — nunca sobre `{}`). As rotas `/api/billing/*`
+  /// respondem sempre pelo `sendOk`.
+  Map<String, dynamic> _data(Map<String, dynamic> json) => envelopeData(json);
 
   @override
   Future<ServiceOrderCancelPlan> cancelPlan(int orderId) async =>

@@ -25,9 +25,11 @@ void main() {
       expect(i.authority, 'ADN');
     });
 
-    test('defaults: ambiente H, série vazia, desabilitado; série numérica vira texto', () {
+    test('defaults: ambiente AUSENTE = desconhecido (nunca um H inventado — F2B-ADV-15), série vazia, desabilitado; série numérica vira texto', () {
       final i = EstablishmentIssuer.fromJson({'model': '55', 'serie': 1});
-      expect(i.environment, 'H');
+      expect(i.environment, '');
+      expect(EstablishmentIssuer.fromJson({'model': 'SE', 'environment': 'X'}).environment, '', reason: 'fora do domínio = desconhecido');
+      expect(EstablishmentIssuer.fromJson({'model': 'SE', 'environment': 'P'}).environment, 'P');
       expect(i.serie, '1');
       expect(i.enabled, isFalse, reason: 'enabled ausente = false');
       expect(i.authority, '');

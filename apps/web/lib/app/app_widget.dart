@@ -23,13 +23,27 @@ class _AppWidgetState extends State<AppWidget> {
     // volta o tema ao padrão e vai ao login (antes, cada tela mostrava um
     // diálogo "token inválido" e o usuário ficava preso nela). O "Manter
     // conectado" é preferência do usuário — a expiração não a revoga.
-    _removeExpiredListener =
-        Modular.get<ProductToken>().addExpiredListener(_onSessionExpired);
+    final session = Modular.get<ProductToken>();
+    _removeExpiredListener = session.addExpiredListener(_onSessionExpired);
+    // D-F148 (= Q-F160 (a)): o 401 de uma API que NÃO emitiu o token (a
+    // nfse-api) só derruba a sessão se o EMISSOR (o setes-api) confirmar —
+    // chave de assinatura nova que a nfse-api ainda não conhece não desloga o
+    // usuário em laço a cada OS faturada aberta.
+    session.confirmer = Modular.get<ApiClient>().sessionAlive;
   }
 
   Future<void> _onSessionExpired() async {
-    await Modular.get<LocalPrefs>().setSessionToken(null);
-    Modular.get<ThemeCubit>().reset();
+    try {
+      // várias abas dividem a sessão SALVA: só limpa se for a que expirou (a
+      // aba velha não apaga o login novo da outra — F2B-ADV-11)
+      final prefs = Modular.get<LocalPrefs>();
+      final stored = await prefs.getSessionToken();
+      final expired = Modular.get<ProductToken>().lastExpired;
+      if (stored == null || stored == expired) await prefs.setSessionToken(null);
+      Modular.get<ThemeCubit>().reset();
+    } catch (_) {
+      // a ida ao login abaixo não depende da limpeza
+    }
     Modular.to.navigate('/login');
   }
 

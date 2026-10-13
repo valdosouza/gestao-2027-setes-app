@@ -76,7 +76,8 @@ class _EstablishmentIssuerSectionState
   final _passwordFocus = FocusNode();
 
   /// Habilitação por modelo: ambiente escolhido + série digitada.
-  final _environment = {for (final m in kIssuerModels) m: 'H'};
+  /// null = desconhecido (a API não disse — o usuário escolhe; F2B-ADV-15).
+  final _environment = <String, String?>{for (final m in kIssuerModels) m: 'H'};
   final _serie = {
     for (final m in kIssuerModels) m: TextEditingController(),
   };
@@ -108,7 +109,11 @@ class _EstablishmentIssuerSectionState
     _epoch++;
     for (final model in kIssuerModels) {
       final issuer = view.issuerFor(model);
-      _environment[model] = issuer?.environment ?? 'H';
+      // linha nova nasce em H; linha EXISTENTE só com o ambiente que a API
+      // disse — desconhecido fica sem seleção (nunca um H inventado)
+      _environment[model] = issuer == null
+          ? 'H'
+          : (kIssuerEnvironments.contains(issuer.environment) ? issuer.environment : null);
       _serie[model]!.text = issuer?.serie ?? '';
     }
   }
@@ -209,6 +214,12 @@ class _EstablishmentIssuerSectionState
 
   Future<void> _saveIssuer(String model) async {
     final serie = _serie[model]!.text.trim();
+    final environment = _environment[model];
+    if (environment == null) {
+      await showValidationFeedback(
+          context, 'forms.establishment.issuerEnvironmentRequired'.tr());
+      return;
+    }
     if (!issuerSerieValid(serie)) {
       await showValidationFeedback(
           context, 'forms.establishment.issuerSerieInvalid'.tr());
@@ -217,7 +228,7 @@ class _EstablishmentIssuerSectionState
     }
     await _run(
       () => widget.datasource.saveIssuer(model,
-          environment: _environment[model]!, serie: serie),
+          environment: environment, serie: serie),
       'forms.establishment.issuerSaved',
     );
   }
@@ -395,7 +406,7 @@ class _EstablishmentIssuerSectionState
           value: _environment[model],
           items: kIssuerEnvironments,
           itemLabel: _envLabel,
-          onChanged: (v) => setState(() => _environment[model] = v ?? 'H'),
+          onChanged: (v) => setState(() => _environment[model] = v),
         ),
         const SizedBox(height: 12),
         SetesTextField(

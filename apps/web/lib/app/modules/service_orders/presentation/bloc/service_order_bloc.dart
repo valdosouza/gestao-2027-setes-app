@@ -85,6 +85,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     on<ServiceOrderFiscalPendingRequested>(_onFiscalPendingRequested);
     on<ServiceOrderFiscalTransmitBatchRequested>(
         _onFiscalTransmitBatchRequested);
+    on<ServiceOrderFiscalBatchStopRequested>((_, __) => _fiscalBatchStop = true);
   }
 
   final ServiceOrderGetlist getlist;
@@ -491,21 +492,31 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// à ponte; desfecho desconhecido relê. Nunca reenvia sozinho.
   Future<void> _onTransmitRequested(ServiceOrderTransmitRequested event,
       Emitter<ServiceOrderState> emit) async {
-    final detail = _detail;
-    if (detail != null) emit(_detailState(detail, saving: true));
-    final result = await transmit(event.orderId);
-    await result.fold(
-      (failure) async {
-        if (await _unknownOutcome(failure, event.orderId, emit)) return;
-        emit(ServiceOrderActionFailure(failure));
-        await _reloadDetail(event.orderId, emit);   // a tentativa R/F entra na linha do tempo
-      },
-      (r) async {
-        emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [r.accessKey ?? '']));
-        await _reloadDetail(event.orderId, emit);
-      },
-    );
+    // UM envio por vez (F2B-ADV-07): o 2º clique enquanto o 1º está no fisco é
+    // ignorado — a trava da nota na nfse-api barra, mas não se manda o 2º
+    if (_transmitting) return;
+    _transmitting = true;
+    try {
+      final detail = _detail;
+      if (detail != null) emit(_detailState(detail, saving: true));
+      final result = await transmit(event.orderId);
+      await result.fold(
+        (failure) async {
+          if (await _unknownOutcome(failure, event.orderId, emit)) return;
+          emit(ServiceOrderActionFailure(failure));
+          await _reloadDetail(event.orderId, emit);   // a tentativa R/F entra na linha do tempo
+        },
+        (r) async {
+          emit(ServiceOrderActionSuccess('forms.serviceOrder.fiscalAuthorized', args: [r.accessKey ?? '']));
+          await _reloadDetail(event.orderId, emit);
+        },
+      );
+    } finally {
+      _transmitting = false;
+    }
   }
+
+  bool _transmitting = false;
 
   /// Consultar (nfse-api): `changed` diz se a linha do tempo mudou. Recarrega
   /// nos dois casos (o "consultado em" muda sempre).
@@ -574,8 +585,14 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           Emitter<ServiceOrderState> emit) =>
       _fiscalAction(emit, () => cancelPlanGet(event.orderId), (plan) async {
         final detail = _detail;
+        if (plan.orderId != 0 && plan.orderId != event.orderId) {
+          // o servidor respondeu o plano de OUTRA nota: nunca decidir por ele
+          emit(ServiceOrderActionFailure(invalidResponseFailure('plano da OS ${plan.orderId} para a OS ${event.orderId}')));
+          if (detail != null) emit(_detailState(detail));
+          return;
+        }
         if (detail != null) emit(_detailState(detail));
-        emit(ServiceOrderCancelPlanReady(plan));
+        emit(ServiceOrderCancelPlanReady(plan.withOrderId(event.orderId)));
       });
 
   /// 2º passo: a SAGA (D-F139). Trava de duplo-clique compartilhada com o
@@ -593,16 +610,25 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       await result.fold(
         (saga) async {
           final f = saga.failure;
-          if (saga.stage == CancelSagaStage.authority) {
+          if (saga.stage == CancelSagaStage.plan) {
+            // D-F149: o plano relido não deixa ir ao fisco — nada foi feito
+            if (f.code == FiscalCodes.cancelPlanChanged) {
+              emit(const ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged'));
+            } else {
+              emit(ServiceOrderActionFailure(f));
+            }
+          } else if (saga.stage == CancelSagaStage.authority) {
             if (await _unknownOutcome(f, event.orderId, emit)) return;
             emit(ServiceOrderActionFailure(f));
+          } else if (f.code == FiscalCodes.invoiceNotCancellable) {
+            // a situação mudou (ex.: outra aba já cancelou a nota): diz e relê —
+            // ANTES do authorityCancelled (F2B-SOC-05/ADV-08: com o fisco e a nota
+            // já cancelados, "aplicar na nota" dizia o contrário)
+            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', detail: f.message));
           } else if (saga.authorityCancelled) {
             // o fisco CANCELOU e a nota não: o efeito fica `apply` — a seção
             // oferece "Aplicar o cancelamento na nota" (retomada por derivação)
             emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalLocalCancelPending', detail: f.message));
-          } else if (f.code == FiscalCodes.invoiceNotCancellable) {
-            // a situação mudou (ex.: outra tela já cancelou): diz e relê
-            emit(ServiceOrderFiscalNotice('forms.serviceOrder.fiscalSituationChanged', detail: f.message));
           } else {
             emit(ServiceOrderActionFailure(f));
           }
@@ -678,10 +704,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       Emitter<ServiceOrderState> emit) async {
     if (_fiscalBatchRunning) return;
     _fiscalBatchRunning = true;
+    _fiscalBatchStop = false;
     try {
       emit(ServiceOrderListState(loading: true, status: _status, filter: _filter, criteria: _criteria));
-      final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed);
-      if (isClosed) return;
+      final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
+      if (isClosed || _fiscalBatchStop) return;
       emit(ServiceOrderFiscalBatchDone(report));
       await _reloadList(emit);
     } finally {
@@ -690,4 +717,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   }
 
   bool _fiscalBatchRunning = false;
+
+  /// A tela saiu ([ServiceOrderFiscalBatchStopRequested]) — o lote para depois
+  /// da nota em voo (D-F145; F2B-ADV-03).
+  bool _fiscalBatchStop = false;
 }

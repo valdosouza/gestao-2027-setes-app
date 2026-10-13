@@ -103,6 +103,6 @@ void main() {
 
   test('AppConfig.missingConfiguration aponta NFSE_API_URL quando o build não a define (D-F146)', () {
     // nos testes não há --dart-define: a URL da nfse-api falta (o main falha alto)
-    expect(AppConfig.missingConfiguration(), contains('NFSE_API_URL'));
+    expect(AppConfig.missingConfiguration(), contains('NFSE_API_URL (vazia)'));
   });
 }
