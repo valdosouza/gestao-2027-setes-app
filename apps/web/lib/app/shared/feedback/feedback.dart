@@ -41,9 +41,12 @@ Future<void> showFailureFeedback(BuildContext context, Failure failure, {String?
   // a sessão e foi ao login (uma reação para o app inteiro); um diálogo aqui
   // apareceria por cima do login com "token inválido". Nada a mostrar.
   if (failure is UnauthorizedFailure) return Future.value();
+  // D-F214 (= LD-ADV-09/LD-SOC-03 (a), Valdo 2026-10-14): a falha MONTADA pelo cliente (`ClientFailureCodes.all` — resposta ilegível,
+  // configuração, sessão não aceita) é técnica mesmo sem ref: o operador nunca lê "Atenção" para algo que não pode corrigir
   final technical = failure.supportRef != null ||
       (failure.statusCode ?? 0) >= 500 ||
-      failure is NetworkFailure;
+      failure is NetworkFailure ||
+      ClientFailureCodes.all.contains(failure.code);
 
   if (technical) {
     return showSetesMessage(

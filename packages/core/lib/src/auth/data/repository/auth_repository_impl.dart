@@ -19,7 +19,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure catch (f) {
       return Left(f);
     } catch (e) {
-      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
+      return Left(invalidResponseFailure(e, service: 'setes-api'));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -33,7 +33,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure catch (f) {
       return Left(f);
     } catch (e) {
-      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
+      return Left(invalidResponseFailure(e, service: 'setes-api'));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -44,7 +44,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure catch (f) {
       return Left(f);
     } catch (e) {
-      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
+      return Left(invalidResponseFailure(e, service: 'setes-api'));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -56,7 +56,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure catch (f) {
       return Left(f);
     } catch (e) {
-      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
+      return Left(invalidResponseFailure(e, service: 'setes-api'));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -69,7 +69,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure catch (f) {
       return Left(f);
     } catch (e) {
-      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
+      return Left(invalidResponseFailure(e, service: 'setes-api'));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 }

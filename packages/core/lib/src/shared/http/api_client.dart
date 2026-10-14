@@ -56,14 +56,29 @@ Map<String, dynamic> envelopePage(Map<String, dynamic> json) {
   return json;
 }
 
+/// D-F216 (= LD-SOC-08 (b), Valdo 2026-10-14): o código curto da resposta ilegível — `INVALID_RESPONSE · <serviço>` (o molde da D-F205).
+String invalidResponseCode([String? service]) => service == null ? 'INVALID_RESPONSE' : 'INVALID_RESPONSE · $service';
+
 /// Erro que NÃO é [Failure] na leitura de uma resposta (tipo trocado, campo
 /// nulo) — vira falha técnica com mensagem do catálogo (F2B-ADV-12: o texto cru
-/// do Dart ia para a tela); o texto técnico fica no `supportRef`.
-Failure invalidResponseFailure(Object error) => Failure(
-      message: 'core.errors.invalidResponse',
-      code: ClientFailureCodes.invalidResponse,
-      supportRef: error.toString(),
-    );
+/// do Dart ia para a tela). D-F216 (Valdo 2026-10-14): o `supportRef` é o
+/// código CURTO ([invalidResponseCode] — [service] = qual API respondeu torto) e
+/// o texto técnico vai ao CONSOLE por `debugPrint` (a regra da D-F208).
+Failure invalidResponseFailure(Object error, {String? service}) {
+  debugPrint('[ApiClient] resposta ilegível${service == null ? '' : ' de $service'}: $error');
+  return Failure(
+    message: 'core.errors.invalidResponse',
+    code: ClientFailureCodes.invalidResponse,
+    supportRef: invalidResponseCode(service),
+  );
+}
+
+/// D-F216 (= LD-ADV-03 (a), Valdo 2026-10-14): as rotas `/auth/*` e `/api/core/*` respondem SEMPRE no envelope `{ ok: true, … }` (conferido
+/// no setes-api) — o leitor do core EXIGE o `ok` (um 200 de proxy em HTML virava sucesso calado: menu vazio, usuário 0). Devolve o json.
+Map<String, dynamic> envelopeOk(Map<String, dynamic> json, {String service = 'setes-api'}) {
+  if (json['ok'] != true) throw invalidResponseFailure('resposta fora do envelope { ok: true }', service: service);
+  return json;
+}
 
 /// Cliente HTTP de UMA API do produto: injeta o JWT e decodifica o envelope
 /// `{ ok, data }`. O app NUNCA acessa o banco (decisão 1).
@@ -179,7 +194,10 @@ abstract class ProductApiClient {
       // D-F205: no navegador a resposta do proxy sem CORS (502/503/504) chega como `ClientException: Failed to fetch, uri=…` — a tela
       // mostra o código curto do serviço que não respondeu. D-F208 (PSO-SOC-01): o texto cru vai ao CONSOLE por `debugPrint` (no release
       // do web o `developer.log` do dart2js é no-op; no Android, logcat) — a causa técnica (certificado, DNS, recusa) fica para o suporte
-      debugPrint('[ApiClient] falha de rede em $serviceLabel $path: $e');
+      // D-F215 (= LD-SOC-07 (b), Valdo 2026-10-14): só o CAMINHO, sem a query, e a causa sem o `uri=` — a query leva CPF/CNPJ do prefill
+      // (`by-document?doc=…`) e o filtro digitado; a causa técnica (certificado, DNS, recusa) fica
+      final cause = '$e'.replaceAll(RegExp(r',?\s*uri=\S*'), '');
+      debugPrint('[ApiClient] falha de rede em $serviceLabel ${path.split('?').first}: $cause');
       throw NetworkFailure(detail: networkFailureCode(serviceLabel));
     }
 

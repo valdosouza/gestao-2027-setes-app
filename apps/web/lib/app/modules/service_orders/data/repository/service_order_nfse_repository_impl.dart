@@ -24,7 +24,7 @@ class ServiceOrderNfseRepositoryImpl implements ServiceOrderNfseRepository {
       // tipo trocado / campo nulo na resposta: falha técnica do catálogo (o texto
       // cru do Dart vai só para o supportRef — F2B-ADV-12); num ATO fiscal é
       // desfecho DESCONHECIDO (isUnknownAuthorityOutcome)
-      return Left(invalidResponseFailure(err));
+      return Left(invalidResponseFailure(err, service: 'nfse-api'));
     }
   }
 

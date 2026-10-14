@@ -74,7 +74,7 @@ class ServiceOrderCancelInvoice {
         (f) => f,
         (p) => p.orderId != 0 && p.orderId != orderId
             // o plano de OUTRA nota nunca autoriza ir ao fisco (F2B-RG-05 — a 1ª leitura, no bloc, já conferia)
-            ? invalidResponseFailure('plano relido da OS ${p.orderId} para a OS $orderId')
+            ? invalidResponseFailure('plano relido da OS ${p.orderId} para a OS $orderId', service: 'setes-api')
             : p.onlyAuthorityStands
                 ? null
                 : const Failure(message: 'forms.serviceOrder.fiscalSituationChanged', code: FiscalCodes.cancelPlanChanged),

@@ -57,7 +57,7 @@ class EstablishmentIssuerDatasourceImpl
     } on Failure {
       rethrow;
     } catch (e) {
-      throw invalidResponseFailure(e);
+      throw invalidResponseFailure(e, service: 'nfse-api');
     }
   }
 

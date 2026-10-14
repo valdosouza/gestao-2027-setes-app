@@ -322,7 +322,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →
         // recua para a última página existente em vez de lista vazia.
-        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1) {
+        // D-F217 (= LD-ADV-10 (a), Valdo 2026-10-14): só recua se a página pedida PASSOU do total de páginas — um servidor com COUNT
+        // diferente da lista (data:[] com total>0 na última página) fazia o bloc pedir a MESMA página sem parar (61 GETs para 1 clique)
+        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1 && paged.page > paged.pageCount) {
           _page = paged.pageCount;
           return _reloadList(emit);
         }
@@ -792,7 +794,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       _fiscalAction(emit, event.orderId, () => cancelPlanGet(event.orderId), (plan, screen) async {
         if (plan.orderId != 0 && plan.orderId != event.orderId) {
           // o servidor respondeu o plano de OUTRA nota: nunca decidir por ele
-          emit(ServiceOrderActionFailure(invalidResponseFailure('plano da OS ${plan.orderId} para a OS ${event.orderId}'),
+          emit(ServiceOrderActionFailure(invalidResponseFailure('plano da OS ${plan.orderId} para a OS ${event.orderId}', service: 'setes-api'),
               orderNumber: _outcomeOrder(event.orderId)));
           _endDetailAct(screen, event.orderId, emit);
           return;

@@ -747,7 +747,7 @@ void main() {
       print('D-F210 matriz 200 torto: ${matrix.values.fold<Map<String, int>>({}, (m, v) => m..[v] = (m[v] ?? 0) + 1)}');
     });
 
-    test('[FATO LD-ADV-03] o `ApiClient` do setes-api é TOLERANTE (`strictEnvelope: false`) e os leitores do core têm default para tudo: '
+    test('[DECIDIDO D-F216 — era o FATO LD-ADV-03; os leitores do core exigem o envelope] o `ApiClient` do setes-api é TOLERANTE (`strictEnvelope: false`) e os leitores do core têm default para tudo: '
         'a página HTML do proxy com 200 (o corpo vira `{}`) é SUCESSO calado em login (sessão sem token), me (usuário 0, sem nome), menus '
         '(menu VAZIO), preferências (nenhuma) e tema (o padrão) — nem rede nem ilegível; só a seleção (`json[\'token\'] as String`) e '
         'tipos trocados chegam ao `invalidResponseFailure` da D-F210', () async {
@@ -758,10 +758,13 @@ void main() {
       ];
       // gates do último delta: o LOGIN saiu da lista (LD-ADV-01 corrigido — sem token nem seleção = resposta ilegível); o resto é a
       // questão LD-ADV-03 (os leitores do core conferirem `ok: true`), que aguarda o Valdo
-      expect(silent, ['me', 'recuperação', 'troca de senha', 'menus', 'preferências get', 'preferências put', 'tema get', 'tema put']);
-      final menus = (await MenuRepositoryImpl(datasource: MenuRemoteDatasource(client: api)).getMenus()).getOrElse(() => throw 'x');
-      final me = (await AuthRepositoryImpl(datasource: AuthRemoteDatasource(client: api)).getMe()).getOrElse(() => throw 'x');
-      expect([menus.length, me.userId, me.name], [0, 0, '']);
+      // D-F216 (= LD-ADV-03 (a), Valdo 2026-10-14): os leitores do core EXIGEM `{ ok: true }` — nenhum sucesso calado sobra; todos são
+      // a resposta ilegível (`CLIENT_INVALID_RESPONSE`, código `INVALID_RESPONSE · setes-api`), nunca rede
+      expect(silent, isEmpty);
+      for (final MapEntry(key: call, value: run) in calls.entries) {
+        final r = await run(api);
+        expect([outcome(r), r.fold((f) => f.supportRef, (_) => null)], ['ilegível', 'INVALID_RESPONSE · setes-api'], reason: call);
+      }
     });
 
     /// O LOGIN com 200 fora do contrato (`{ ok, token }`): o repositório devolve SUCESSO sem token e o `AuthBloc` faz `session.token!`.
@@ -808,7 +811,7 @@ void main() {
       }
     });
 
-    testWidgets('[FATO LD-ADV-02] o diálogo do LOGIN para a resposta ilegível (seleção de estabelecimento com 200 torto): título "Erro", a '
+    testWidgets('[DECIDIDO D-F216 — era o FATO LD-ADV-02; o ref é o código curto] o diálogo do LOGIN para a resposta ilegível (seleção de estabelecimento com 200 torto): título "Erro", a '
         'frase do catálogo e a linha "Informe o código … ao suporte" com o TEXTO CRU do Dart (a regra da F2B-ADV-12 — "o texto técnico '
         'fica no supportRef"); no release do web o texto do TypeError é o do dart2js', (tester) async {
       final api = ApiClient(client: MockClient((_) async => http.Response('{"ok":true,"data":"<html>proxy</html>"}', 200)),
@@ -823,11 +826,12 @@ void main() {
       final texts = _dialogTexts(tester);
       expect(texts, containsAll(['Erro', 'O servidor respondeu num formato inesperado (acione o suporte)']));
       final ref = texts.firstWhere((t) => t.startsWith('Informe o código'));
-      expect(ref, contains("type 'Null' is not a subtype of type 'String'"));
+      // D-F216 (= LD-SOC-08 (b), Valdo 2026-10-14): o código CURTO no lugar do texto do Dart (que vai ao console)
+      expect([ref.contains('INVALID_RESPONSE · setes-api'), ref.contains("type 'Null'")], [true, false], reason: ref);
       expect(texts.any((t) => t.contains('Sem resposta do serviço')), isFalse);
     });
 
-    test('[RESISTIU] D-F208: a falha de rede escreve o texto cru (serviço, caminho, exceção com a URL) no CONSOLE por `debugPrint` — e só '
+    test('[DECIDIDO D-F215 — era o RESISTIU da D-F208] a falha de rede escreve o texto cru (serviço, caminho, exceção com a URL) no CONSOLE por `debugPrint` — e só '
         'lá: a `Failure` leva só o código curto', () async {
       final logs = <String?>[];
       final saved = debugPrint;
@@ -841,8 +845,20 @@ void main() {
       } finally {
         debugPrint = saved;
       }
+      // D-F215 (= LD-SOC-07 (b), Valdo 2026-10-14): o console leva serviço + CAMINHO + causa, sem a query e sem o `uri=` (a URL interna)
       expect(logs.single, allOf(contains('[ApiClient] falha de rede em setes-api /api/core/menus'), contains('Failed to fetch'),
-          contains('api.interna.setes.example:3000')));
+          isNot(contains('api.interna.setes.example')), isNot(contains('uri='))));
+      // e a QUERY (o CPF do prefill) nunca vai ao console
+      logs.clear();
+      debugPrint = (String? message, {int? wrapWidth}) => logs.add(message);
+      try {
+        final api = ApiClient(client: MockClient((_) async => throw http.ClientException('Failed to fetch',
+            Uri.parse('https://api.interna.setes.example:3000/api/entities/by-document?doc=12345678909'))), baseUrl: 'https://api.interna.setes.example:3000');
+        await expectLater(api.get('/api/entities/by-document?doc=12345678909'), throwsA(isA<NetworkFailure>()));
+      } finally {
+        debugPrint = saved;
+      }
+      expect(logs.single, allOf(contains('/api/entities/by-document'), isNot(contains('12345678909'))));
     });
   });
 
@@ -979,7 +995,7 @@ void main() {
       expect([f.code, f.message], [ClientFailureCodes.invalidResponse, 'core.errors.invalidResponse']);
     });
 
-    testWidgets('[FATO LD-ADV-09] a NATUREZA do diálogo para o MESMO código `CLIENT_INVALID_RESPONSE` depende do caminho: pelo '
+    testWidgets('[DECIDIDO D-F214 — era o FATO LD-ADV-09; a falha do cliente é técnica] a NATUREZA do diálogo para o MESMO código `CLIENT_INVALID_RESPONSE` depende do caminho: pelo '
         '`envelopePage` (Failure sem ref e sem status) a ponte diz "Atenção" (corrigível pelo usuário) com "… (acione o suporte)" e NENHUM '
         'código; pelo `invalidResponseFailure` é "Erro" com a linha do código. A R7 da ponte (ref, status ≥ 500 ou rede) não conhece os '
         'códigos do cliente', (tester) async {
@@ -987,8 +1003,9 @@ void main() {
       final bloc = buildServiceOrderBloc(repo: ServiceOrderRepositoryImpl(datasource: ServiceOrderDatasourceImpl(client: api)));
       final dispose = await _pumpPage(tester, bloc);
       final texts = _dialogTexts(tester);
-      expect(texts, containsAll(['Atenção', 'O servidor respondeu num formato inesperado (acione o suporte)']));
-      expect(texts.any((t) => t.startsWith('Informe o código')), isFalse);
+      // D-F214 (= LD-ADV-09 (a), Valdo 2026-10-14): a falha montada pelo cliente é TÉCNICA mesmo sem ref — "Erro", nunca "Atenção"
+      expect(texts, containsAll(['Erro', 'O servidor respondeu num formato inesperado (acione o suporte)']));
+      expect(texts.contains('Atenção'), isFalse);
       await tester.tap(find.text('OK'));
       await _settle(tester);
       expect([find.text('Não foi possível carregar a lista.').evaluate().length, find.text('Tentar novamente').evaluate().length,
@@ -996,7 +1013,7 @@ void main() {
       await dispose();
     });
 
-    test('[FATO LD-ADV-10] anterior ao delta (o padrão "página esvaziou" das ~28 listas): resposta com `data: []`, `total > 0` e `page > 1` '
+    test('[DECIDIDO D-F217 — era o FATO LD-ADV-10; o recuo só passa do total] anterior ao delta (o padrão "página esvaziou" das ~28 listas): resposta com `data: []`, `total > 0` e `page > 1` '
         'que NÃO bate com o COUNT (o vetor 5 da skill — COUNT com where diferente da lista) faz o bloc pedir a MESMA página de novo, SEM '
         'limite: `_page = paged.pageCount` (= a própria página) → `_reloadList` → … — aqui 60 GETs seguidos para UM clique na barra (o mock '
         'só para no 61º); com o servidor inconsistente é uma rajada contínua de cada tela aberta', () async {
@@ -1015,8 +1032,8 @@ void main() {
       bloc.add(const ServiceOrderListRequested(page: 3));
       await pumpEventQueue(times: 2000);
       await bloc.close();
-      expect(pages.length, 62);
-      expect(pages.skip(1).toSet(), {3});
+      // D-F217 (= LD-ADV-10 (a), Valdo 2026-10-14): a página 3 existe pelo total (30) — o bloc NÃO recua; um GET para o clique
+      expect(pages, [1, 3]);
     });
   });
 

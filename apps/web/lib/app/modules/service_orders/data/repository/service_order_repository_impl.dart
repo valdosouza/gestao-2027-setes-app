@@ -20,7 +20,7 @@ class ServiceOrderRepositoryImpl implements ServiceOrderRepository {
       // LD-ADV-04 = LD-SOC-02 (Q-1 (a), gates do último delta): erro de LEITURA da resposta (tipo trocado num item) é falha técnica com
       // código (`CLIENT_INVALID_RESPONSE`) — nunca o texto do Dart como mensagem do diálogo (a regra da F2B-ADV-12/D-F210; os
       // repositórios irmãos nfse/invoice já seguiam). Os outros 36 repositórios do app = tarefa própria
-      return Left(invalidResponseFailure(err));
+      return Left(invalidResponseFailure(err, service: 'setes-api'));
     }
   }
 

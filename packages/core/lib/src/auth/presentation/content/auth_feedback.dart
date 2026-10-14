@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../error/failure.dart';
+import '../../../shared/http/api_client.dart' show ClientFailureCodes;
 
 /// Feedback das telas de AUTH (Framework de Mensagens — skill
 /// mensagem-e-validacao.md). O core NÃO enxerga a ponte
@@ -11,12 +12,15 @@ import '../../../error/failure.dart';
 /// já traduzidos — mesmo contrato da ponte (R1/R7): a natureza deriva do
 /// desfecho, nunca de campo de severidade.
 
-/// Erro TÉCNICO (R7): rastro de suporte presente, status >= 500 ou queda de
-/// rede. O resto (400/401/409...) é corrigível pelo usuário.
+/// Erro TÉCNICO (R7): rastro de suporte presente, status >= 500, queda de
+/// rede ou falha MONTADA pelo cliente ([ClientFailureCodes.all] — D-F214, Valdo
+/// 2026-10-14: resposta ilegível, configuração, sessão não aceita; o operador
+/// não as corrige). O resto (400/401/409...) é corrigível pelo usuário.
 bool isTechnicalFailure(Failure failure) =>
     failure.supportRef != null ||
     (failure.statusCode ?? 0) >= 500 ||
-    failure is NetworkFailure;
+    failure is NetworkFailure ||
+    ClientFailureCodes.all.contains(failure.code);
 
 /// Falha = SEMPRE dialog (R1): técnico com linha discreta do código de
 /// suporte (R2); corrigível vira dialog de validação. `message.tr()`: os
