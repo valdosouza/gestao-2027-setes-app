@@ -301,11 +301,16 @@ void main() {
       final inside = await login(_jwt(exp: now + 3, iat: now));
       expect(inside.states.last, isA<AuthAuthenticated>());
       await inside.close();
+      // o `iat` é a hora do SERVIDOR: aparelho 1 dia adiantado ⇒ `agora − iat` longe de zero ⇒ o relógio é o suspeito (LF-ADV-01)
       for (final exp in [now, now - 1, now - 86400 * 365]) {
-        final rig = await login(_jwt(exp: exp, iat: now));
+        final rig = await login(_jwt(exp: exp, iat: now - 2 * 86400));
         expect((rig.states.last as AuthError).failure.code, ClientFailureCodes.clock, reason: 'exp=$exp');
         await rig.close();
       }
+      // sem `iat` legível não há como acusar o servidor: segue o aviso do relógio
+      final noIat = await login(_jwt(exp: now - 1));
+      expect((noIat.states.last as AuthError).failure.code, ClientFailureCodes.clock);
+      await noIat.close();
       final unreadable = await login(_jwt(exp: 'amanhã'));
       expect((unreadable.states.last as AuthError).failure.code, _invalid);
       await unreadable.close();
@@ -324,8 +329,10 @@ void main() {
       final now = _nowSec();
       // aparelho adiantado em D ⇒ para o aparelho o token emitido AGORA (pelo servidor) vence em `86400 − D`
       for (final (ahead, ok) in [(86400 - 120, true), (86400 - 10, true), (86400, false), (86400 + 1, false), (3 * 86400, false)]) {
-        final rig = await login(_jwt(iat: now, exp: now + 86400 - ahead + 0));
+        // o servidor emitiu na hora DELE (`now − ahead` no relógio do aparelho) com o TTL de 24 h
+        final rig = await login(_jwt(iat: now - ahead, exp: now - ahead + 86400));
         expect(rig.states.last is AuthAuthenticated, ok, reason: 'adiantado ${ahead}s');
+        if (!ok) expect((rig.states.last as AuthError).failure.code, ClientFailureCodes.clock, reason: 'adiantado ${ahead}s');
         await rig.close();
       }
     });
@@ -341,28 +348,35 @@ void main() {
       await rig.close();
     });
 
-    test('[FATO LF-ADV-01] o `CLIENT_CLOCK` é dito SEMPRE como defeito do relógio DO APARELHO — também quando o token já NASCEU vencido no '
-        'SERVIDOR (`iat == exp`, ex.: um `FINAL_TOKEN_TTL` mal configurado como "24", que o jsonwebtoken lê como 24 MILISSEGUNDOS) e o '
-        'aparelho está com a hora CERTA (`agora − iat ≈ 0`): o operador é mandado conferir uma data que está certa, e o suporte não tem '
-        '`iat`/`exp` no código para distinguir (QUESTÃO para o Valdo: o `iat` está no token — diagnosticar pela distância `agora − iat`)',
+    test('[CORRIGIDO LF-ADV-01] o token que já NASCEU vencido no SERVIDOR (`iat == exp`, ex.: um `FINAL_TOKEN_TTL` mal configurado como "24", que '
+        'o jsonwebtoken lê como 24 MILISSEGUNDOS) com o aparelho na hora CERTA (`|agora − iat|` ≤ 5 min) é RESPOSTA ILEGÍVEL do servidor — '
+        'não "confira a data e a hora"; um `iat` longe do relógio segue sendo o aviso do relógio',
         () async {
       final now = _nowSec();
       final bornExpired = await login(_jwt(iat: now, exp: now)); // jsonwebtoken: expiresIn '24' ⇒ exp = floor(iat + 0,024) = iat
       final failure = (bornExpired.states.last as AuthError).failure;
-      expect(failure.code, ClientFailureCodes.clock);
-      expect(failure.supportRef, isNot(contains('exp')));
-      expect(failure.supportRef, isNot(contains('iat')));
+      expect(failure.code, _invalid);
+      expect(failure.supportRef, 'INVALID_RESPONSE · setes-api');
       await bornExpired.close();
+      // a fronteira dos 5 min: dentro = servidor; fora = relógio do aparelho
+      final inside = await login(_jwt(iat: now - 290, exp: now - 1));
+      expect((inside.states.last as AuthError).failure.code, _invalid);
+      await inside.close();
+      final outside = await login(_jwt(iat: now - 310, exp: now - 1));
+      expect((outside.states.last as AuthError).failure.code, ClientFailureCodes.clock);
+      await outside.close();
     });
 
-    test('[FATO LF-ADV-02] o `supportRef` do CLOCK leva a hora LOCAL do aparelho sem fuso (`toIso8601String()` de um `DateTime` local não '
-        'tem sufixo): "CLOCK · 2026-10-14T21:03:11.123" não diz se é UTC ou BRT — o suporte compara com o relógio do servidor às cegas',
-        () async {
-      final rig = await login(_jwt(iat: _nowSec(), exp: _nowSec() - 5));
+    test('[CORRIGIDO LF-ADV-02] o `supportRef` do CLOCK leva `agora`, `iat` e `exp` em UTC (sufixo Z) — o suporte compara com o relógio do '
+        'servidor sem adivinhar o fuso; sem `iat` legível o campo some', () async {
+      final now = _nowSec();
+      final rig = await login(_jwt(iat: now - 2 * 86400, exp: now - 5));
       final ref = (rig.states.last as AuthError).failure.supportRef!;
-      expect(ref, matches(RegExp(r'^CLOCK · \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+$')));
-      expect(ref.endsWith('Z') || RegExp(r'[+-]\d\d:\d\d$').hasMatch(ref), isFalse);
+      expect(ref, matches(RegExp(r'^CLOCK · agora=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z iat=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z exp=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z$')));
       await rig.close();
+      final noIat = await login(_jwt(exp: now - 5));
+      expect((noIat.states.last as AuthError).failure.supportRef!, matches(RegExp(r'^CLOCK · agora=\S+Z exp=\S+Z$')));
+      await noIat.close();
     });
   });
 

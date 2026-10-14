@@ -175,12 +175,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   /// D-F219 (= LE-ADV-02 (a), Valdo 2026-10-14): o token recém-emitido que ESTE aparelho já dá por vencido (relógio adiantado além do
   /// `exp`) — a guarda recusaria e o login voltaria MUDO. Erro técnico próprio ("confira a data e a hora"), com a hora do aparelho no
   /// código para o suporte; token sem `exp` legível = resposta ilegível. Nulo = o token serve.
+  /// LF-ADV-01/02 (Valdo 2026-10-14, "aplicar"): o `iat` é a hora do SERVIDOR — com o `agora` do aparelho PERTO dele (≤ [_clockSkewSeconds])
+  /// o relógio está certo e o servidor é que emitiu o token já vencido (TTL mal configurado) = resposta ilegível, não "confira a data";
+  /// o código do relógio leva `agora`, `iat` e `exp` em UTC (o suporte separa os dois casos sem perguntar nada ao operador).
+  static const _clockSkewSeconds = 300;
+
   Failure? _unusableToken(String token) {
     final exp = jwtExpiry(token);
     if (exp == null) return invalidResponseFailure('token sem exp legível', service: 'setes-api');
     final now = DateTime.now();
-    if (now.millisecondsSinceEpoch ~/ 1000 >= exp) {
-      return Failure(message: 'core.errors.clock', code: ClientFailureCodes.clock, supportRef: 'CLOCK · ${now.toIso8601String()}');
+    final nowSeconds = now.millisecondsSinceEpoch ~/ 1000;
+    if (nowSeconds >= exp) {
+      final iat = jwtIssuedAt(token);
+      if (iat != null && (nowSeconds - iat).abs() <= _clockSkewSeconds) {
+        return invalidResponseFailure('token emitido já vencido (iat=$iat exp=$exp agora=$nowSeconds)', service: 'setes-api');
+      }
+      String utc(int seconds) => DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true).toIso8601String();
+      return Failure(
+        message: 'core.errors.clock',
+        code: ClientFailureCodes.clock,
+        supportRef: 'CLOCK · agora=${now.toUtc().toIso8601String()}${iat == null ? '' : ' iat=${utc(iat)}'} exp=${utc(exp)}',
+      );
     }
     return null;
   }

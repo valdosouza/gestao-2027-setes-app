@@ -300,7 +300,7 @@ void main() {
     testWidgets('[RESISTIU] LoginForm real: o token que o relógio do aparelho já dá por vencido abre o diálogo "Erro" com a frase do catálogo '
         '("A data e a hora deste computador parecem erradas…") e "Informe o código CLOCK · <hora> ao suporte"; o botão não fica girando, '
         'nada inline, nada gravado (nem com "Manter conectado")', (tester) async {
-      final rig = _AuthRig({'/auth/login': _ok(jsonEncode({'ok': true, 'token': _jwt(exp: _nowSec() - 30, iat: _nowSec() - 60)}))});
+      final rig = _AuthRig({'/auth/login': _ok(jsonEncode({'ok': true, 'token': _jwt(exp: _nowSec() - 30, iat: _nowSec() - 2 * 86400)}))});
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(child: LoginForm(bloc: rig.bloc)))));
       await _settle(tester);
       await tester.enterText(find.byType(TextField).at(0), 'a@b.c');
@@ -310,7 +310,7 @@ void main() {
       final texts = _dialogTexts(tester);
       expect(texts, contains('Erro'));
       expect(texts, contains((pt['core'] as Map)['errors']['clock']));
-      expect(texts.where((t) => RegExp(r'^Informe o código CLOCK · \d{4}-\d\d-\d\dT[\d:.]+ ao suporte$').hasMatch(t)), hasLength(1));
+      expect(texts.where((t) => RegExp(r'^Informe o código CLOCK · agora=\S+Z iat=\S+Z exp=\S+Z ao suporte$').hasMatch(t)), hasLength(1));
       expect(texts.where((t) => t.contains('core.errors') || t.contains('Failure') || t.contains('subtype')), isEmpty);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect([rig.session.value, rig.prefs.saved], [null, null]);
