@@ -153,6 +153,10 @@ class HomeModule extends Module {
             // Painel de configurações do sistema (Framework de Configurações)
             ModuleRoute('/interface-configs', module: InterfaceConfigsModule()),
             ModuleRoute('/users', module: UsersModule()),
+            // Escape DENTRO do shell da casa: `/home/<qualquer-coisa>/` mostra o welcome no lugar da tela em branco (RouteNotFound).
+            // ⚠️ SEMPRE aqui, nos filhos — nunca no nível do HomeModule: lá o escape captura `/home/welcome/` (o redirecionamento da
+            // `HomePage`) e a casa entra em LAÇO (test/route_fallback_loop_test.dart; achado do navegador de 2026-10-14). Por último.
+            WildcardRoute(child: (_, __) => const WelcomeFrame()),
           ],
         ),
         // Personalização da identidade visual pelo cliente (decisões 16/27)

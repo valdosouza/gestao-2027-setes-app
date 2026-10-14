@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'modules/home/home_module.dart';
 import 'shared/field_config/datasource/field_config_datasource.dart';
 import 'shared/interface_config/datasource/interface_config_datasource.dart';
+import 'shared/routing/route_fallback.dart';
 import 'shared/session/session_context.dart';
 import 'shared/users/datasource/user_datasource.dart';
 
@@ -77,5 +78,7 @@ class AppModule extends Module {
         ModuleRoute('/', module: AuthModule()),
         // Guard: restaura a sessão persistida no refresh; sem sessão → /login
         ModuleRoute('/home', module: HomeModule(), guards: [SetesAuthGuard()]),
+        // Escape: endereço desconhecido NÃO deixa a tela em branco (RouteNotFound do flutter_modular) — vai a /home/
+        WildcardRoute(child: (_, __) => const RouteFallback()),
       ];
 }
