@@ -164,7 +164,8 @@ void main() {
       expect((_shown(states) as ServiceOrderListState).loading, isFalse, reason: 'o fim da rotina recarrega a lista LIVRE');
       expect(File(_pageSrc).readAsStringSync(), contains('onPressed: state.loading ? null : _openMonthlyRun,'));
       expect(File(_blocSrc).readAsStringSync(),
-          matches(RegExp(r'_onMonthlyRunRequested\([^)]*\) async \{\s*//[^\n]*\n\s*if \(_monthlyRunning\) return;\s*_monthlyRunning = true;')),
+          // PSO-ADV-09 (gate do passeio): a trava virou COM DONO (`_RunLock`) — a mesma garantia, tomada ANTES de ir ao servidor
+          matches(RegExp(r'_onMonthlyRunRequested\([^)]*\) async \{\s*//[^\n]*\n\s*final run = _monthlyLock\.take\(\);\s*if \(run == null\) return;')),
           reason: 'D-F179: a trava de reentrância ANTES de ir ao servidor');
     });
 

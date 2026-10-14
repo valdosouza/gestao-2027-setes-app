@@ -95,6 +95,27 @@ Future<void> showUnanchoredServerField(
           .tr(args: [serverField.field, serverField.message.tr()]),
     );
 
+/// O TEXTO de uma falha com `fields[]` quando NÃO há campo montado para ancorar (o diálogo de ação já fechou — telas de processo).
+/// P-04 (passeio logado da F2b, 2026-10-13) + D-F209 (Valdo, gates do passeio):
+/// - 400 de DTO (`VALIDATION_FAILED` — `error` genérico "Validação falhou"): o campo + a mensagem dele, no formato da peça
+///   [showUnanchoredServerField] (`feedback.serverField`) — a mensagem genérica não diz nada;
+/// - os demais (ex.: 422 `FISCAL_DPS_INVALID`): a mensagem PRINCIPAL (diz o que corrigir e onde — "… corrija a regra de ISS") + a do
+///   campo, só se a principal ainda não a contém (PSO-ADV-08 — sem eco); [all] = todos os campos, um por linha com o código (ex.: os
+///   códigos E do fisco no `FISCAL_CANCEL_REFUSED`); sem [all], só o 1º (R3 — uma pendência por vez).
+String unanchoredFieldsText(Failure failure, {bool all = false}) {
+  final first = failure.fields.first;
+  if (failure.code == 'VALIDATION_FAILED') {
+    return 'feedback.serverField'.tr(args: [first.field, first.message.tr()]);
+  }
+  final main = failure.message.tr();
+  final lines = <String>[
+    for (final f in all ? failure.fields : [first])
+      if (!main.contains(f.message.tr()))
+        '• ${all ? [f.field, f.message.tr()].where((s) => s.isNotEmpty).join(': ') : f.message.tr()}',
+  ];
+  return lines.isEmpty ? main : '$main\n${lines.join('\n')}';
+}
+
 /// Equivalente local do `showServerFieldError` da fábrica para forms
 /// híbridos: ancora o `fields[]` do envelope 400/409 no campo — dialog com
 /// a message do servidor → OK → [PendencyField.beforeFocus] (aba certa) +

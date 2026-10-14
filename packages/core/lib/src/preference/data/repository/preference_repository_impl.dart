@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../error/failure.dart';
+import '../../../shared/http/api_client.dart' show invalidResponseFailure;
 import '../../domain/repository/preference_repository.dart';
 import '../datasource/preference_remote_datasource.dart';
 
@@ -15,8 +16,8 @@ class PreferenceRepositoryImpl implements PreferenceRepository {
       return Right(await datasource.getAll());
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -27,8 +28,8 @@ class PreferenceRepositoryImpl implements PreferenceRepository {
       return const Right(unit);
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 }

@@ -160,13 +160,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// D-F179 (= Q-F187 (a), Valdo 2026-10-13 — R10-SOC-02/R10-ADV-01): a rotina
   /// mensal e a fotografia das pendentes TAMBÉM — "travado pelo loading, como os
   /// botões de lote" (D-F177) só vale se o loading durar o que a operação dura;
-  /// e cada uma com a SUA trava de reentrância (como o `_batchRunning`). Quem
+  /// e cada uma com a SUA trava de reentrância (como o `_batchLock`). Quem
   /// impede operações longas DIFERENTES juntas é a página (todo botão longo é
   /// `state.loading ? null`) — o bloc não cruza as travas (os dois lotes juntos
   /// são um caso já provado da D-F169).
-  bool get _batchInFlight => _batchRunning || _fiscalBatchRunning || _monthlyRunning || _fiscalPendingRunning;
-  bool _monthlyRunning = false;
-  bool _fiscalPendingRunning = false;
+  bool get _batchInFlight => _batchLock.held || _fiscalBatchLock.held || _monthlyLock.held || _fiscalPendingLock.held;
+  final _monthlyLock = _RunLock();
+  final _fiscalPendingLock = _RunLock();
 
   /// UM contador da TELA — "vale o último PEDIDO" (lista ou detalhe). Todo
   /// pedido de tela (recarregar a lista, ver/abrir OS, um ato que troca a tela
@@ -313,8 +313,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
           return _reloadList(emit);
         }
         emit(ServiceOrderActionFailure(failure));
+        // D-F206; PSO-ADV-01 = PSO-SOC-02: a falha guarda a MESMA posição (página e tamanho) do estado que substituiu — o "Tentar
+        // novamente" volta à página pedida (sem `total`: a barra de paginação fica oculta sobre o erro)
         emit(ServiceOrderListState(
-            loading: _batchInFlight, status: _status, filter: _filter, criteria: _criteria, loadFailed: true));   // D-F206
+            loading: _batchInFlight, status: _status, filter: _filter, criteria: _criteria, page: _page, pageSize: _pageSize,
+            loadFailed: true));
       },
       (paged) async {
         // Página esvaziou (ex.: faturamento tirou o último item da aba) →
@@ -506,12 +509,12 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       ServiceOrderMonthlyRunRequested event,
       Emitter<ServiceOrderState> emit) async {
     // D-F179: uma rotina por vez (o 2º clique é ignorado — o servidor protege a competência, mas não se manda o 2º)
-    if (_monthlyRunning) return;
-    _monthlyRunning = true;
+    final run = _monthlyLock.take();
+    if (run == null) return;
     try {
       _showListLoading(emit, supersede: false);
       final result = await monthlyRun(event.year, event.month);
-      _monthlyRunning = false;   // D-F169/D-F179: a recarga final já sai livre
+      _monthlyLock.release(run);   // D-F169/D-F179: a recarga final já sai livre
       // D-F177 (= Q-F185 (a), Valdo 2026-10-13 — R9-SOC-03): a rotina leva minutos com N contratos — a OS aberta (ou a caminho) no meio
       // fica; o desfecho aparece e voltar à lista recarrega (a regra da D-F174 em TODA saída longa)
       await result.fold(
@@ -527,7 +530,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         },
       );
     } finally {
-      _monthlyRunning = false;
+      _monthlyLock.release(run);
     }
   }
 
@@ -553,20 +556,20 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     // (contenção auto-infligida + dois relatórios se sobrescrevendo). Um lote
     // por vez, como o cancelamento de nota; o botão também é desabilitado no
     // loading pela página.
-    if (_batchRunning) return;
-    _batchRunning = true;
+    final run = _batchLock.take();
+    if (run == null) return;
     _invoiceBatchStop = false;
     try {
-      await _runBatch(event, emit);
+      await _runBatch(event, emit, run);
     } finally {
-      _batchRunning = false;
+      _batchLock.release(run);
     }
   }
 
-  bool _batchRunning = false;
+  final _batchLock = _RunLock();
 
   Future<void> _runBatch(ServiceOrderBatchInvoiceRequested event,
-      Emitter<ServiceOrderState> emit) async {
+      Emitter<ServiceOrderState> emit, Object run) async {
     _showListLoading(emit, supersede: false);
     final ids = event.orderIds.toSet().toList();
     final parts = <BatchInvoiceReport>[];
@@ -599,7 +602,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     }
     if (isClosed || _invoiceBatchStop) return;
     final failure = aborted;
-    _batchRunning = false;   // D-F169: a recarga final já sai livre
+    _batchLock.release(run);   // D-F169: a recarga final já sai livre
     if (failure != null && parts.length == 1) {
       // 1º bloco falhou: nada faturado, comportamento de sempre — e a OS aberta
       // no meio fica (D-F174 também no "fim" por falha — R9-SOC-01)
@@ -891,12 +894,13 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   Future<void> _onFiscalPendingRequested(ServiceOrderFiscalPendingRequested event,
       Emitter<ServiceOrderState> emit) async {
     // D-F179: uma fotografia por vez (o 2º clique daria dois diálogos de confirmação) — e nunca com o lote fiscal no ar
-    if (_fiscalPendingRunning || _fiscalBatchRunning) return;
-    _fiscalPendingRunning = true;
+    if (_fiscalBatchLock.held) return;
+    final run = _fiscalPendingLock.take();
+    if (run == null) return;
     try {
       _showListLoading(emit, supersede: false);
       final result = await fiscalPending();
-      _fiscalPendingRunning = false;   // D-F169/D-F179: a recarga final já sai livre
+      _fiscalPendingLock.release(run);   // D-F169/D-F179: a recarga final já sai livre
       // D-F177: a fotografia das pendentes (todas as páginas) pode demorar — a OS aberta no meio fica (a confirmação abre por cima dela)
       await result.fold(
         (failure) async {
@@ -913,7 +917,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         },
       );
     } finally {
-      _fiscalPendingRunning = false;
+      _fiscalPendingLock.release(run);
     }
   }
 
@@ -922,8 +926,8 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// relatório (o que já foi ao fisco está na lista).
   Future<void> _onFiscalTransmitBatchRequested(ServiceOrderFiscalTransmitBatchRequested event,
       Emitter<ServiceOrderState> emit) async {
-    if (_fiscalBatchRunning) return;
-    _fiscalBatchRunning = true;
+    final run = _fiscalBatchLock.take();
+    if (run == null) return;
     _fiscalBatchStop = false;
     try {
       _showListLoading(emit, supersede: false);
@@ -931,7 +935,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       // nota — o close do bloc 8 não interrompe este handler (R5-SOC-02)
       final report = await fiscalTransmitBatch(event.orderIds, shouldStop: () => isClosed || _fiscalBatchStop);
       if (isClosed || _fiscalBatchStop) return;
-      _fiscalBatchRunning = false;   // D-F169: a recarga final já sai livre
+      _fiscalBatchLock.release(run);   // D-F169: a recarga final já sai livre
       emit(ServiceOrderFiscalBatchDone(report, noteNumbers: {
         for (final id in event.orderIds)
           if (_pendingNoteNumbers[id] != null) id: _pendingNoteNumbers[id]!,
@@ -939,11 +943,11 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
       if (_onDetail) return;   // D-F174: com a OS aberta (ou a caminho), só o relatório (voltar à lista recarrega)
       await _reloadList(emit);
     } finally {
-      _fiscalBatchRunning = false;
+      _fiscalBatchLock.release(run);
     }
   }
 
-  bool _fiscalBatchRunning = false;
+  final _fiscalBatchLock = _RunLock();
 
   /// D-F187: o nº da NOTA de cada OS da última fotografia das pendentes (o lote fiscal se identifica por ele).
   Map<int, String?> _pendingNoteNumbers = const {};
@@ -976,4 +980,24 @@ class _FiscalSnapshot {
   final Failure? viewFailure;
   final ServiceOrderFiscalEffect? effect;
   final Failure? effectFailure;
+}
+
+/// PSO-ADV-09 (gate adversarial do passeio logado, 2026-10-13): a trava de reentrância de uma operação LONGA, com DONO. A execução solta a
+/// trava ANTES da recarga final (D-F169 — a lista final já sai livre) e o `finally` solta de novo por garantia; com um booleano, o
+/// `finally` da execução ANTIGA apagava a trava da execução SEGUINTE (já começada no meio da recarga) e a H1 da D-F179 reabria. Agora só
+/// quem tomou devolve.
+class _RunLock {
+  Object? _owner;
+
+  bool get held => _owner != null;
+
+  /// O token da execução, ou null se outra está no ar (o 2º clique é ignorado).
+  Object? take() {
+    if (_owner != null) return null;
+    return _owner = Object();
+  }
+
+  void release(Object token) {
+    if (identical(_owner, token)) _owner = null;
+  }
 }

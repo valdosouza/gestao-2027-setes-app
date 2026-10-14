@@ -8,6 +8,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
+import '../../../../shared/feedback/form_pendency.dart' show unanchoredFieldsText;
 import '../../../../shared/format/money.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
@@ -238,8 +239,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     // O estado de LOADING é emitido com page=1/pageSize=null/filter='' — se
     // entrasse na assinatura, qualquer recarga (inclusive a que acontece logo
     // depois do lote) limparia a seleção e a promessa de "repetir só as
-    // recusadas" morreria. Só lista CARREGADA define o escopo.
-    if (!state.loading) {
+    // recusadas" morreria. Só lista CARREGADA define o escopo — e a FALHA de carga também não (PSO-ADV-02: a recarga do fim do
+    // lote que falha limpava a seleção das recusadas).
+    if (!state.loading && !state.loadFailed) {
       // Critério da pesquisa avançada muda a lista vista ⇒ entra na assinatura.
       final scope = '${state.status}|${state.page}|${state.pageSize}|'
           '${state.filter}|${state.criteria.toQueryJson()}';
@@ -474,9 +476,9 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                       padding: const EdgeInsets.only(bottom: 4),
                       child: SetesText(linha.retryable
                           ? 'forms.serviceOrder.batchRefusedRowRetry'
-                              .tr(args: [shown(linha.orderId), linha.error])
+                              .tr(args: [shown(linha.orderId), linha.error.tr()])
                           : 'forms.serviceOrder.batchRefusedRow'
-                              .tr(args: [shown(linha.orderId), linha.error])),
+                              .tr(args: [shown(linha.orderId), linha.error.tr()])),
                     ),
                 ],
               ],
@@ -517,7 +519,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             SetesButton(
               label: 'register.retry'.tr(),
               icon: Icons.refresh,
-              onPressed: () => _dispatch(ServiceOrderListRequested(status: state.status, filter: state.filter, page: state.page)),
+              onPressed: () => _dispatch(ServiceOrderListRequested(
+                  status: state.status, filter: state.filter, page: state.page, pageSize: state.pageSize)),
             ),
           ],
         ),
@@ -888,14 +891,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 .join('\n');
             showValidationFeedback(context,
                 '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
+          } else if (failure.code == 'FISCAL_CANCEL_REFUSED' && failure.fields.isNotEmpty) {
+            // PSO-ADV-08 (gate do passeio): o fisco recusou o cancelamento — a mensagem (que já traz a voz do fisco) + os códigos E do
+            // fisco que ela ainda não cita, um por linha (o molde do FISCAL_DPS_REJECTED)
+            showValidationFeedback(context, '$about${unanchoredFieldsText(failure, all: true)}');
           } else if (failure.fields.isNotEmpty && !isSearchCriteriaFailure(failure)) {
             // recusa de critério da pesquisa avançada cai no else (aviso "critério removido"). P-04 (passeio logado da F2b,
-            // 2026-10-13): sem campo montado para ancorar, a mensagem PRINCIPAL vai junto da do campo — ela diz o que corrigir e onde
-            // ("Código de tributação municipal "0102" fora da forma do DPS … — corrija a regra de ISS"); a do campo sozinha ("Esperado
-            // 3 dígitos") não dizia nada (o `showUnanchoredServerField` da skill mensagem-e-validacao: campo + mensagem)
-            final main = failure.message.tr();
-            final field = failure.fields.first.message.tr();
-            showValidationFeedback(context, '$about${main == field ? main : '$main\n• $field'}');
+            // 2026-10-13) + D-F209: sem campo montado para ancorar — ver [unanchoredFieldsText]
+            showValidationFeedback(context, '$about${unanchoredFieldsText(failure)}');
           } else {
             showFailureFeedback(context, failure, about: about);
           }

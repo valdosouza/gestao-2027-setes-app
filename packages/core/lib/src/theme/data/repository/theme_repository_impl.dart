@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../error/failure.dart';
+import '../../../shared/http/api_client.dart' show invalidResponseFailure;
 import '../../domain/entity/institution_theme.dart';
 import '../../domain/repository/theme_repository.dart';
 import '../datasource/theme_remote_datasource.dart';
@@ -16,8 +17,8 @@ class ThemeRepositoryImpl implements ThemeRepository {
       return Right(await datasource.getTheme());
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -30,8 +31,8 @@ class ThemeRepositoryImpl implements ThemeRepository {
       return const Right(unit);
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 }

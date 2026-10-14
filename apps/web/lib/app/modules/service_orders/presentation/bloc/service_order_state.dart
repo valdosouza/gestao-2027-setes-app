@@ -3,7 +3,10 @@ part of 'service_order_bloc.dart';
 /// CONHECIMENTO NEGATIVO (D-F198 = Q-F197-ADV-02 (a), gate adversarial da Rodada 14; R15-SOC-06): todo estado é `Equatable` e o bloc
 /// DESCARTA um estado IGUAL ao último emitido — dois avisos idênticos seguidos (mesma chave, mesmos args, mesma OS) viram UM, e o
 /// "último emitido" pode ter aparecido há MINUTOS (um ato que termina fora da OS não emite mais nada: o 2º "Consultar" igual, 3 min
-/// depois, não é anunciado). Nenhuma regra pode CONTAR avisos iguais seguidos.
+/// depois, não é anunciado). Nenhuma regra pode CONTAR avisos iguais seguidos. D-F211 (= PSO-ADV-06/PSO-SOC-06 (a), gates do passeio
+/// logado): com o código curto da D-F205, as falhas de REDE do mesmo serviço ficam IGUAIS (antes a URL as diferenciava) — dois desfechos
+/// de rede seguidos de atos DIFERENTES da mesma OS (ex.: XML e DANFSe, com a tela já fora do detalhe) viram UM diálogo; aceito (o texto é o
+/// mesmo e o operador repete o ato que quiser).
 sealed class ServiceOrderState extends Equatable {
   const ServiceOrderState();
 

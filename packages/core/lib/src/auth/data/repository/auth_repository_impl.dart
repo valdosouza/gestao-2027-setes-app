@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../error/failure.dart';
+import '../../../shared/http/api_client.dart' show invalidResponseFailure;
 import '../../domain/entity/auth_session.dart';
 import '../../domain/entity/session_user.dart';
 import '../../domain/repository/auth_repository.dart';
@@ -17,8 +18,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(await datasource.login(email, password));
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -31,8 +32,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(await datasource.selectInstitution(selectionToken, institutionId));
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -42,8 +43,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(await datasource.getMe());
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -54,8 +55,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(unit);
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 
@@ -67,8 +68,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(unit);
     } on Failure catch (f) {
       return Left(f);
-    } catch (_) {
-      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(invalidResponseFailure(e));   // D-F210: erro de LEITURA, nunca "rede" (a rede chega como Failure)
     }
   }
 }

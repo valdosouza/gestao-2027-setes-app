@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
-
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
@@ -177,9 +176,10 @@ abstract class ProductApiClient {
     } on ArgumentError catch (e) {
       throw Failure(message: 'core.errors.configuration', code: ClientFailureCodes.configuration, supportRef: '${e.message}');
     } catch (e) {
-      // D-F205: no navegador a resposta do proxy sem CORS (502/503/504) chega como `ClientException: Failed to fetch, uri=…` — o texto
-      // cru (com a URL interna) vai só para o LOG; a tela mostra o código curto do serviço que não respondeu
-      developer.log('falha de rede em $serviceLabel $path: $e', name: 'ApiClient');
+      // D-F205: no navegador a resposta do proxy sem CORS (502/503/504) chega como `ClientException: Failed to fetch, uri=…` — a tela
+      // mostra o código curto do serviço que não respondeu. D-F208 (PSO-SOC-01): o texto cru vai ao CONSOLE por `debugPrint` (no release
+      // do web o `developer.log` do dart2js é no-op; no Android, logcat) — a causa técnica (certificado, DNS, recusa) fica para o suporte
+      debugPrint('[ApiClient] falha de rede em $serviceLabel $path: $e');
       throw NetworkFailure(detail: networkFailureCode(serviceLabel));
     }
 
