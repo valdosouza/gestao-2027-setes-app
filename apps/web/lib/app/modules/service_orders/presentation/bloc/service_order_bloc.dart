@@ -514,6 +514,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     try {
       _showListLoading(emit, supersede: false);
       final result = await monthlyRun(event.year, event.month);
+      if (isClosed) return;   // LD-ADV-06: o módulo saiu — nada de recarga (a regra dos lotes); o finally solta a trava
       _monthlyLock.release(run);   // D-F169/D-F179: a recarga final já sai livre
       // D-F177 (= Q-F185 (a), Valdo 2026-10-13 — R9-SOC-03): a rotina leva minutos com N contratos — a OS aberta (ou a caminho) no meio
       // fica; o desfecho aparece e voltar à lista recarrega (a regra da D-F174 em TODA saída longa)
@@ -900,6 +901,7 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
     try {
       _showListLoading(emit, supersede: false);
       final result = await fiscalPending();
+      if (isClosed) return;   // LD-ADV-06: o módulo saiu — nada de recarga nem de diálogo; o finally solta a trava
       _fiscalPendingLock.release(run);   // D-F169/D-F179: a recarga final já sai livre
       // D-F177: a fotografia das pendentes (todas as páginas) pode demorar — a OS aberta no meio fica (a confirmação abre por cima dela)
       await result.fold(
@@ -926,6 +928,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
   /// relatório (o que já foi ao fisco está na lista).
   Future<void> _onFiscalTransmitBatchRequested(ServiceOrderFiscalTransmitBatchRequested event,
       Emitter<ServiceOrderState> emit) async {
+    // CONHECIMENTO NEGATIVO (D-F213 = LD-ADV-05 (a), gates do último delta): a guarda cruzada é de UM lado só — a fotografia não começa
+    // com o lote no ar, mas o lote (evento direto) pode começar com a fotografia no ar, e o "Transmitir" confirmado dela depois cai nesta
+    // trava sem aviso. Pela página não se chega: o lote nasce do diálogo MODAL da própria fotografia (a I3 da D-F199).
     final run = _fiscalBatchLock.take();
     if (run == null) return;
     _fiscalBatchStop = false;

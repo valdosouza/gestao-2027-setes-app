@@ -13,7 +13,13 @@ class AuthRemoteDatasource {
       'email': email,
       'password': password,
     });
-    return LoginResultModel.fromJson(json);
+    final result = LoginResultModel.fromJson(json);
+    // LD-ADV-01 (gate adversarial do último delta, MEDIUM — a regra da D-F210): um 200 sem token E sem token de seleção (página de proxy,
+    // `{ok:true}`) não é login — antes passava como sucesso com token nulo e o AuthBloc girava para sempre (`session.token!`)
+    if (result.token == null && result.selectionToken == null) {
+      throw invalidResponseFailure('login sem token nem selectionToken');
+    }
+    return result;
   }
 
   Future<String> selectInstitution(String selectionToken, int institutionId) async {

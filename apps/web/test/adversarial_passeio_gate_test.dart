@@ -290,7 +290,7 @@ Future<void> _fuzz(int seed, _FuzzResult out, {int steps = 40}) async {
         // o "Tentar novamente" da PÁGINA — o botão só existe com `loadFailed && !loading`, e manda exatamente isto
         final s = shown();
         if (s is ServiceOrderListState && s.loadFailed && !s.loading) {
-          return ServiceOrderListRequested(status: s.status, filter: s.filter, page: s.page);
+          return ServiceOrderListRequested(status: s.status, filter: s.filter, page: s.page, pageSize: s.pageSize);   // a página manda o tamanho
         }
         return null;
     }
@@ -324,7 +324,7 @@ Future<void> _fuzz(int seed, _FuzzResult out, {int steps = 40}) async {
       if (e == null) continue;
       final s = shown();
       if (e is ServiceOrderListRequested && s is ServiceOrderListState && s.loadFailed && !s.loading && e.status == s.status &&
-          e.filter == s.filter && e.page == s.page && e.criteria == null && e.pageSize == null) {
+          e.filter == s.filter && e.page == s.page && e.criteria == null && e.pageSize == s.pageSize) {
         retryOf = failedArgsOf[s];
       }
       callsBefore = listCalls.length;
@@ -360,15 +360,9 @@ Future<void> _fuzz(int seed, _FuzzResult out, {int steps = 40}) async {
         }
       }
     }
-    bool loadingOk(bool loading) {
-      if (loading == longParked()) return true;
-      final live = flights.where((f) => _longKinds.contains(f.kind)).map((f) => f.kind).toSet();
-      if (!loading && live.every(cleared.contains)) {
-        out.count('PSO-ADV-09 lista LIVRE com operação longa no ar');
-        return true;
-      }
-      return false;
-    }
+    // LD-ADV-12 = LD-SOC-05 (gates do último delta): com a trava COM DONO o PSO-ADV-09 está fechado — a tolerância saiu: lista livre com
+    // operação longa no ar REPROVA (a cerca dos 4 handlers; o modelo `cleared` acima só conta o instante, não perdoa)
+    bool loadingOk(bool loading) => loading == longParked();
 
     final listFail = done?.kind == 'list' && failure != null;
     final pruned = listFail && isSearchCriteriaFailure(failure) && done!.args!.hasK;
@@ -1050,9 +1044,11 @@ void main() {
     const dpsBuilder = Failure(
         message: 'DPS inválido: cTribMun: valor fora do padrão', statusCode: 422, code: 'FISCAL_DPS_INVALID',
         fields: [FailureField(field: 'dps', message: 'cTribMun: valor fora do padrão')]);
+    // a forma REAL (LD-SOC-01 × LD-ADV-07, gates do último delta): fiscal-api https-json.ts:259 monta cada recusa como
+    // `{ field: <rejectField> ('event'), message: 'E1235: …' }` e a nfse-api (transmission.ts:233/882) junta as mensagens na principal
     const cancelRefused = Failure(
-        message: 'Fisco recusou o cancelamento: Prazo de cancelamento expirado', statusCode: 409, code: 'FISCAL_CANCEL_REFUSED',
-        fields: [FailureField(field: 'E1235', message: 'Prazo de cancelamento expirado')]);
+        message: 'Fisco recusou o cancelamento: E1235: Prazo de cancelamento expirado', statusCode: 409, code: 'FISCAL_CANCEL_REFUSED',
+        fields: [FailureField(field: 'event', message: 'E1235: Prazo de cancelamento expirado')]);
     // setes-api shared/http/controller-utils.ts:96 (parseBody — o 400 de DTO)
     const dto = Failure(
         message: 'Validação falhou', statusCode: 400, code: 'VALIDATION_FAILED',
@@ -1095,6 +1091,24 @@ void main() {
           '• Esperado 3 dígitos');
       expect(texts[1], 'Campo "dtExpiration": Data inválida');
       expect(texts[2], 'Nota não está substituída no fisco');
+    });
+
+    testWidgets('[DECIDIDO LD-SOC-01 × LD-ADV-07 (gates do último delta)] FISCAL_CANCEL_REFUSED na forma REAL: o código E do fisco APARECE '
+        '(vem na principal); com duas recusas e a principal CORTADA em 255 (authorityMessage), a recusa que não coube volta inteira numa '
+        'linha — e nenhuma linha leva o nome técnico do campo (`event:`)', (tester) async {
+      const two = Failure(
+          message: 'Fisco recusou o cancelamento: E1235: Prazo de cancelamento expirado — E0840: Evento dupl', statusCode: 409,
+          code: 'FISCAL_CANCEL_REFUSED',
+          fields: [
+            FailureField(field: 'event', message: 'E1235: Prazo de cancelamento expirado'),
+            FailureField(field: 'event', message: 'E0840: Evento duplicado para a nota'),
+          ]);
+      final texts = await textsOf(tester, [cancelRefused, two]);
+      expect(texts[0], contains('E1235'));
+      expect([texts[1].contains('E1235'), texts[1].contains('• E0840: Evento duplicado para a nota')], [true, true], reason: texts[1]);
+      for (final t in texts) {
+        expect(t.contains('event:'), isFalse, reason: t);
+      }
     });
   });
 

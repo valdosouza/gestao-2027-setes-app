@@ -239,9 +239,11 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
     // O estado de LOADING é emitido com page=1/pageSize=null/filter='' — se
     // entrasse na assinatura, qualquer recarga (inclusive a que acontece logo
     // depois do lote) limparia a seleção e a promessa de "repetir só as
-    // recusadas" morreria. Só lista CARREGADA define o escopo — e a FALHA de carga também não (PSO-ADV-02: a recarga do fim do
-    // lote que falha limpava a seleção das recusadas).
-    if (!state.loading && !state.loadFailed) {
+    // recusadas" morreria. Só lista que NÃO está em loading define o escopo. LD-ADV-11 = LD-SOC-04 (gates do último delta): a FALHA
+    // de carga ENTRA na assinatura — ela carrega a mesma página/tamanho do pedido (PSO-ADV-01), então a falha da recarga do fim do lote
+    // tem a assinatura da lista que a seleção marcou (PSO-ADV-02 segue fechado) e a falha de uma troca de página/filtro LIMPA a seleção
+    // (o lote nunca fica armado com OS que a tela não mostra).
+    if (!state.loading) {
       // Critério da pesquisa avançada muda a lista vista ⇒ entra na assinatura.
       final scope = '${state.status}|${state.page}|${state.pageSize}|'
           '${state.filter}|${state.criteria.toQueryJson()}';

@@ -102,16 +102,21 @@ Future<void> showUnanchoredServerField(
 /// - os demais (ex.: 422 `FISCAL_DPS_INVALID`): a mensagem PRINCIPAL (diz o que corrigir e onde — "… corrija a regra de ISS") + a do
 ///   campo, só se a principal ainda não a contém (PSO-ADV-08 — sem eco); [all] = todos os campos, um por linha com o código (ex.: os
 ///   códigos E do fisco no `FISCAL_CANCEL_REFUSED`); sem [all], só o 1º (R3 — uma pendência por vez).
+///
+/// Gates do último delta (LD-ADV-08 = LD-SOC-06; LD-SOC-01 × LD-ADV-07): TOTAL — sem campos devolve a principal; o ramo do DTO é o
+/// 400 (`statusCode == 400` + `VALIDATION_FAILED` — o setes-api usa o mesmo código em 422 com mensagem ESPECÍFICA, que fica) e com
+/// `field` vazio cai no ramo geral; com [all] cada linha é só a MENSAGEM do campo (na forma REAL da recusa do fisco ela já leva o
+/// código — `E1235: …` — e o `field` é o nome técnico `event`/`dps`, ruído).
 String unanchoredFieldsText(Failure failure, {bool all = false}) {
+  final main = failure.message.tr();
+  if (failure.fields.isEmpty) return main;
   final first = failure.fields.first;
-  if (failure.code == 'VALIDATION_FAILED') {
+  if (failure.code == 'VALIDATION_FAILED' && failure.statusCode == 400 && first.field.isNotEmpty) {
     return 'feedback.serverField'.tr(args: [first.field, first.message.tr()]);
   }
-  final main = failure.message.tr();
   final lines = <String>[
     for (final f in all ? failure.fields : [first])
-      if (!main.contains(f.message.tr()))
-        '• ${all ? [f.field, f.message.tr()].where((s) => s.isNotEmpty).join(': ') : f.message.tr()}',
+      if (!main.contains(f.message.tr())) '• ${f.message.tr()}',
   ];
   return lines.isEmpty ? main : '$main\n${lines.join('\n')}';
 }
