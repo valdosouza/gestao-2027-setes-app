@@ -391,7 +391,7 @@ void main() {
 
     test('[RESISTIU] D-F180 com TODA falha que o app monta: `SESSION_NOT_ACCEPTED` (montada pelo app SEM o prefixo `CLIENT_`, com a frase de ORIGEM do servidor no supportRef) e `CLIENT_CONFIGURATION` (a URL no supportRef) são SISTÊMICAS — linha RECUSADA (que nunca imprime o supportRef) e o lote para; `invalidResponseFailure` (texto do Dart) e o envelope estrito (2xx fora do `{ok:true}`, com o status) = incerta só com o código; `NetworkFailure` (com o texto da exceção) = a frase neutra; o ref do SERVIDOR segue (500 INTERNAL, 409 RESOURCE_BUSY, 503 FISCAL_AUTHORITY_UNAVAILABLE). Nenhuma linha leva texto do Dart, URL, exceção ou "()"', () async {
       final r = await batch({
-        1: invalidResponseFailure("type 'Null' is not a subtype of type 'String' in type cast"),
+        1: invalidResponseFailure("type 'Null' is not a subtype of type 'String' in type cast", service: 'setes-api'),
         2: const Failure(message: 'core.errors.invalidResponse', statusCode: 200, code: ClientFailureCodes.invalidResponse),
         3: const NetworkFailure(detail: 'ClientException: XMLHttpRequest error., uri=https://nfse.setes.example/v1/x'),
         4: const Failure(message: 'Erro interno', statusCode: 500, code: 'INTERNAL', supportRef: 'srv500'),

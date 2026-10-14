@@ -68,7 +68,8 @@ class ServiceOrderFiscalTransmitBatch {
       // D-F176: o status HTTP e a rede caída viajam na linha (o texto da exceção da rede NÃO — não é código de suporte)
       // D-F180 (= Q-F188 (a), Valdo 2026-10-13 — R10-SOC-04): o "ref" da linha só quando veio do envelope do SERVIDOR; a falha que o
       // próprio app monta (`CLIENT_*` — resposta ilegível, configuração, relógio) fica só o código na linha (desde a D-F216 o supportRef
-      // dela é um código curto do cliente — `INVALID_RESPONSE · <serviço>` —, que o ato avulso mostra; o texto do Dart vai ao console)
+      // da resposta ilegível é um código curto do cliente — `INVALID_RESPONSE · <serviço>` —, que o ato avulso mostra; o texto do Dart vai
+      // ao console; o da CONFIGURATION leva a causa de configuração — LF-SOC-01)
       final network = failure is NetworkFailure;
       // R11-SOC-04: a falha montada pelo app pela LISTA (`ClientFailureCodes.all`), não pelo prefixo `CLIENT_`
       final clientMade = ClientFailureCodes.all.contains(failure.code);

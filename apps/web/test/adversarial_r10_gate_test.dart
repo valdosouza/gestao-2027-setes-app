@@ -470,7 +470,7 @@ void main() {
     });
 
     test('[DECIDIDO D-F180 — era o FATO base da Q-F187-ADV-02] a D-F176 tirou da linha o texto da exceção da REDE, mas a outra falha cujo `supportRef` é texto cru do Dart seguia na tela: a resposta 2xx que o datasource não lê (`invalidResponseFailure` no `_guard` do repositório — F2B-ADV-12) é incerta e a linha leva o erro do Dart como "ref"', () async {
-      final r = await batch({1: invalidResponseFailure("type 'int' is not a subtype of type 'String?' in type cast")});
+      final r = await batch({1: invalidResponseFailure("type 'int' is not a subtype of type 'String?' in type cast", service: 'setes-api')});
       expect(r.rows.single.uncertainDetail, ' (${ClientFailureCodes.invalidResponse})', reason: 'D-F180: falha montada pelo app = só o código');
       final server = await batch({1: const Failure(message: 'x', statusCode: 500, code: 'INTERNAL', supportRef: 'abc123')});
       expect(server.rows.single.uncertainDetail, ' (INTERNAL · ref abc123)', reason: 'o ref do SERVIDOR segue');

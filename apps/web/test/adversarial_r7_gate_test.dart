@@ -122,7 +122,7 @@ void main() {
 
     test('[RESISTIU] mistura sem parar: 422 do fisco e 409 de regra = RECUSADAS; resposta ilegível (2xx torto) e 504 sem código = INCERTAS; a soma das três contas é SEMPRE o pedido (nenhuma linha contada duas vezes)', () async {
       final r = await runFiscal({
-        1: const Left(_rejected), 2: const Left(_rule), 3: Left(invalidResponseFailure('x')), 4: const Right(_tx),
+        1: const Left(_rejected), 2: const Left(_rule), 3: Left(invalidResponseFailure('x', service: 'setes-api')), 4: const Right(_tx),
         5: const Left(Failure(message: 'gw', statusCode: 504)),
       }, [1, 2, 3, 4, 5]);
       expect([r.transmitted, r.refused, r.uncertain, r.stoppedBy], [1, 2, 2, null]);

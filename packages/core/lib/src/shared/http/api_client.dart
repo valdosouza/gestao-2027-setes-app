@@ -29,8 +29,9 @@ abstract final class ClientFailureCodes {
   /// adiantada além do `exp`) — a guarda recusaria e o login voltaria mudo; o AuthBloc avisa "confira a data e a hora".
   static const clock = 'CLIENT_CLOCK';
 
-  /// TODOS os códigos acima — a falha MONTADA pelo app (o `supportRef` dela, quando há, é um código CURTO do cliente — D-F205/D-F216 —,
-  /// nunca referência do servidor). Gate socrático do delta da Rodada 11 (R11-SOC-04): quem precisa distinguir (a linha do lote — D-F180)
+  /// TODOS os códigos acima — a falha MONTADA pelo app (o `supportRef` dela, quando há, nunca é referência do servidor:
+  /// INVALID_RESPONSE e CLOCK levam um código CURTO do cliente — D-F205/D-F216 —; CONFIGURATION leva a causa de configuração — a base URL
+  /// ou o texto do erro —, diagnóstico de quem monta o build — LF-SOC-01). Gate socrático do delta da Rodada 11 (R11-SOC-04): quem precisa distinguir (a linha do lote — D-F180)
   /// lê ESTA lista, não um prefixo de texto; código novo aqui entra nela (cerca no teste do app).
   static const all = {invalidResponse, configuration, sessionNotAccepted, clock};
 }
@@ -63,7 +64,7 @@ Map<String, dynamic> envelopePage(Map<String, dynamic> json, {required String se
 }
 
 /// D-F216 (= LD-SOC-08 (b), Valdo 2026-10-14): o código curto da resposta ilegível — `INVALID_RESPONSE · <serviço>` (o molde da D-F205).
-String invalidResponseCode([String? service]) => service == null ? 'INVALID_RESPONSE' : 'INVALID_RESPONSE · $service';
+String invalidResponseCode(String service) => 'INVALID_RESPONSE · $service';
 
 /// Erro que NÃO é [Failure] na leitura de uma resposta (tipo trocado, campo
 /// nulo) — vira falha técnica com mensagem do catálogo (F2B-ADV-12: o texto cru
@@ -72,8 +73,8 @@ String invalidResponseCode([String? service]) => service == null ? 'INVALID_RESP
 /// o texto técnico vai ao CONSOLE por `debugPrint` (a regra da D-F208).
 /// CONHECIMENTO NEGATIVO (LE-SOC-07): o `$error` sai cru — um `FormatException` de um model carrega o VALOR que não parseou; hoje nenhum
 /// model parseia documento (CPF/CNPJ só viajam na query, que a D-F215/D-F220 tiram do console). [statusCode]: o do 2xx recusado.
-Failure invalidResponseFailure(Object error, {String? service, int? statusCode}) {
-  debugPrint('[ApiClient] resposta ilegível${service == null ? '' : ' de $service'}: $error');
+Failure invalidResponseFailure(Object error, {required String service, int? statusCode}) {   // LF-SOC-02: sem default — a falha sem o serviço não existe
+  debugPrint('[ApiClient] resposta ilegível de $service: $error');
   return Failure(
     message: 'core.errors.invalidResponse',
     statusCode: statusCode,
@@ -209,7 +210,7 @@ abstract class ProductApiClient {
       // NEGATIVO: o console do próprio navegador registra a requisição que falhou (com a URL) — isso o app não controla
       final cause = '$e'
           .replaceAll(RegExp(r',?\s*uri=\S*'), '')
-          .replaceAllMapped(RegExp(r'(https?://[^\s?#]*)\?[^\s#]*'), (m) => m[1]!);
+          .replaceAllMapped(RegExp(r'([a-z][a-z0-9+.-]*://[^\s?#]*)\?[^\s#]*', caseSensitive: false), (m) => m[1]!);   // LF-ADV-04: qualquer esquema, em qualquer caixa
       debugPrint('[ApiClient] falha de rede em $serviceLabel ${path.split('?').first}: $cause');
       throw NetworkFailure(detail: networkFailureCode(serviceLabel));
     }

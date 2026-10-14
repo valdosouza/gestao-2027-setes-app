@@ -891,11 +891,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             // o `field` é o nome técnico (`dps`/`event` — fiscal-api https-json.ts) e a mensagem já leva o código ("E0116: …") → só a
             // mensagem; outro `field` (o código, na forma antiga) segue na frente
             const technical = {'dps', 'event'};
+            // LF-ADV-08: o fisco pode devolver a rejeição sem texto ({field:'dps', message:''}) — a linha "• " em branco não informa;
+            // sem nenhuma linha com texto vale a mensagem principal da falha
             final lines = failure.fields
+                .where((f) => f.message.trim().isNotEmpty)
                 .map((f) => '• ${technical.contains(f.field) || f.field.isEmpty ? f.message : '${f.field}: ${f.message}'}')
                 .join('\n');
             showValidationFeedback(context,
-                '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');
+                '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n${lines.isEmpty ? failure.message.tr() : lines}');
           } else if (failure.code == 'FISCAL_CANCEL_REFUSED' && failure.fields.isNotEmpty) {
             // PSO-ADV-08 (gate do passeio): o fisco recusou o cancelamento — a mensagem (que já traz a voz do fisco) + os códigos E do
             // fisco que ela ainda não cita, um por linha (o molde do FISCAL_DPS_REJECTED)

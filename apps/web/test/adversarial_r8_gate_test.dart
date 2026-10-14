@@ -124,7 +124,7 @@ void main() {
       final unknowns = <Failure>[
         const NetworkFailure(detail: 'x'), _internal, _proxy503, _bare500,
         const Failure(message: 'busy', statusCode: 409, code: FiscalCodes.resourceBusy),
-        invalidResponseFailure('x'),
+        invalidResponseFailure('x', service: 'setes-api'),
       ];
       final systemics = <Failure>[
         const Failure(message: 'Sem privilégio', statusCode: 403),
