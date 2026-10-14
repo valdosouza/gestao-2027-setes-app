@@ -210,7 +210,7 @@ void main() {
       expect((await through({'ok': true, 'data': {'accessKey': 'K', 'pdfBase64': 'JVBERi0='}}))['ok'], isTrue);
       // GET pending — `{ ok: true, ...{ data, page, pageSize, total } }` (sem `sendOk`)
       final page = await through({'ok': true, 'data': [], 'page': 1, 'pageSize': 100, 'total': 0});
-      expect(envelopePage(page)['total'], 0);
+      expect(envelopePage(page, service: 'nfse-api')['total'], 0);
     });
 
     test('[RESISTIU] 204 sem corpo (a nfse-api só devolve 204 no preflight OPTIONS — fiscal-api http.ts:133) é falha técnica, nunca sucesso vazio',

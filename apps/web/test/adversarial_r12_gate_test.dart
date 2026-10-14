@@ -467,7 +467,7 @@ void main() {
     }
 
     final src = File(_apiClientSrc).readAsStringSync();
-    const allLine = 'static const all = {invalidResponse, configuration, sessionNotAccepted};';
+    const allLine = 'static const all = {invalidResponse, configuration, sessionNotAccepted, clock};';   // D-F219: + clock
     final variants = {
       'declarado DEPOIS do all': src.replaceFirst(allLine, "$allLine\n\n  static const timeout = 'CLIENT_TIMEOUT';"),
       'com o tipo explícito': src.replaceFirst('  static const all', "  static const String timeout = 'CLIENT_TIMEOUT';\n\n  static const all"),

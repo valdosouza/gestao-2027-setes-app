@@ -25,10 +25,14 @@ abstract final class ClientFailureCodes {
   /// reconheceu (configuração de chave, institution divergente).
   static const sessionNotAccepted = 'SESSION_NOT_ACCEPTED';
 
-  /// TODOS os códigos acima — a falha MONTADA pelo app (o `supportRef` dela, quando há, é texto do Dart, nunca referência do
-  /// servidor). Gate socrático do delta da Rodada 11 (R11-SOC-04): quem precisa distinguir (a linha do lote — D-F180) lê ESTA lista, não
-  /// um prefixo de texto; código novo aqui entra nela (cerca no teste do app).
-  static const all = {invalidResponse, configuration, sessionNotAccepted};
+  /// D-F219 (= LE-ADV-02 (a), Valdo 2026-10-14): o servidor emitiu um token que o RELÓGIO DESTE APARELHO já dá por vencido (data/hora
+  /// adiantada além do `exp`) — a guarda recusaria e o login voltaria mudo; o AuthBloc avisa "confira a data e a hora".
+  static const clock = 'CLIENT_CLOCK';
+
+  /// TODOS os códigos acima — a falha MONTADA pelo app (o `supportRef` dela, quando há, é um código CURTO do cliente — D-F205/D-F216 —,
+  /// nunca referência do servidor). Gate socrático do delta da Rodada 11 (R11-SOC-04): quem precisa distinguir (a linha do lote — D-F180)
+  /// lê ESTA lista, não um prefixo de texto; código novo aqui entra nela (cerca no teste do app).
+  static const all = {invalidResponse, configuration, sessionNotAccepted, clock};
 }
 
 /// As rotas de `/auth` que NÃO levam a sessão (o setes-api as serve sem o
@@ -39,19 +43,21 @@ const _publicAuthPaths = {'/auth/login', '/auth/select-institution', '/auth/reco
 /// O `data` OBJETO do envelope `{ ok: true, data: {…} }` — senão falha técnica
 /// [ClientFailureCodes.invalidResponse] (F2B-ADV-04: `{}` virava "não
 /// transmitida", "nada pendente" e "autorizada com chave vazia").
-Map<String, dynamic> envelopeData(Map<String, dynamic> json) {
+/// LE-SOC-01 = LE-ADV-04 (gates do delta 60df1df..5f6d3be — a regra da D-F216 nas TRÊS portas): a recusa leva o código curto do
+/// [service] que respondeu torto e o motivo vai ao console.
+Map<String, dynamic> envelopeData(Map<String, dynamic> json, {required String service}) {
   final data = json['data'];
   if (json['ok'] != true || data is! Map<String, dynamic>) {
-    throw const Failure(message: 'core.errors.invalidResponse', code: ClientFailureCodes.invalidResponse);
+    throw invalidResponseFailure('resposta fora do envelope { ok: true, data: {…} }', service: service);
   }
   return data;
 }
 
 /// O envelope PAGINADO `{ ok: true, data: [...], page, pageSize, total }` —
-/// senão falha técnica (nunca "lista vazia" calada — D-F130).
-Map<String, dynamic> envelopePage(Map<String, dynamic> json) {
+/// senão falha técnica (nunca "lista vazia" calada — D-F130), com o código do [service] (D-F216).
+Map<String, dynamic> envelopePage(Map<String, dynamic> json, {required String service}) {
   if (json['ok'] != true || json['data'] is! List) {
-    throw const Failure(message: 'core.errors.invalidResponse', code: ClientFailureCodes.invalidResponse);
+    throw invalidResponseFailure('resposta fora do envelope paginado { ok: true, data: [...] }', service: service);
   }
   return json;
 }
@@ -64,10 +70,13 @@ String invalidResponseCode([String? service]) => service == null ? 'INVALID_RESP
 /// do Dart ia para a tela). D-F216 (Valdo 2026-10-14): o `supportRef` é o
 /// código CURTO ([invalidResponseCode] — [service] = qual API respondeu torto) e
 /// o texto técnico vai ao CONSOLE por `debugPrint` (a regra da D-F208).
-Failure invalidResponseFailure(Object error, {String? service}) {
+/// CONHECIMENTO NEGATIVO (LE-SOC-07): o `$error` sai cru — um `FormatException` de um model carrega o VALOR que não parseou; hoje nenhum
+/// model parseia documento (CPF/CNPJ só viajam na query, que a D-F215/D-F220 tiram do console). [statusCode]: o do 2xx recusado.
+Failure invalidResponseFailure(Object error, {String? service, int? statusCode}) {
   debugPrint('[ApiClient] resposta ilegível${service == null ? '' : ' de $service'}: $error');
   return Failure(
     message: 'core.errors.invalidResponse',
+    statusCode: statusCode,
     code: ClientFailureCodes.invalidResponse,
     supportRef: invalidResponseCode(service),
   );
@@ -75,7 +84,7 @@ Failure invalidResponseFailure(Object error, {String? service}) {
 
 /// D-F216 (= LD-ADV-03 (a), Valdo 2026-10-14): as rotas `/auth/*` e `/api/core/*` respondem SEMPRE no envelope `{ ok: true, … }` (conferido
 /// no setes-api) — o leitor do core EXIGE o `ok` (um 200 de proxy em HTML virava sucesso calado: menu vazio, usuário 0). Devolve o json.
-Map<String, dynamic> envelopeOk(Map<String, dynamic> json, {String service = 'setes-api'}) {
+Map<String, dynamic> envelopeOk(Map<String, dynamic> json, {required String service}) {   // LE-SOC-03: sem default
   if (json['ok'] != true) throw invalidResponseFailure('resposta fora do envelope { ok: true }', service: service);
   return json;
 }
@@ -196,7 +205,11 @@ abstract class ProductApiClient {
       // do web o `developer.log` do dart2js é no-op; no Android, logcat) — a causa técnica (certificado, DNS, recusa) fica para o suporte
       // D-F215 (= LD-SOC-07 (b), Valdo 2026-10-14): só o CAMINHO, sem a query, e a causa sem o `uri=` — a query leva CPF/CNPJ do prefill
       // (`by-document?doc=…`) e o filtro digitado; a causa técnica (certificado, DNS, recusa) fica
-      final cause = '$e'.replaceAll(RegExp(r',?\s*uri=\S*'), '');
+      // D-F220 (= LE-ADV-07 (b), Valdo 2026-10-14): e sem a query de NENHUMA URL que a causa traga no meio do texto. CONHECIMENTO
+      // NEGATIVO: o console do próprio navegador registra a requisição que falhou (com a URL) — isso o app não controla
+      final cause = '$e'
+          .replaceAll(RegExp(r',?\s*uri=\S*'), '')
+          .replaceAllMapped(RegExp(r'(https?://[^\s?#]*)\?[^\s#]*'), (m) => m[1]!);
       debugPrint('[ApiClient] falha de rede em $serviceLabel ${path.split('?').first}: $cause');
       throw NetworkFailure(detail: networkFailureCode(serviceLabel));
     }
@@ -255,11 +268,9 @@ abstract class ProductApiClient {
       );
     }
     if (strictEnvelope && (json == null || json['ok'] != true)) {
-      throw Failure(
-        message: 'core.errors.invalidResponse',
-        statusCode: response.statusCode,
-        code: ClientFailureCodes.invalidResponse,
-      );
+      // LE-ADV-04 (a regra da D-F216 no envelope ESTRITO): o código curto deste serviço + o motivo no console
+      throw invalidResponseFailure('${response.statusCode} fora do envelope { ok: true } em ${path.split('?').first}',
+          service: serviceLabel, statusCode: response.statusCode);
     }
     return body;
   }

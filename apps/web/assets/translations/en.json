@@ -5,6 +5,7 @@
   "core": {
     "errors": {
       "network": "No response from the service — network, proxy or timeout.",
+      "clock": "This computer's date and time look wrong — the session was born expired. Check the device clock and sign in again.",
       "unauthorized": "Not authorized",
       "session": "Invalid or expired session",
       "generic": "The operation could not be completed",

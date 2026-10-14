@@ -7,12 +7,12 @@ class PreferenceRemoteDatasource {
   final ApiClient client;
 
   Future<Map<String, String>> getAll() async {
-    final json = envelopeOk(await client.get('/api/core/preferences'));
+    final json = envelopeOk(await client.get('/api/core/preferences'), service: 'setes-api');
     final data = json['data'] as Map<String, dynamic>? ?? {};
     return data.map((k, v) => MapEntry(k, v?.toString() ?? ''));
   }
 
   Future<void> save(String key, String value) async {
-    envelopeOk(await client.put('/api/core/preferences', {'key': key, 'value': value}));
+    envelopeOk(await client.put('/api/core/preferences', {'key': key, 'value': value}), service: 'setes-api');
   }
 }

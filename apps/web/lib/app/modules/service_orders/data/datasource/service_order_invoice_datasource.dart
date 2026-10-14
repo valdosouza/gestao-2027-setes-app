@@ -36,7 +36,7 @@ class ServiceOrderInvoiceDatasourceImpl implements ServiceOrderInvoiceDatasource
   /// F2B-ADV-04: `{ ok: true, data: {…} }` ou falha técnica (o plano, o efeito
   /// e o cancelamento decidem — nunca sobre `{}`). As rotas `/api/billing/*`
   /// respondem sempre pelo `sendOk`.
-  Map<String, dynamic> _data(Map<String, dynamic> json) => envelopeData(json);
+  Map<String, dynamic> _data(Map<String, dynamic> json) => envelopeData(json, service: 'setes-api');
 
   @override
   Future<ServiceOrderCancelPlan> cancelPlan(int orderId) async =>

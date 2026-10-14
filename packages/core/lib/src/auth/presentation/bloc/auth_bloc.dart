@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../error/failure.dart';
+import '../../../shared/helpers/jwt_utils.dart';
 import '../../../shared/http/api_client.dart';
 import '../../../shared/storage/local_prefs.dart';
 import '../../domain/entity/auth_session.dart';
@@ -171,6 +172,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await localPrefs.setSessionToken(_keepConnected ? token : null);
   }
 
+  /// D-F219 (= LE-ADV-02 (a), Valdo 2026-10-14): o token recém-emitido que ESTE aparelho já dá por vencido (relógio adiantado além do
+  /// `exp`) — a guarda recusaria e o login voltaria MUDO. Erro técnico próprio ("confira a data e a hora"), com a hora do aparelho no
+  /// código para o suporte; token sem `exp` legível = resposta ilegível. Nulo = o token serve.
+  Failure? _unusableToken(String token) {
+    final exp = jwtExpiry(token);
+    if (exp == null) return invalidResponseFailure('token sem exp legível', service: 'setes-api');
+    final now = DateTime.now();
+    if (now.millisecondsSinceEpoch ~/ 1000 >= exp) {
+      return Failure(message: 'core.errors.clock', code: ClientFailureCodes.clock, supportRef: 'CLOCK · ${now.toIso8601String()}');
+    }
+    return null;
+  }
+
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     _keepConnected = event.keepConnected;
@@ -184,6 +198,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           final defaultId = await localPrefs.getDefaultInstitutionId();
           emit(AuthNeedsSelection(session: session, defaultInstitutionId: defaultId));
         } else {
+          final unusable = _unusableToken(session.token!);   // D-F219
+          if (unusable != null) {
+            emit(AuthError(failure: unusable));
+            return;
+          }
           await _setSession(session.token!);
           emit(AuthAuthenticated(token: session.token!, context: session.context));
         }
@@ -208,6 +227,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await result.fold(
       (failure) async => emit(AuthError(failure: failure)),
       (token) async {
+        final unusable = _unusableToken(token);   // D-F219
+        if (unusable != null) {
+          emit(AuthError(failure: unusable));
+          return;
+        }
         await _setSession(token);
         emit(AuthAuthenticated(token: token));
       },

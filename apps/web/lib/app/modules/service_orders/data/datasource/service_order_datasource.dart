@@ -84,7 +84,7 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
     // PSO-ADV-05 (gate do passeio logado): a página paginada é ESTRITA (`{ ok: true, data: [...] }` — pagedEnvelope do setes-api); um
     // 200 fora do envelope (HTML de proxy, host errado) é falha de resposta ilegível (D-F206: erro + "Tentar novamente"), nunca a
     // lista vazia "Não encontramos nenhum registro"
-    return PagedResult.fromJson(envelopePage(json), ServiceOrderListItem.fromJson);
+    return PagedResult.fromJson(envelopePage(json, service: 'setes-api'), ServiceOrderListItem.fromJson);
   }
 
   @override

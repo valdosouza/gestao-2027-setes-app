@@ -324,7 +324,9 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         // recua para a última página existente em vez de lista vazia.
         // D-F217 (= LD-ADV-10 (a), Valdo 2026-10-14): só recua se a página pedida PASSOU do total de páginas — um servidor com COUNT
         // diferente da lista (data:[] com total>0 na última página) fazia o bloc pedir a MESMA página sem parar (61 GETs para 1 clique)
-        if (paged.items.isEmpty && paged.total > 0 && paged.page > 1 && paged.page > paged.pageCount) {
+        // LE-ADV-05 (gate do delta 60df1df..5f6d3be): pela página PEDIDA (`_page`), não pela da resposta — uma resposta que não acompanha a
+        // pedida (proxy/cache que ignora a query) voltava ao laço; o alvo (`pageCount`) é sempre MENOR que a pedida → termina por construção
+        if (paged.items.isEmpty && paged.total > 0 && _page > 1 && _page > paged.pageCount) {
           _page = paged.pageCount;
           return _reloadList(emit);
         }

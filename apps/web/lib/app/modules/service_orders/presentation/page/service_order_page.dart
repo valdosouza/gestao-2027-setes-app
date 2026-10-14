@@ -887,9 +887,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                 '$about${'forms.serviceOrder.cancelInvoiceBlocked'.tr()}\n$lines');
           } else if (failure.code == 'FISCAL_DPS_REJECTED' &&
               failure.fields.isNotEmpty) {
-            // Onda 3: fields[] = códigos E0xxx do fisco, um por linha
+            // Onda 3: fields[] = códigos E0xxx do fisco, um por linha. LE-SOC-05 = LE-ADV-06 (a regra do LD-SOC-01): na forma da nfse-api
+            // o `field` é o nome técnico (`dps`/`event` — fiscal-api https-json.ts) e a mensagem já leva o código ("E0116: …") → só a
+            // mensagem; outro `field` (o código, na forma antiga) segue na frente
+            const technical = {'dps', 'event'};
             final lines = failure.fields
-                .map((f) => '• ${[f.field, f.message].where((s) => s.isNotEmpty).join(': ')}')
+                .map((f) => '• ${technical.contains(f.field) || f.field.isEmpty ? f.message : '${f.field}: ${f.message}'}')
                 .join('\n');
             showValidationFeedback(context,
                 '$about${'forms.serviceOrder.fiscalRejected'.tr()}\n$lines');

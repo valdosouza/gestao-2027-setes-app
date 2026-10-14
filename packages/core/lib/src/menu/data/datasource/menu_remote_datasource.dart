@@ -7,7 +7,7 @@ class MenuRemoteDatasource {
   final ApiClient client;
 
   Future<List<MenuModuleModel>> getMenus() async {
-    final json = envelopeOk(await client.get('/api/core/menus'));
+    final json = envelopeOk(await client.get('/api/core/menus'), service: 'setes-api');
     return (json['data'] as List<dynamic>? ?? [])
         .map((e) => MenuModuleModel.fromJson(e as Map<String, dynamic>))
         .toList();

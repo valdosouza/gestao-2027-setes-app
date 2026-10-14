@@ -51,7 +51,7 @@ class EstablishmentIssuerDatasourceImpl
   /// falha do catálogo — a seção só captura Failure (o TypeError deixava o
   /// spinner para sempre).
   T _read<T>(Map<String, dynamic> json, T Function(Map<String, dynamic>) parse) {
-    final data = envelopeData(json);
+    final data = envelopeData(json, service: 'nfse-api');
     try {
       return parse(data);
     } on Failure {

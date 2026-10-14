@@ -8,7 +8,7 @@ class ThemeRemoteDatasource {
   final ApiClient client;
 
   Future<InstitutionTheme> getTheme() async {
-    final json = envelopeOk(await client.get('/api/core/theme'));
+    final json = envelopeOk(await client.get('/api/core/theme'), service: 'setes-api');
     final data = json['data'] as Map<String, dynamic>? ?? {};
     return InstitutionTheme(
       primaryColor: data['primaryColor'] as String?,
@@ -22,6 +22,6 @@ class ThemeRemoteDatasource {
       if (primaryColor != null) 'primaryColor': primaryColor,
       if (secondaryColor != null) 'secondaryColor': secondaryColor,
       if (logoBase64 != null) 'logoBase64': logoBase64,
-    }));
+    }), service: 'setes-api');
   }
 }
