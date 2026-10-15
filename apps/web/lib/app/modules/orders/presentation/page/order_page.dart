@@ -8,6 +8,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/format/money.dart';
+import '../../../../shared/ibscbs/ibscbs.dart';
 import '../../../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../../../shared/lookup/entity/role_lookup_entity.dart';
 import '../../../../shared/register/register_config_button.dart';
@@ -427,7 +428,8 @@ class _OrderPageState extends State<OrderPage>
 
   /// Dialog INFORMATIVO de pendências (issues do /billing/validate) — a
   /// mensagem de cada issue já vem PRONTA da API.
-  Future<void> _showIssuesDialog(List<OrderBillingIssue> issues) => showDialog<void>(
+  /// D-IB76: a prévia IBS/CBS entra junto das pendências quando é AVISO (antes da obrigação); a recusa já é uma issue da lista.
+  Future<void> _showIssuesDialog(List<OrderBillingIssue> issues, {IbscbsPreview? ibscbs}) => showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: SetesText('forms.order.billingIssuesTitle'.tr()),
@@ -443,6 +445,7 @@ class _OrderPageState extends State<OrderPage>
                       padding: const EdgeInsets.only(bottom: 8),
                       child: SetesText('• ${issue.message}'),
                     ),
+                  if (ibscbs != null && !ibscbs.refused) IbscbsCard(preview: ibscbs),
                 ],
               ),
             ),
@@ -483,15 +486,24 @@ class _OrderPageState extends State<OrderPage>
             if (state.result.canInvoice) {
               _startInvoice(state.result.orderId, state.negotiation);
             } else {
-              _showIssuesDialog(state.result.issues);
+              _showIssuesDialog(state.result.issues, ibscbs: state.result.ibscbs);
             }
             return;
           }
           if (state is OrderBillingInvoiced) {
             _checksNegotiation = null;
             _checksExpected.clear();
-            showSuccessFeedback(context, 'forms.order.invoiceGenerated',
-                args: [state.result.invoiceNumber]);
+            // D-IB75: selo no resultado — a nota saiu SEM o grupo IBS/CBS (antes da obrigação) diz por quê
+            final ibscbs = state.result.ibscbs;
+            if (ibscbs?.leftWithoutGroup ?? false) {
+              showSuccessFeedback(context, 'forms.order.invoiceGeneratedNoIbscbs', args: [
+                state.result.invoiceNumber,
+                ibscbs!.reasonsText,
+              ]);
+            } else {
+              showSuccessFeedback(context, 'forms.order.invoiceGenerated',
+                  args: [state.result.invoiceNumber]);
+            }
             return;
           }
           if (state is OrderBillingInvoiceFailure) {

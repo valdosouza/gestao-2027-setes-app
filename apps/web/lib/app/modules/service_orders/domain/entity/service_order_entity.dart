@@ -1,6 +1,8 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../shared/ibscbs/ibscbs.dart';
+
 /// Entidades do módulo service_orders — Ordens de Serviço (Módulo Software
 /// House, Onda 4; 05-ORDEM-SERVICO-SOFTWARE-HOUSE.md). 1ª TELA DE PROCESSO
 /// do produto: a OS fica ABERTA o mês inteiro acumulando itens (tarefas
@@ -132,6 +134,7 @@ class ServiceOrderFull extends Equatable {
     this.totalValue = 0,
     this.invoiceNumber,
     this.dtEmission,
+    this.ibscbs,
   });
 
   final int     id;
@@ -150,6 +153,10 @@ class ServiceOrderFull extends Equatable {
 
   /// ISO 'yyyy-MM-dd' da emissão; null = aberta.
   final String? dtEmission;
+
+  /// IB-3 (D-IB76): declaração IBS/CBS PREVISTA (OS aberta — o mesmo que o faturamento faria hoje) ou CONGELADA (faturada). null = sem
+  /// serviço / API anterior. Só exibição — a API decide.
+  final IbscbsOrderView? ibscbs;
 
   bool get isOpen => status == 'A';
 
@@ -172,12 +179,13 @@ class ServiceOrderFull extends Equatable {
         totalValue:    jsonDouble(json['totalValue']) ?? 0,
         invoiceNumber: json['invoiceNumber']?.toString(),
         dtEmission:    json['dtEmission'] as String?,
+        ibscbs:        IbscbsOrderView.fromJson(json['ibscbs']),
       );
 
   @override
   List<Object?> get props => [
         id, number, customerId, customerName, status, dtRecord,
-        items, totalValue, invoiceNumber, dtEmission,
+        items, totalValue, invoiceNumber, dtEmission, ibscbs,
       ];
 }
 
@@ -298,21 +306,26 @@ class ServiceOrderInvoiceResult extends Equatable {
     this.invoiceNumber = '',
     this.parcels = 1,
     this.totalValue = 0,
+    this.ibscbs,
   });
 
   final String invoiceNumber;
   final int    parcels;
   final double totalValue;
 
+  /// IB-2/IB-3 (D-IB65/D-IB75): o grupo IBS/CBS foi congelado na nota? (sem → os motivos). null = API anterior.
+  final IbscbsOutcome? ibscbs;
+
   factory ServiceOrderInvoiceResult.fromJson(Map<String, dynamic> json) =>
       ServiceOrderInvoiceResult(
         invoiceNumber: json['invoiceNumber']?.toString() ?? '',
         parcels:       jsonInt(json['parcels']) ?? 1,
         totalValue:    jsonDouble(json['totalValue']) ?? 0,
+        ibscbs:        IbscbsOutcome.fromJson(json['ibscbs']),
       );
 
   @override
-  List<Object?> get props => [invoiceNumber, parcels, totalValue];
+  List<Object?> get props => [invoiceNumber, parcels, totalValue, ibscbs];
 }
 
 /// Uma linha do relatório do LOTE (D6/D7 da fase Primeiro Cliente): o
@@ -332,6 +345,7 @@ class BatchInvoiceEntry extends Equatable {
     this.error = '',
     this.code = '',
     this.retryable = false,
+    this.ibscbs,
   });
 
   /// Linha que a TELA fabrica quando um bloco do lote nem chegou à API (D27:
@@ -349,7 +363,8 @@ class BatchInvoiceEntry extends Equatable {
         chargedParcels = 0,
         chargeableParcels = 0,
         code = abortedCode,
-        retryable = true;
+        retryable = true,
+        ibscbs = null;
 
   /// Código local (não vem da API) da linha de bloco interrompido.
   static const abortedCode = 'BATCH_ABORTED';
@@ -380,6 +395,12 @@ class BatchInvoiceEntry extends Equatable {
   /// resolveu — "tente de novo" é do operador (a linha fica marcada).
   final bool   retryable;
 
+  /// IB-2/IB-3 (D-IB65/D-IB75): na faturada, se o grupo IBS/CBS foi congelado (sem → os motivos). null = recusada / API anterior.
+  final IbscbsOutcome? ibscbs;
+
+  /// Faturada SEM o grupo IBS/CBS (antes da obrigação — a nota sai sem ele; o motivo vai na linha).
+  bool get ibscbsOmitted => ok && (ibscbs?.leftWithoutGroup ?? false);
+
   /// Faturada mas com alguma parcela sem baixa e sem boleto (D26).
   bool get uncharged => ok && chargedParcels < chargeableParcels;
 
@@ -402,13 +423,14 @@ class BatchInvoiceEntry extends Equatable {
         error:         json['error'] as String? ?? '',
         code:          json['code'] as String? ?? '',
         retryable:     json['retryable'] == true,
+        ibscbs:        IbscbsOutcome.fromJson(json['ibscbs']),
       );
 
   @override
   List<Object?> get props =>
       [orderId, ok, dtExpiration, paymentTypeId, invoiceNumber, totalValue,
        autoSettled, bankSlipsIssued, chargedParcels, chargeableParcels, error,
-       code, retryable];
+       code, retryable, ibscbs];
 }
 
 /// D27 (Q-P6, Valdo 2026-09-19): teto de ordens por REQUISIÇÃO na API. A
@@ -426,6 +448,8 @@ class BatchInvoiceReport extends Equatable {
     this.uncharged = 0,
     this.partiallyCharged = 0,
     this.retryable = 0,
+    this.ibscbsDeclared = 0,
+    this.ibscbsOmitted = 0,
     this.results = const [],
   });
 
@@ -443,6 +467,10 @@ class BatchInvoiceReport extends Equatable {
   /// Recusadas que valem repetir (D25: contenção que a passada extra não
   /// resolveu; D27: bloco que nem chegou à API).
   final int retryable;
+
+  /// IB-2/IB-3 (D-IB65/D-IB75): faturadas COM × SEM o grupo IBS/CBS — recontadas das linhas, como os demais.
+  final int ibscbsDeclared;
+  final int ibscbsOmitted;
   final List<BatchInvoiceEntry> results;
 
   factory BatchInvoiceReport.fromJson(Map<String, dynamic> json) =>
@@ -453,6 +481,8 @@ class BatchInvoiceReport extends Equatable {
         uncharged: jsonInt(json['uncharged']) ?? 0,
         partiallyCharged: jsonInt(json['partiallyCharged']) ?? 0,
         retryable: jsonInt(json['retryable']) ?? 0,
+        ibscbsDeclared: jsonInt(json['ibscbsDeclared']) ?? 0,
+        ibscbsOmitted:  jsonInt(json['ibscbsOmitted']) ?? 0,
         results: (json['results'] as List<dynamic>? ?? [])
             .map((e) => BatchInvoiceEntry.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -469,6 +499,8 @@ class BatchInvoiceReport extends Equatable {
         uncharged: entries.where((e) => e.uncharged).length,
         partiallyCharged: entries.where((e) => e.partiallyCharged).length,
         retryable: entries.where((e) => !e.ok && e.retryable).length,
+        ibscbsDeclared: entries.where((e) => e.ok && e.ibscbs?.declared == true).length,
+        ibscbsOmitted:  entries.where((e) => e.ibscbsOmitted).length,
         results:   List.unmodifiable(entries),
       );
 
@@ -480,7 +512,7 @@ class BatchInvoiceReport extends Equatable {
   @override
   List<Object?> get props =>
       [requested, invoiced, failed, uncharged, partiallyCharged, retryable,
-       results];
+       ibscbsDeclared, ibscbsOmitted, results];
 }
 
 /// Cliente para o lookup do Abrir OS (GET /api/customers — projeção

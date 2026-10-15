@@ -10,6 +10,7 @@ import '../../../../shared/entity/widgets/entity_date.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart' show unanchoredFieldsText;
 import '../../../../shared/format/money.dart';
+import '../../../../shared/ibscbs/ibscbs.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../../../shared/register/register_paging_bar.dart';
 import '../../../../shared/search/advanced_search_panel.dart';
@@ -440,6 +441,12 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                   SetesText('forms.serviceOrder.batchRetryable'
                       .tr(args: ['${report.retryable}'])),
                 ],
+                // D-IB75: faturadas SEM o grupo IBS/CBS (antes da obrigação a nota sai sem ele) — o motivo vai em cada linha
+                if (report.ibscbsOmitted > 0) ...[
+                  const SizedBox(height: 4),
+                  SetesText('forms.serviceOrder.batchIbscbsOmitted'
+                      .tr(args: ['${report.ibscbsOmitted}'])),
+                ],
                 // D13: com o vencimento vindo do contrato de cada ordem, as
                 // datas DIVERGEM — o operador precisa ver qual ordem ficou
                 // com qual vencimento, senão o lote vira caixa-preta.
@@ -467,6 +474,15 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
                               isoDateToDisplay(linha.dtExpiration),
                               linha.invoiceNumber,
                             ])),
+                    ),
+                  // D-IB75: o motivo por linha — só das que saíram sem o grupo
+                  for (final linha in faturadas.where((l) => l.ibscbsOmitted))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: SetesText('forms.serviceOrder.batchIbscbsOmittedRow'.tr(args: [
+                        shown(linha.orderId),
+                        linha.ibscbs!.reasonsText,
+                      ])),
                     ),
                 ],
                 if (recusadas.isNotEmpty) ...[
@@ -871,8 +887,14 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             return;
           }
           if (state is ServiceOrderActionSuccess) {
+            // D-IB75: a nota saiu sem o grupo IBS/CBS → os motivos (lista fechada da API) entram como último argumento
+            final ibscbs = state.ibscbs;
+            final args = [
+              ...state.args,
+              if (ibscbs?.leftWithoutGroup ?? false) ibscbs!.reasonsText,
+            ];
             showSuccessFeedback(context, state.messageKey,
-                args: state.args.isEmpty ? null : state.args, about: _about(state.orderNumber));
+                args: args.isEmpty ? null : args, about: _about(state.orderNumber));
             return;
           }
           final failureState = state as ServiceOrderActionFailure;
@@ -1170,6 +1192,14 @@ class _ServiceOrderDetailView extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             _buildHeader(context),
+            // IB-3 (D-IB75/D-IB76): IBS/CBS — aberta = o que o faturamento faria HOJE (aviso antes da obrigação, recusa depois);
+            // faturada = a declaração congelada na nota + a enviada e os valores do fisco (nfse-api). O cartão só renderiza
+            IbscbsCard(
+              preview: order.isOpen ? order.ibscbs?.preview : null,
+              frozen: order.isOpen ? null : order.ibscbs?.frozen,
+              fiscal: order.isOpen ? null : state.fiscal?.ibscbs,
+              unavailable: order.ibscbs?.unavailable ?? false,
+            ),
             // Onda 3: a nota da OS faturada tem vida no fisco
             if (!order.isOpen)
               ServiceOrderFiscalSection(

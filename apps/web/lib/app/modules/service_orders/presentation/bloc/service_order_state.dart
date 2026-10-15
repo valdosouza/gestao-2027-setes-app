@@ -181,7 +181,7 @@ class ServiceOrderFiscalBatchDone extends ServiceOrderState {
 /// Efeito one-shot para SnackBar de sucesso (listener-only). [args]
 /// alimenta placeholders da chave (ex.: nº da fatura gerada).
 class ServiceOrderActionSuccess extends ServiceOrderState {
-  const ServiceOrderActionSuccess(this.messageKey, {this.args = const [], this.orderNumber});
+  const ServiceOrderActionSuccess(this.messageKey, {this.args = const [], this.orderNumber, this.ibscbs});
 
   /// Chave i18n — a página traduz.
   final String messageKey;
@@ -190,8 +190,11 @@ class ServiceOrderActionSuccess extends ServiceOrderState {
   /// SAIU (outra OS aberta ou a lista) — a página o prefixa ("OS N: "); nulo = a tela é a OS do ato.
   final int? orderNumber;
 
+  /// IB-3 (D-IB75): o resultado IBS/CBS do faturamento — a nota saiu SEM o grupo = selo com os motivos (a página traduz).
+  final IbscbsOutcome? ibscbs;
+
   @override
-  List<Object?> get props => [messageKey, args, orderNumber];
+  List<Object?> get props => [messageKey, args, orderNumber, ibscbs];
 }
 
 /// Efeito one-shot de falha (listener-only, não buildável). Carrega o

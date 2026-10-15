@@ -1,6 +1,8 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../shared/ibscbs/ibscbs.dart';
+
 /// Entidades FISCAIS do módulo service_orders — F2b (o app é cliente DIRETO
 /// da nfse-api — D-F4; `prompt_apis_fiscais_isoladas.md` §22.14/§22.16).
 ///
@@ -193,6 +195,7 @@ class ServiceOrderFiscalView extends Equatable {
     this.substitution,
     this.xmlAvailable = false,
     this.danfseAvailable = false,
+    this.ibscbs,
   });
 
   /// Estado derivado pelo núcleo (D-F142) — a tela escolhe os botões por ele.
@@ -209,6 +212,10 @@ class ServiceOrderFiscalView extends Equatable {
   final ServiceOrderFiscalSubstitution? substitution;
   final bool xmlAvailable;
   final bool danfseAvailable;
+
+  /// IB-3 (D-IB75/D-IB77): a declaração IBS/CBS ENVIADA (do XML autorizado) e os VALORES que o fisco calculou — só exibição; null =
+  /// sem NFS-e nesta vida (ou nfse-api anterior).
+  final IbscbsFiscal? ibscbs;
 
   /// A tentativa vigente — pelo número que o SERVIDOR escolheu (nunca
   /// `transmissions.last`: a registrada pode não ser a última).
@@ -240,12 +247,13 @@ class ServiceOrderFiscalView extends Equatable {
             json['substitution'], ServiceOrderFiscalSubstitution.fromJson),
         xmlAvailable:    json['xmlAvailable'] == true,
         danfseAvailable: json['danfseAvailable'] == true,
+        ibscbs:          IbscbsFiscal.fromJson(json['ibscbs']),
       );
 
   @override
   List<Object?> get props => [
         state, currentAttempt, transmissions, events, localCancelPending,
-        substitution, xmlAvailable, danfseAvailable,
+        substitution, xmlAvailable, danfseAvailable, ibscbs,
       ];
 }
 

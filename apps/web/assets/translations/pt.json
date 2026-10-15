@@ -874,7 +874,10 @@
       "fiscalKeepReasonTooLong": "Motivo deve ter até 255 caracteres",
       "fiscalKeepDone": "Decisão registrada — a nota foi mantida no ERP",
       "fiscalKeepAlready": "A decisão de manter esta nota já estava registrada",
-      "fiscalKeptRow": "Nota mantida em {} — motivo: {}"
+      "fiscalKeptRow": "Nota mantida em {} — motivo: {}",
+      "invoiceGeneratedNoIbscbs": "Fatura {} gerada — saiu SEM o grupo IBS/CBS: {}",
+      "batchIbscbsOmitted": "Faturadas SEM o grupo IBS/CBS: {}",
+      "batchIbscbsOmittedRow": "Ordem {} · sem IBS/CBS: {}"
     },
     "order": {
       "tabOpen": "Abertos",
@@ -991,7 +994,8 @@
       "checkKindLabel": "Tipo do Cheque",
       "checkKindOwn": "Próprio (do pagador)",
       "checkKindThird": "De terceiro",
-      "checkTooLong": "{} deve ter até {} caracteres"
+      "checkTooLong": "{} deve ter até {} caracteres",
+      "invoiceGeneratedNoIbscbs": "Fatura {} gerada — saiu SEM o grupo IBS/CBS: {}"
     },
     "orderReturn": {
       "tabOpen": "Abertas",
@@ -1979,5 +1983,33 @@
         "T": "Terceiro"
       }
     }
+  },
+  "ibscbs": {
+    "title": "IBS / CBS",
+    "previewDeclared": "A nota sairá COM o grupo IBS/CBS (classificação do serviço + NBS).",
+    "previewOmitted": "A nota sairá SEM o grupo IBS/CBS — obrigatório a partir de {}. Motivo: {}",
+    "outcomeDeclared": "Saiu com o grupo IBS/CBS.",
+    "outcomeOmitted": "Saiu SEM o grupo IBS/CBS: {}",
+    "frozenDeclared": "Declaração na nota: cClassTrib {} · cIndOp {} · NBS {}",
+    "frozenOmitted": "A nota saiu sem o grupo IBS/CBS (NBS {}).",
+    "sent": "Enviado ao fisco: CST {} · cClassTrib {} · cIndOp {} · NBS {}",
+    "fiscalValues": "Calculado pelo fisco: IBS {} · CBS {} · total da nota {}",
+    "fiscalValuesPending": "Valores do IBS/CBS ainda não lidos da NFS-e.",
+    "omitted": {
+      "divergent": "serviços da nota com classificações diferentes",
+      "not-classified": "serviço sem classificação IBS/CBS",
+      "no-line": "classificação sem vigência na data",
+      "not-applicable": "classificação não se aplica à NFS-e",
+      "requires-regular": "classificação exige o regime regular",
+      "place-indicator": "local do fornecimento (cIndOp) inválido",
+      "nbs-missing": "serviço sem NBS",
+      "nbs-not-accepted": "NBS não aceita pelo catálogo"
+    },
+    "previewFor": "Prévia para faturar em {}:",
+    "atObligationRefused": "A partir de {} o faturamento será RECUSADO: {}",
+    "atObligationDeclared": "A partir de {} a nota sairá COM o grupo IBS/CBS.",
+    "atObligationOmitted": "A partir de {} a nota sairia SEM o grupo IBS/CBS: {}",
+    "unavailable": "Declaração IBS/CBS indisponível no momento — o restante da ordem segue normal.",
+    "sentWithoutGroup": "Atenção: a NFS-e autorizada NÃO leva o grupo IBS/CBS que a nota congelou."
   }
 }

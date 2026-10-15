@@ -874,7 +874,10 @@
       "fiscalKeepReasonTooLong": "Reason must have up to 255 characters",
       "fiscalKeepDone": "Decision recorded — the invoice was kept in the ERP",
       "fiscalKeepAlready": "The decision to keep this invoice was already recorded",
-      "fiscalKeptRow": "Invoice kept on {} — reason: {}"
+      "fiscalKeptRow": "Invoice kept on {} — reason: {}",
+      "invoiceGeneratedNoIbscbs": "Invoice {} generated — WITHOUT the IBS/CBS group: {}",
+      "batchIbscbsOmitted": "Invoiced WITHOUT the IBS/CBS group: {}",
+      "batchIbscbsOmittedRow": "Order {} · no IBS/CBS: {}"
     },
     "order": {
       "tabOpen": "Open",
@@ -991,7 +994,8 @@
       "checkKindLabel": "Check Type",
       "checkKindOwn": "Own (payer's)",
       "checkKindThird": "Third party",
-      "checkTooLong": "{} must have at most {} characters"
+      "checkTooLong": "{} must have at most {} characters",
+      "invoiceGeneratedNoIbscbs": "Invoice {} generated — WITHOUT the IBS/CBS group: {}"
     },
     "orderReturn": {
       "tabOpen": "Open",
@@ -1979,5 +1983,33 @@
         "T": "Third party"
       }
     }
+  },
+  "ibscbs": {
+    "title": "IBS / CBS",
+    "previewDeclared": "The invoice will carry the IBS/CBS group (service classification + NBS).",
+    "previewOmitted": "The invoice will go WITHOUT the IBS/CBS group — mandatory from {}. Reason: {}",
+    "outcomeDeclared": "Issued with the IBS/CBS group.",
+    "outcomeOmitted": "Issued WITHOUT the IBS/CBS group: {}",
+    "frozenDeclared": "Declared on the invoice: cClassTrib {} · cIndOp {} · NBS {}",
+    "frozenOmitted": "The invoice was issued without the IBS/CBS group (NBS {}).",
+    "sent": "Sent to the tax authority: CST {} · cClassTrib {} · cIndOp {} · NBS {}",
+    "fiscalValues": "Computed by the tax authority: IBS {} · CBS {} · invoice total {}",
+    "fiscalValuesPending": "IBS/CBS values not yet read from the NFS-e.",
+    "omitted": {
+      "divergent": "services on the invoice with different classifications",
+      "not-classified": "service without IBS/CBS classification",
+      "no-line": "classification not in force on the date",
+      "not-applicable": "classification does not apply to the NFS-e",
+      "requires-regular": "classification requires the regular regime",
+      "place-indicator": "invalid place of supply (cIndOp)",
+      "nbs-missing": "service without NBS",
+      "nbs-not-accepted": "NBS not accepted by the catalog"
+    },
+    "previewFor": "Preview for invoicing on {}:",
+    "atObligationRefused": "From {} invoicing will be REFUSED: {}",
+    "atObligationDeclared": "From {} the invoice will carry the IBS/CBS group.",
+    "atObligationOmitted": "From {} the invoice would go WITHOUT the IBS/CBS group: {}",
+    "unavailable": "IBS/CBS declaration unavailable right now — the rest of the order works normally.",
+    "sentWithoutGroup": "Warning: the authorized NFS-e does NOT carry the IBS/CBS group frozen on the invoice."
   }
 }

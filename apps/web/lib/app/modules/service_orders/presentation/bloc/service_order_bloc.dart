@@ -27,6 +27,7 @@ import '../../domain/usecase/service_order_monthly_run.dart';
 import '../../domain/usecase/service_order_post.dart';
 import '../../domain/usecase/service_order_transmit.dart';
 
+import '../../../../shared/ibscbs/ibscbs.dart';
 import '../../../../shared/search/search_criterion.dart';
 
 part 'service_order_event.dart';
@@ -639,10 +640,15 @@ class ServiceOrderBloc extends Bloc<ServiceOrderEvent, ServiceOrderState> {
         _endDetailAct(screen, event.orderId, emit);
       },
       (invoiceResult) async {
+        // D-IB75: selo no resultado — a nota saiu SEM o grupo IBS/CBS (antes da obrigação) diz por quê
+        final ibscbs = invoiceResult.ibscbs;
         emit(ServiceOrderActionSuccess(
-          'forms.serviceOrder.invoiceGenerated',
+          ibscbs?.leftWithoutGroup ?? false
+              ? 'forms.serviceOrder.invoiceGeneratedNoIbscbs'
+              : 'forms.serviceOrder.invoiceGenerated',
           args: [invoiceResult.invoiceNumber],
           orderNumber: _outcomeOrder(event.orderId),
+          ibscbs: ibscbs,
         ));
         // Fluxo do processo: a OS faturada aparece na aba Faturadas —
         // troca de aba SEMPRE volta à página 1. R10-SOC-03: só se a tela ainda é

@@ -1,6 +1,8 @@
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../shared/ibscbs/ibscbs.dart';
+
 /// Entidades do módulo orders — Pedido de Venda / Conjugado
 /// (setes-api src/modules/orders, 2026-08-22). TELA DE PROCESSO (mesmo
 /// padrão de service_orders): backbone tb_order + ramo tb_order_sale
@@ -310,6 +312,7 @@ class OrderBillingValidation extends Equatable {
     this.issues = const [],
     this.rulesResolved = 0,
     this.rulesManual = 0,
+    this.ibscbs,
   });
 
   final int    orderId;
@@ -317,6 +320,10 @@ class OrderBillingValidation extends Equatable {
   final List<OrderBillingIssue> issues;
   final int    rulesResolved;
   final int    rulesManual;
+
+  /// IB-3 (D-IB76): a declaração IBS/CBS PREVISTA (o que o faturamento faria hoje). Antes da obrigação é AVISO e nunca bloqueia; depois,
+  /// a recusa também vem como issue `scope: 'ibscbs'`. null = pedido sem serviço. Só exibição.
+  final IbscbsPreview? ibscbs;
 
   bool get canInvoice => issues.isEmpty;
 
@@ -329,11 +336,12 @@ class OrderBillingValidation extends Equatable {
             .toList(),
         rulesResolved: jsonInt(json['rulesResolved']) ?? 0,
         rulesManual:   jsonInt(json['rulesManual']) ?? 0,
+        ibscbs:        IbscbsPreview.fromJson(json['ibscbs']),
       );
 
   @override
   List<Object?> get props =>
-      [orderId, branch, issues, rulesResolved, rulesManual];
+      [orderId, branch, issues, rulesResolved, rulesManual, ibscbs];
 }
 
 /// Resultado de POST /api/billing/invoice.
@@ -346,6 +354,7 @@ class OrderBillingInvoice extends Equatable {
     this.totalValue = 0,
     this.parcels = 1,
     this.autoSettled = 0,
+    this.ibscbs,
   });
 
   final int    orderId;
@@ -358,6 +367,9 @@ class OrderBillingInvoice extends Equatable {
   /// Parcelas baixadas automaticamente à vista (kind='E' — W3.2).
   final int    autoSettled;
 
+  /// IB-2/IB-3 (D-IB65/D-IB75): o grupo IBS/CBS foi congelado na nota? null = nota sem ramo de serviço.
+  final IbscbsOutcome? ibscbs;
+
   factory OrderBillingInvoice.fromJson(Map<String, dynamic> json) =>
       OrderBillingInvoice(
         orderId:       jsonInt(json['orderId']) ?? 0,
@@ -367,11 +379,12 @@ class OrderBillingInvoice extends Equatable {
         totalValue:    jsonDouble(json['totalValue']) ?? 0,
         parcels:       jsonInt(json['parcels']) ?? 1,
         autoSettled:   jsonInt(json['autoSettled']) ?? 0,
+        ibscbs:        IbscbsOutcome.fromJson(json['ibscbs']),
       );
 
   @override
   List<Object?> get props =>
-      [orderId, invoiceNumber, serie, model, totalValue, parcels, autoSettled];
+      [orderId, invoiceNumber, serie, model, totalValue, parcels, autoSettled, ibscbs];
 }
 
 // ---------------------------------------------------------------------
