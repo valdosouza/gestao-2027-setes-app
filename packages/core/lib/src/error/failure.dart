@@ -13,20 +13,30 @@ class FailureField extends Equatable {
     required this.field,
     required this.message,
     this.expected,
+    this.expectedText,
   });
 
   final String field;
   final String message;
   final double? expected;
 
-  factory FailureField.fromJson(Map<String, dynamic> json) => FailureField(
-        field:    json['field'] as String? ?? '',
-        message:  json['message'] as String? ?? '',
-        expected: (json['expected'] as num?)?.toDouble(),
-      );
+  /// [expected] em TEXTO (D-CJ3 — frente do CNPJ alfanumérico, 2026-10-16): a forma CANÔNICA esperada de uma inscrição federal (ex.:
+  /// '12ABC34501DE35' para '12.abc.345/01de-35'). O mesmo `expected` do envelope, agora número OU texto — aditivo: antes um texto ali
+  /// derrubava o parse (`as num?`).
+  final String? expectedText;
+
+  factory FailureField.fromJson(Map<String, dynamic> json) {
+    final e = json['expected'];
+    return FailureField(
+      field:        json['field'] as String? ?? '',
+      message:      json['message'] as String? ?? '',
+      expected:     e is num ? e.toDouble() : null,
+      expectedText: e is String ? e : null,
+    );
+  }
 
   @override
-  List<Object?> get props => [field, message, expected];
+  List<Object?> get props => [field, message, expected, expectedText];
 }
 
 /// Falha de domínio (decisão 12: operações assíncronas retornam

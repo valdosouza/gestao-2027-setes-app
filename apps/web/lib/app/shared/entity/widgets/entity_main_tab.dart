@@ -6,6 +6,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../feedback/feedback.dart';
 import '../data/entity_by_document_datasource.dart';
+import '../domain/federal_id_check.dart';
 import '../domain/object_entity_fiscal.dart';
 import 'entity_date.dart';
 
@@ -129,21 +130,19 @@ class _EntityMainTabState extends State<EntityMainTab> {
   String? _validateRequired(String? value) =>
       (value == null || value.trim().isEmpty) ? 'register.required'.tr() : null;
 
-  /// Validators dos documentos com o MESMO julgamento do salvar (11/14
-  /// dígitos) — a marca inline do campo nunca mente para a pendência (R3).
-  String? _validateCpf(String? value) {
-    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return 'register.required'.tr();
-    if (digits.length != 11) return 'forms.entity.cpfInvalid'.tr();
-    return null;
-  }
+  /// Validators dos documentos pelo julgamento ÚNICO (`cpfProblem`/`cnpjProblem` — D-CJ8, onda 1 da frente do CNPJ alfanumérico): forma
+  /// canônica + DV da peça, o MESMO das pendências das páginas — a marca inline do campo nunca mente para a pendência (R3).
+  String? _validateCpf(String? value) => switch (cpfProblem(value)) {
+        FederalIdProblem.missing => 'register.required'.tr(),
+        FederalIdProblem.invalid => 'forms.entity.cpfInvalid'.tr(),
+        null => null,
+      };
 
-  String? _validateCnpj(String? value) {
-    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return 'register.required'.tr();
-    if (digits.length != 14) return 'forms.entity.cnpjInvalid'.tr();
-    return null;
-  }
+  String? _validateCnpj(String? value) => switch (cnpjProblem(value)) {
+        FederalIdProblem.missing => 'register.required'.tr(),
+        FederalIdProblem.invalid => 'forms.entity.cnpjInvalid'.tr(),
+        null => null,
+      };
 
   // -------------------------------------------------------------------
   // Prefill by-document (Fase 3, decisões 3, 9 e 10)
@@ -154,8 +153,8 @@ class _EntityMainTabState extends State<EntityMainTab> {
     if (_prefillBusy) return;
 
     final doc = personType == 'F'
-        ? (widget.value.person?.cpfDigits ?? '')
-        : (widget.value.company?.cnpjDigits ?? '');
+        ? (widget.value.person?.cpfCanonical ?? '')
+        : (widget.value.company?.cnpjCanonical ?? '');
     final valid = personType == 'F'
         ? SetesValidators.isValidCpf(doc)
         : SetesValidators.isValidCnpj(doc);
@@ -372,7 +371,10 @@ class _EntityMainTabState extends State<EntityMainTab> {
                   controller: _cnpj,
                   focusNode: widget.hooks?.cnpjFocus,
                   fieldKey: widget.hooks?.cnpjKey,
-                  keyboardType: TextInputType.number,
+                  // D-CJ8: CNPJ alfanumérico — teclado de TEXTO (o numérico não tem letra no Android/web mobile — B9) e a digitação
+                  // guiada pela peça (literais inseridos, minúscula sobe, DV só dígito)
+                  keyboardType: TextInputType.text,
+                  inputFormatters: const [CnpjInputFormatter()],
                   textInputAction: TextInputAction.next,
                   validator: _validateCnpj,
                   onChanged: (t) => _emit(widget.value

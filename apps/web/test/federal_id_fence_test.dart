@@ -35,10 +35,8 @@ List<String> strippingHitsIn(String code) {
 
 /// `arquivo: padrão ×N` (N = ocorrências no arquivo) → motivo.
 const _allowed = <String, String>{
-  r"lib/app/shared/entity/domain/object_entity_fiscal.dart: RegExp(r'\D') ×2":
-      'cpfDigits (CPF segue numérico) e cnpjDigits — o do CNPJ VENCE NA ONDA 1 (S2 do inventário: o objeto guarda e envia a forma canônica)',
-  r"lib/app/shared/entity/widgets/entity_main_tab.dart: RegExp(r'\D') ×2":
-      'validação do CPF (ok) e do CNPJ do formulário — a do CNPJ VENCE NA ONDA 1 (D-CJ8: o campo passa a usar FederalIdRules)',
+  // onda 1 (D-CJ8, 2026-10-16): o `cnpjDigits`/`cpfDigits` e a validação do formulário de entidade SAÍRAM daqui — o objeto guarda e envia
+  // a forma canônica (`cnpjCanonical`) e a marca inline + as pendências usam `cnpjProblem`/`cpfProblem` (FederalIdRules)
   r"packages/setes_validators/lib/src/mask.dart: RegExp(r'[^0-9a-zA-ZÀ-ÿ]') ×1":
       'unmask do motor de máscara configurável: tira só os LITERAIS (mantém letras — B6); CPF/CNPJ saem do motor (D-CJ11)',
   r"packages/setes_validators/lib/src/mask.dart: RegExp(r'\d') ×2":

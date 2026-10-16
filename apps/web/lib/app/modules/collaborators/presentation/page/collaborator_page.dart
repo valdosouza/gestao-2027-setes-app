@@ -6,6 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/entity/data/entity_by_document_datasource.dart';
+import '../../../../shared/entity/domain/federal_id_check.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
@@ -293,14 +294,12 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
           beforeFocus: toMainTab,
           focusNode: _mainHooks.cpfFocus,
           fieldKey: _mainHooks.cpfKey,
-          validate: () {
-            final digits = _draft.person?.cpfDigits ?? '';
-            if (digits.isEmpty) {
-              return 'register.requiredField'
-                  .tr(args: ['forms.entity.cpf'.tr()]);
-            }
-            if (digits.length != 11) return 'forms.entity.cpfInvalid'.tr();
-            return null;
+          // D-CJ8: o julgamento ÚNICO do CPF (o mesmo da marca inline — R3)
+          validate: () => switch (cpfProblem(_draft.person?.cpf)) {
+            FederalIdProblem.missing =>
+              'register.requiredField'.tr(args: ['forms.entity.cpf'.tr()]),
+            FederalIdProblem.invalid => 'forms.entity.cpfInvalid'.tr(),
+            null => null,
           },
         ),
       if (_draft.personType == 'J')
@@ -309,14 +308,12 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
           beforeFocus: toMainTab,
           focusNode: _mainHooks.cnpjFocus,
           fieldKey: _mainHooks.cnpjKey,
-          validate: () {
-            final digits = _draft.company?.cnpjDigits ?? '';
-            if (digits.isEmpty) {
-              return 'register.requiredField'
-                  .tr(args: ['forms.entity.cnpj'.tr()]);
-            }
-            if (digits.length != 14) return 'forms.entity.cnpjInvalid'.tr();
-            return null;
+          // D-CJ8 (onda 1 da frente do CNPJ alfanumérico): o julgamento ÚNICO do CNPJ — forma canônica + DV da peça, letras incluídas
+          validate: () => switch (cnpjProblem(_draft.company?.cnpj)) {
+            FederalIdProblem.missing =>
+              'register.requiredField'.tr(args: ['forms.entity.cnpj'.tr()]),
+            FederalIdProblem.invalid => 'forms.entity.cnpjInvalid'.tr(),
+            null => null,
           },
         ),
     ];

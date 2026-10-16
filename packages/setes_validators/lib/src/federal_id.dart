@@ -12,7 +12,46 @@
 /// - PF × PJ vem do LUGAR (toggle triplo, especialização), nunca do comprimento depois de limpar.
 library;
 
+import 'package:flutter/services.dart';
+
 enum FederalIdKind { cpf, cnpj }
+
+/// Digitação guiada do CNPJ (D-CJ8 — onda 1 da frente do CNPJ alfanumérico; parecer do guardião §4.2): insere os literais da máscara
+/// `XX.XXX.XXX/XXXX-##` (mesmas posições do CNPJ numérico — FAQ 21 da RFB), sobe a minúscula ASCII, aceita letra ou dígito nas 12 primeiras
+/// posições e SÓ dígito nas 2 do DV; o que não cabe na posição não entra (igual ao `SetesMaskFormatter`). O valor salvo é a forma canônica
+/// (`FederalIdRules.canonicalizeText`) — a máscara é só da tela.
+class CnpjInputFormatter extends TextInputFormatter {
+  const CnpjInputFormatter();
+
+  static const _mask = 'XX.XXX.XXX/XXXX-##';
+
+  static bool _isDigit(int c) => c >= 48 && c <= 57;
+  static bool _isUpper(int c) => c >= 65 && c <= 90;
+  static bool _isLower(int c) => c >= 97 && c <= 122;
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final raw = <int>[
+      for (final c in newValue.text.codeUnits)
+        if (_isDigit(c) || _isUpper(c)) c else if (_isLower(c)) c - 32,
+    ];
+    final out = StringBuffer();
+    var i = 0;
+    for (var m = 0; m < _mask.length && i < raw.length; m++) {
+      final slot = _mask[m];
+      if (slot == 'X' || slot == '#') {
+        while (i < raw.length && slot == '#' && !_isDigit(raw[i])) {
+          i++;                                    // DV: só dígito
+        }
+        if (i < raw.length) out.writeCharCode(raw[i++]);
+      } else {
+        out.write(slot);
+      }
+    }
+    final text = out.toString();
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
 
 /// A inscrição com o tipo junto — o tipo vem do LUGAR.
 class FederalId {

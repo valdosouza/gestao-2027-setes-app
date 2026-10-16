@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:setes_validators/setes_validators.dart';
 
@@ -82,6 +83,32 @@ void main() {
       expect(SetesValidators.isValidCnpj('12ABC34501DE35'), isTrue);
       expect(SetesValidators.isValidCnpj('12abc34501de35'), isFalse);
       expect(SetesValidators.isValidCpf('52998224725'), isTrue);
+    });
+  });
+
+  // D-CJ8 (onda 1): a digitação guiada do CNPJ alfanumérico nos 5 formulários de entidade
+  group('CnpjInputFormatter', () {
+    String typed(String text) => const CnpjInputFormatter()
+        .formatEditUpdate(TextEditingValue.empty, TextEditingValue(text: text))
+        .text;
+    test('insere os literais nas posições do CNPJ numérico e sobe a minúscula', () {
+      expect(typed('pc3d315k000193'), 'PC.3D3.15K/0001-93');
+      expect(typed('12345678000195'), '12.345.678/0001-95');
+      expect(typed('12abc'), '12.ABC');
+      expect(typed('12'), '12');
+    });
+    test('colar com máscara dá o mesmo; o resultado canonicalizado é a forma válida', () {
+      expect(typed('12.ABC.345/01DE-35'), '12.ABC.345/01DE-35');
+      expect(FederalIdRules.canonicalizeText(typed('12.abc.345/01de-35')), '12ABC34501DE35');
+    });
+    test('DV só aceita dígito; caractere fora de [0-9A-Za-z] não entra; para em 14 posições', () {
+      expect(typed('12ABC34501DEX35'), '12.ABC.345/01DE-35');
+      expect(typed('12ÁBC'), '12.BC');
+      expect(typed('12ABC34501DE359999'), '12.ABC.345/01DE-35');
+    });
+    test('o cursor vai para o fim (como o SetesMaskFormatter)', () {
+      final v = const CnpjInputFormatter().formatEditUpdate(TextEditingValue.empty, const TextEditingValue(text: 'pc3d'));
+      expect(v.selection.baseOffset, v.text.length);
     });
   });
 }

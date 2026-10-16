@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:setes_validators/setes_validators.dart';
 
 import 'object_entity.dart';
 
@@ -23,11 +24,12 @@ class PersonData extends Equatable {
         birthday: json['birthday'] as String?,
       );
 
-  /// CPF só com dígitos (o usuário pode digitar pontos/traço).
-  String get cpfDigits => cpf.replaceAll(RegExp(r'\D'), '');
+  /// CPF na forma CANÔNICA (D-CJ8): o digitado canonicalizado pela peça (tira só a máscara — nunca apaga); fora da forma, o texto aparado
+  /// segue como está e a validação (`cpfProblem`) / a API acusam.
+  String get cpfCanonical => FederalIdRules.canonicalizeText(cpf) ?? cpf.trim();
 
   Map<String, dynamic> toJson() => {
-        'cpf': cpfDigits,
+        'cpf': cpfCanonical,
         if (rg != null && rg!.isNotEmpty) 'rg': rg,
         if (birthday != null) 'birthday': birthday,
       };
@@ -62,11 +64,13 @@ class CompanyData extends Equatable {
         dtFoundation: json['dtFoundation'] as String?,
       );
 
-  /// CNPJ só com dígitos (o usuário pode digitar pontos/barra/traço).
-  String get cnpjDigits => cnpj.replaceAll(RegExp(r'\D'), '');
+  /// CNPJ na forma CANÔNICA (D-CJ8 — S2 do inventário; o nome `cnpjDigits` MORREU: o CNPJ alfanumérico tem letras): o digitado
+  /// canonicalizado pela peça (tira só a máscara, sobe a minúscula — nunca apaga); fora da forma, o texto aparado segue como está e a
+  /// validação (`cnpjProblem`) / a API acusam — nunca um "CNPJ" mutilado indo ao servidor.
+  String get cnpjCanonical => FederalIdRules.canonicalizeText(cnpj) ?? cnpj.trim();
 
   Map<String, dynamic> toJson() => {
-        'cnpj': cnpjDigits,
+        'cnpj': cnpjCanonical,
         if (ie != null && ie!.isNotEmpty) 'ie': ie,
         if (im != null && im!.isNotEmpty) 'im': im,
         if (dtFoundation != null) 'dtFoundation': dtFoundation,

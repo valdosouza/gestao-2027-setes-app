@@ -262,11 +262,11 @@
         "bank": "Bank"
       },
       "cpf": "CPF",
-      "cpfInvalid": "CPF must have 11 digits",
+      "cpfInvalid": "Invalid CPF (11 digits and check digits)",
       "rg": "RG",
       "birthday": "Birth Date",
       "cnpj": "CNPJ",
-      "cnpjInvalid": "CNPJ must have 14 digits",
+      "cnpjInvalid": "Invalid CNPJ (12 letters or digits and 2 check digits)",
       "ie": "State Registration",
       "im": "Municipal Registration",
       "dtFoundation": "Foundation Date",
