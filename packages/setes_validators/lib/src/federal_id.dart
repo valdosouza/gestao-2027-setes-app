@@ -16,10 +16,14 @@ import 'package:flutter/services.dart';
 
 enum FederalIdKind { cpf, cnpj }
 
-/// Digitação guiada do CNPJ (D-CJ8 — onda 1 da frente do CNPJ alfanumérico; parecer do guardião §4.2): insere os literais da máscara
-/// `XX.XXX.XXX/XXXX-##` (mesmas posições do CNPJ numérico — FAQ 21 da RFB), sobe a minúscula ASCII, aceita letra ou dígito nas 12 primeiras
-/// posições e SÓ dígito nas 2 do DV; o que não cabe na posição não entra (igual ao `SetesMaskFormatter`). O valor salvo é a forma canônica
+/// Digitação guiada do CNPJ (D-CJ8 — onda 1 da frente do CNPJ alfanumérico; parecer do guardião §4.2): mostra a máscara
+/// `XX.XXX.XXX/XXXX-##` (mesmas posições do CNPJ numérico — FAQ 21 da RFB) e sobe a minúscula ASCII. O valor salvo é a forma canônica
 /// (`FederalIdRules.canonicalizeText`) — a máscara é só da tela.
+///
+/// Gates da onda 1 (2026-10-16): a 1ª versão FILTRAVA (descartava o caractere que não cabia, cortava a cauda além de 14 e deslocava o resto —
+/// colar "CNPJ 12.ABC…" virava OUTRA sequência de 14), contra a D-CJ2 ("normalizar = canonicalizar, NUNCA apagar"). Agora a edição que traz
+/// caractere fora de `[0-9A-Za-z./- ]`, passa de 14 posições ou põe letra no DV NÃO ENTRA — o campo fica com o valor anterior, nada do que já
+/// estava digitado muda; e o cursor fica onde o usuário estava (antes saltava para o fim a cada tecla).
 class CnpjInputFormatter extends TextInputFormatter {
   const CnpjInputFormatter();
 
@@ -28,28 +32,51 @@ class CnpjInputFormatter extends TextInputFormatter {
   static bool _isDigit(int c) => c >= 48 && c <= 57;
   static bool _isUpper(int c) => c >= 65 && c <= 90;
   static bool _isLower(int c) => c >= 97 && c <= 122;
+  static bool _isMaskLiteral(int c) => c == 46 || c == 47 || c == 45 || c == 32;   // . / - espaço
+
+  /// A edição não entra: fica o valor anterior, com o cursor válido (o vazio inicial vem com seleção -1).
+  static TextEditingValue _keep(TextEditingValue old) => old.selection.isValid
+      ? old
+      : old.copyWith(selection: TextSelection.collapsed(offset: old.text.length));
 
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final raw = <int>[
-      for (final c in newValue.text.codeUnits)
-        if (_isDigit(c) || _isUpper(c)) c else if (_isLower(c)) c - 32,
-    ];
+    final canon = <int>[];
+    for (final c in newValue.text.codeUnits) {
+      if (_isDigit(c) || _isUpper(c)) {
+        canon.add(c);
+      } else if (_isLower(c)) {
+        canon.add(c - 32);
+      } else if (!_isMaskLiteral(c)) {
+        return _keep(oldValue);                                     // caractere estranho: a edição não entra (nunca apagado)
+      }
+    }
+    if (canon.length > 14) return _keep(oldValue);                  // passou das 14 posições: não entra (nunca corta a cauda)
+    for (var i = 12; i < canon.length; i++) {
+      if (!_isDigit(canon[i])) return _keep(oldValue);              // letra na posição do DV: não entra
+    }
     final out = StringBuffer();
-    var i = 0;
-    for (var m = 0; m < _mask.length && i < raw.length; m++) {
+    var k = 0;
+    for (var m = 0; m < _mask.length && k < canon.length; m++) {
       final slot = _mask[m];
       if (slot == 'X' || slot == '#') {
-        while (i < raw.length && slot == '#' && !_isDigit(raw[i])) {
-          i++;                                    // DV: só dígito
-        }
-        if (i < raw.length) out.writeCharCode(raw[i++]);
+        out.writeCharCode(canon[k++]);
       } else {
-        out.write(slot);
+        out.write(slot);                                     // literal só ANTES de um caractere seguinte — nunca pendurado
       }
     }
     final text = out.toString();
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    // o cursor fica depois do MESMO número de caracteres de verdade que estavam antes dele na edição
+    final at = newValue.selection.isValid ? newValue.selection.baseOffset.clamp(0, newValue.text.length) : newValue.text.length;
+    var before = 0;
+    for (final c in newValue.text.substring(0, at).codeUnits) {
+      if (!_isMaskLiteral(c)) before++;
+    }
+    var cursor = 0;
+    for (var seen = 0; cursor < text.length && seen < before; cursor++) {
+      if (!_isMaskLiteral(text.codeUnitAt(cursor))) seen++;
+    }
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: cursor));
   }
 }
 
@@ -112,12 +139,15 @@ class FederalIdRules {
     return '$d1$d2';
   }
 
+  /// O `trim()` da peça TS (JavaScript — o `\s` do ECMAScript, que o RegExp do Dart segue). Gates das ondas 0 e 1 (LOW): o `String.trim()`
+  /// do Dart apara também o NEL (U+0085) e o do JavaScript não — usar o do Dart em qualquer ponta do julgamento faz o app dizer OK onde a
+  /// API recusa o MESMO texto. NBSP sai nos dois; NEL fica nos dois e invalida.
+  static String trimLikeJs(String s) => s.replaceAll(RegExp(r'^\s+|\s+$'), '');
+
   /// Canonicaliza um texto de inscrição (trim, tira só a máscara, sobe a–z); null se houver QUALQUER outro caractere.
   static String? canonicalizeText(String? raw) {
     if (raw == null) return null;
-    // gate adversarial da onda 0 (LOW): o `String.trim()` do Dart apara o NEL (U+0085) e o do JavaScript não — o espelho divergia. O `\s`
-    // do RegExp do Dart segue o ECMAScript: aparar por ele = o `trim()` da peça TS (NBSP sai nos dois; NEL fica nos dois e invalida)
-    final trimmed = raw.replaceAll(RegExp(r'^\s+|\s+$'), '');
+    final trimmed = trimLikeJs(raw);
     // o teste é sobre o texto CRU: toUpperCase de fora do ASCII viraria ASCII ('ı' → 'I') e entraria calado
     if (!_acceptedInput.hasMatch(trimmed)) return null;
     return trimmed.replaceAll(RegExp(r'[./\- ]'), '').toUpperCase();

@@ -26,7 +26,7 @@ class PersonData extends Equatable {
 
   /// CPF na forma CANÔNICA (D-CJ8): o digitado canonicalizado pela peça (tira só a máscara — nunca apaga); fora da forma, o texto aparado
   /// segue como está e a validação (`cpfProblem`) / a API acusam.
-  String get cpfCanonical => FederalIdRules.canonicalizeText(cpf) ?? cpf.trim();
+  String get cpfCanonical => FederalIdRules.canonicalizeText(cpf) ?? FederalIdRules.trimLikeJs(cpf);
 
   Map<String, dynamic> toJson() => {
         'cpf': cpfCanonical,
@@ -67,7 +67,7 @@ class CompanyData extends Equatable {
   /// CNPJ na forma CANÔNICA (D-CJ8 — S2 do inventário; o nome `cnpjDigits` MORREU: o CNPJ alfanumérico tem letras): o digitado
   /// canonicalizado pela peça (tira só a máscara, sobe a minúscula — nunca apaga); fora da forma, o texto aparado segue como está e a
   /// validação (`cnpjProblem`) / a API acusam — nunca um "CNPJ" mutilado indo ao servidor.
-  String get cnpjCanonical => FederalIdRules.canonicalizeText(cnpj) ?? cnpj.trim();
+  String get cnpjCanonical => FederalIdRules.canonicalizeText(cnpj) ?? FederalIdRules.trimLikeJs(cnpj);
 
   Map<String, dynamic> toJson() => {
         'cnpj': cnpjCanonical,

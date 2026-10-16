@@ -101,14 +101,28 @@ void main() {
       expect(typed('12.ABC.345/01DE-35'), '12.ABC.345/01DE-35');
       expect(FederalIdRules.canonicalizeText(typed('12.abc.345/01de-35')), '12ABC34501DE35');
     });
-    test('DV só aceita dígito; caractere fora de [0-9A-Za-z] não entra; para em 14 posições', () {
-      expect(typed('12ABC34501DEX35'), '12.ABC.345/01DE-35');
-      expect(typed('12ÁBC'), '12.BC');
-      expect(typed('12ABC34501DE359999'), '12.ABC.345/01DE-35');
+    // gates da onda 1: a edição que não cabe NÃO ENTRA (o valor anterior fica) — nunca filtrada nem cortada (D-CJ2: nunca apagar)
+    TextEditingValue edit(String old, String now, [int? cursor]) => const CnpjInputFormatter().formatEditUpdate(
+        TextEditingValue(text: old, selection: TextSelection.collapsed(offset: old.length)),
+        TextEditingValue(text: now, selection: TextSelection.collapsed(offset: cursor ?? now.length)));
+    test('letra no DV, caractere estranho ou passar de 14 posições: a edição não entra — o valor anterior fica intacto', () {
+      expect(edit('12.ABC.345/01DE', '12.ABC.345/01DEX').text, '12.ABC.345/01DE');
+      expect(edit('12', '12Á').text, '12');
+      expect(edit('12.ABC.345/01DE-35', '12.ABC.345/01DE-359').text, '12.ABC.345/01DE-35');
+      expect(typed('CNPJ 12.ABC.345/01DE-35'), '');                     // colar com texto a mais: não vira OUTRA sequência de 14
     });
-    test('o cursor vai para o fim (como o SetesMaskFormatter)', () {
-      final v = const CnpjInputFormatter().formatEditUpdate(TextEditingValue.empty, const TextEditingValue(text: 'pc3d'));
-      expect(v.selection.baseOffset, v.text.length);
+    test('nunca termina num literal pendurado; formatar de novo dá o mesmo (idempotente)', () {
+      for (final t in ['12', '12A', '12ABC345', '12ABC34501DE', '12ABC34501DE3']) {
+        final out = typed(t);
+        expect(out.endsWith('.') || out.endsWith('/') || out.endsWith('-'), isFalse, reason: out);
+        expect(typed(out), out);
+      }
+    });
+    test('o cursor fica onde o usuário estava (editar no meio não salta para o fim)', () {
+      final v = edit('12.ABC.345', '12.AXBC.345', 5);                   // digitou X depois do A
+      expect(v.text, '12.AXB.C34/5');
+      expect(v.selection.baseOffset, 5);                                  // logo depois do X
+      expect(edit('', 'pc3d').selection.baseOffset, 'PC.3D'.length);
     });
   });
 }
