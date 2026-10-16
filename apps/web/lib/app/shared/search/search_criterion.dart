@@ -9,8 +9,10 @@ import 'package:core/core.dart';
 ///
 /// O TIPO decide o controle e o operador (D-BA4): texto = contém;
 /// número/valor/data = faixa de…até; lookup = registro escolhido na lista de
-/// apoio do PRÓPRIO módulo; options = uma ou mais opções; bool = tri-estado.
-enum SearchCriterionKind { text, number, money, date, lookup, options, bool }
+/// apoio do PRÓPRIO módulo; options = uma ou mais opções; bool = tri-estado;
+/// federalId = inscrição federal (CPF/CNPJ) por PREFIXO — D-CJ9, frente do
+/// CNPJ alfanumérico (a API canonicaliza; letras do CNPJ ficam).
+enum SearchCriterionKind { text, number, money, date, lookup, options, bool, federalId }
 
 class SearchCriterion {
   const SearchCriterion({

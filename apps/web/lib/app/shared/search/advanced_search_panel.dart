@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../entity/widgets/entity_date.dart';
@@ -106,6 +107,7 @@ class _AdvancedSearchBodyState extends State<_AdvancedSearchBody> {
       final value = widget.current.values[c.key];
       switch (c.kind) {
         case SearchCriterionKind.text:
+        case SearchCriterionKind.federalId:
           _controllers[c.key] =
               TextEditingController(text: value is String ? value : '');
         case SearchCriterionKind.number:
@@ -188,6 +190,7 @@ class _AdvancedSearchBodyState extends State<_AdvancedSearchBody> {
     for (final c in widget.criteria) {
       switch (c.kind) {
         case SearchCriterionKind.text:
+        case SearchCriterionKind.federalId:
           raw[c.key] = _controllers[c.key]!.text;
         case SearchCriterionKind.number:
         case SearchCriterionKind.money:
@@ -267,6 +270,24 @@ class _AdvancedSearchBodyState extends State<_AdvancedSearchBody> {
           validator: (v) => (v?.trim().length ?? 0) > maxCriterionTextLength
               ? 'search.tooLong'.tr(args: ['$maxCriterionTextLength'])
               : null,
+        );
+      case SearchCriterionKind.federalId:
+        // D-CJ9 (frente do CNPJ alfanumérico): o COMEÇO do CPF/CNPJ, com ou sem
+        // máscara, letras incluídas — a MESMA canonicalização da API
+        // (FederalIdRules: tira só a máscara, nunca apaga; 422 inalcançável)
+        return SetesTextField(
+          label: label,
+          hint: 'search.federalIdHint'.tr(),
+          controller: _controllers[c.key],
+          validator: (v) {
+            final t = v?.trim() ?? '';
+            if (t.isEmpty) return null;
+            final canonical = FederalIdRules.canonicalizeText(t);
+            if (canonical == null || canonical.isEmpty) {
+              return 'search.federalIdInvalid'.tr();
+            }
+            return canonical.length > 14 ? 'search.federalIdTooLong'.tr() : null;
+          },
         );
       case SearchCriterionKind.number:
       case SearchCriterionKind.money:

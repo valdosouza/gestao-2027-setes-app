@@ -2,5 +2,6 @@
 /// configuráveis, decisões 18 e 22). Espelho de setes-api/src/shared/validation.
 library;
 
+export 'src/federal_id.dart';
 export 'src/mask.dart';
 export 'src/validators.dart';

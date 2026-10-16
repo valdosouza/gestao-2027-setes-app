@@ -130,6 +130,22 @@ void main() {
       expect((await ds.criteria()).map((c) => c.key), ['active']);
     });
 
+    // D-CJ9 (frente do CNPJ alfanumérico): o "Documento" das telas de papel passa a ser `federalId` (prefixo). App ANTIGO descarta
+    // (L4 acima — o critério some do painel até o app novo); app NOVO lê e manda o texto como digitado (a API canonicaliza)
+    test('kind federalId é lido; o valor viaja como texto (a API canonicaliza — máscara sai, letra fica)', () async {
+      final client = _FakeClient({
+        'ok': true,
+        'data': [
+          {'key': 'document', 'kind': 'federalId', 'labelKey': 'search.customers.document'},
+        ],
+      });
+      final ds = SearchCriteriaDatasourceImpl(client: client, basePath: '/api/customers');
+      final criteria = await ds.criteria();
+      expect(criteria.single.kind, SearchCriterionKind.federalId);
+      final values = SearchCriteriaValues.from({'document': ' 00.000.000/E08G '});
+      expect(values.toQueryJson(), '{"document":"00.000.000/E08G"}');
+    });
+
     test('lookup fora do /api do módulo é recusado (nunca segue URL livre)', () async {
       final client = _FakeClient({'ok': true, 'data': []});
       final ds = SearchCriteriaDatasourceImpl(client: client, basePath: '/api/customers');

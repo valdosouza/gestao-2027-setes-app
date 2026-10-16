@@ -1,3 +1,4 @@
+import 'federal_id.dart';
 import 'mask.dart';
 
 /// Assinatura padrão do Flutter Form (`TextFormField.validator`).
@@ -102,40 +103,9 @@ class SetesValidators {
   // Funções puras (mesmos algoritmos do validators.ts da API)
   // -------------------------------------------------------------------
 
-  /// Dígito verificador de CPF (módulo 11). Espera 11 dígitos sem máscara.
-  static bool isValidCpf(String cpf) {
-    if (!RegExp(r'^\d{11}$').hasMatch(cpf)) return false;
-    if (RegExp(r'^(\d)\1{10}$').hasMatch(cpf)) return false;
+  /// CPF com DV — a regra é a da inscrição federal (D-CJ2: espelho da peça `fiscal-api/federal-id`, mesmo vetor de casos).
+  static bool isValidCpf(String cpf) => FederalIdRules.isValidCpf(cpf);
 
-    final digits = cpf.split('').map(int.parse).toList();
-    for (final position in [9, 10]) {
-      var sum = 0;
-      for (var i = 0; i < position; i++) {
-        sum += digits[i] * (position + 1 - i);
-      }
-      final check = ((sum * 10) % 11) % 10;
-      if (check != digits[position]) return false;
-    }
-    return true;
-  }
-
-  /// Dígito verificador de CNPJ (pesos 2..9). Espera 14 dígitos sem máscara.
-  static bool isValidCnpj(String cnpj) {
-    if (!RegExp(r'^\d{14}$').hasMatch(cnpj)) return false;
-    if (RegExp(r'^(\d)\1{13}$').hasMatch(cnpj)) return false;
-
-    final digits = cnpj.split('').map(int.parse).toList();
-    for (final position in [12, 13]) {
-      var weight = position - 7;
-      var sum = 0;
-      for (var i = 0; i < position; i++) {
-        sum += digits[i] * weight;
-        weight = weight == 2 ? 9 : weight - 1;
-      }
-      final rest = sum % 11;
-      final check = rest < 2 ? 0 : 11 - rest;
-      if (check != digits[position]) return false;
-    }
-    return true;
-  }
+  /// CNPJ com DV — forma canônica `[0-9A-Z]{12}[0-9]{2}` (letras MAIÚSCULAS; DV ASCII − 48). Delega à regra única (D-CJ2).
+  static bool isValidCnpj(String cnpj) => FederalIdRules.isValidCnpj(cnpj);
 }
