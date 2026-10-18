@@ -3,14 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../../shared/helpers/jwt_utils.dart';
-import '../../../shared/helpers/responsive.dart';
 import '../../../shared/http/api_client.dart';
 import '../../../shared/storage/local_prefs.dart';
 import '../bloc/auth_bloc.dart';
-import '../content/content_login_desktop.dart';
-import '../content/content_login_mobile.dart';
+import '../content/content_login.dart';
 
-/// Tela de login (decisão 5: page com arquivos de content por breakpoint).
+/// Tela de login. ⚠️ Exceção à decisão 5 (page + contents por breakpoint): UM content adaptativo — dois contents
+/// recriavam o formulário ao cruzar o breakpoint e o que tinha sido digitado sumia (ver [ContentLogin]).
 /// Bloc opcional para testabilidade (padrão Agent_Context_App.md).
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.bloc});
@@ -52,10 +51,7 @@ class _LoginPageState extends State<LoginPage> {
         if (state is AuthAuthenticated) Modular.to.navigate('/home/');
         if (state is AuthNeedsSelection) Modular.to.navigate('/select-institution');
       },
-      child: Responsive(
-        mobile: ContentLoginMobile(bloc: bloc),
-        desktop: ContentLoginDesktop(bloc: bloc),
-      ),
+      child: ContentLogin(bloc: bloc),
     );
   }
 }

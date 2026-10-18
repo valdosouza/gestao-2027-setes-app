@@ -5,6 +5,7 @@ class SetesScaffold extends StatelessWidget {
   const SetesScaffold({
     required this.body,
     this.appBarTitle,
+    this.appBarTitleWidget,
     this.appBarActions,
     this.appBarLeading,
     this.drawer,
@@ -13,6 +14,10 @@ class SetesScaffold extends StatelessWidget {
 
   final Widget body;
   final String? appBarTitle;
+
+  /// Título que não é texto (ex.: a logomarca na barra do shell no celular).
+  /// Vence [appBarTitle]. Sem os dois, não há AppBar.
+  final Widget? appBarTitleWidget;
   final List<Widget>? appBarActions;
 
   /// Ex.: logomarca da institution (decisão 16).
@@ -21,9 +26,9 @@ class SetesScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: appBarTitle != null
+        appBar: appBarTitleWidget != null || appBarTitle != null
             ? AppBar(
-                title: Text(appBarTitle!),
+                title: appBarTitleWidget ?? Text(appBarTitle!),
                 actions: appBarActions,
                 leading: appBarLeading)
             : null,

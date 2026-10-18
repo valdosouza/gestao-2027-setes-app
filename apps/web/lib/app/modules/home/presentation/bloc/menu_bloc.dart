@@ -27,6 +27,12 @@ class MenuInterfaceSelected extends MenuEvent {
   List<Object?> get props => [interfaceItem];
 }
 
+/// Recolhe/mostra a 2ª coluna do menu lateral (interfaces do módulo) — onda D
+/// da densidade (D-DL7). Clicar num módulo também a mostra de novo.
+class MenuInterfacesCollapseToggled extends MenuEvent {
+  const MenuInterfacesCollapseToggled();
+}
+
 // States
 abstract class MenuState extends Equatable {
   const MenuState();
@@ -43,6 +49,7 @@ class MenuLoaded extends MenuState {
     required this.modules,
     this.selectedModuleIndex,
     this.selectedInterface,
+    this.interfacesCollapsed = false,
   });
 
   final List<MenuModule> modules;
@@ -51,21 +58,29 @@ class MenuLoaded extends MenuState {
   /// Interface aberta no frame de renderização (decisão 21).
   final MenuInterface? selectedInterface;
 
+  /// 2ª coluna do menu lateral recolhida (D-DL7). Na gaveta não se aplica.
+  final bool interfacesCollapsed;
+
   MenuModule? get selectedModule => selectedModuleIndex != null &&
           selectedModuleIndex! >= 0 &&
           selectedModuleIndex! < modules.length
       ? modules[selectedModuleIndex!]
       : null;
 
-  MenuLoaded copyWith({int? selectedModuleIndex, MenuInterface? selectedInterface}) =>
+  MenuLoaded copyWith({
+    int? selectedModuleIndex,
+    MenuInterface? selectedInterface,
+    bool? interfacesCollapsed,
+  }) =>
       MenuLoaded(
         modules: modules,
         selectedModuleIndex: selectedModuleIndex ?? this.selectedModuleIndex,
         selectedInterface: selectedInterface ?? this.selectedInterface,
+        interfacesCollapsed: interfacesCollapsed ?? this.interfacesCollapsed,
       );
 
   @override
-  List<Object?> get props => [modules, selectedModuleIndex, selectedInterface];
+  List<Object?> get props => [modules, selectedModuleIndex, selectedInterface, interfacesCollapsed];
 }
 
 /// Falha na carga dos menus. Carrega o [failure] INTEIRO (Framework de
@@ -88,6 +103,7 @@ class MenuBloc extends Bloc<MenuEvent, MenuState> {
     on<MenuLoadRequested>(_onLoad);
     on<MenuModuleSelected>(_onModuleSelected);
     on<MenuInterfaceSelected>(_onInterfaceSelected);
+    on<MenuInterfacesCollapseToggled>(_onInterfacesCollapseToggled);
   }
 
   final GetMenusUsecase usecase;
@@ -101,10 +117,18 @@ class MenuBloc extends Bloc<MenuEvent, MenuState> {
     );
   }
 
+  /// Trocar de módulo mostra a 2ª coluna de novo (o clique pede as telas dele).
   void _onModuleSelected(MenuModuleSelected event, Emitter<MenuState> emit) {
     final current = state;
     if (current is MenuLoaded) {
       emit(MenuLoaded(modules: current.modules, selectedModuleIndex: event.index));
+    }
+  }
+
+  void _onInterfacesCollapseToggled(MenuInterfacesCollapseToggled event, Emitter<MenuState> emit) {
+    final current = state;
+    if (current is MenuLoaded) {
+      emit(current.copyWith(interfacesCollapsed: !current.interfacesCollapsed));
     }
   }
 

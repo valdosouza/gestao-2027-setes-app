@@ -57,7 +57,9 @@
     "modules": "Modules",
     "welcome": "Select a module in the menu",
     "not_implemented": "Interface '{}' not implemented yet",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "collapseInterfaces": "Collapse the screens",
+    "expandInterfaces": "Show the screens (click the module)"
   },
   "register": {
     "search": "Search",

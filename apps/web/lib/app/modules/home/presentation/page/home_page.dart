@@ -4,10 +4,10 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import '../../../../shared/session/session_context.dart';
 import '../bloc/menu_bloc.dart';
-import '../content/content_home_desktop.dart';
-import '../content/content_home_mobile.dart';
+import '../content/content_home.dart';
 
-/// Shell da home (decisão 5: page + contents por breakpoint).
+/// Shell da home. ⚠️ Exceção à decisão 5 (page + contents por breakpoint): o shell tem UM content adaptativo — dois contents
+/// recriavam o `RouterOutlet` (a tela aberta) ao cruzar o breakpoint (ver [ContentHome]).
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.bloc});
 
@@ -55,8 +55,5 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Responsive(
-        mobile: ContentHomeMobile(bloc: bloc),
-        desktop: ContentHomeDesktop(bloc: bloc),
-      );
+  Widget build(BuildContext context) => ContentHome(bloc: bloc);
 }
