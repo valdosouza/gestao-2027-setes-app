@@ -154,6 +154,7 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
       fields: applyFieldConfig([
         RegisterField(
           name:         'id',
+          size:         SetesFieldSize.small,
           label:        'forms.city.code'.tr(),
           keyboardType: TextInputType.number,
           readOnly:     !creating, // código IBGE imutável na edição
@@ -168,27 +169,32 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
         ),
         RegisterField(
           name:      'name',
+          size:      SetesFieldSize.medium,
           label:     'forms.city.name'.tr(),
           validator: _validateRequired,
         ),
         RegisterField(
           name:  'ibge',
+          size:  SetesFieldSize.small,
           label: 'forms.city.ibge'.tr(),
         ),
         RegisterField(
           name:         'population',
+          size:         SetesFieldSize.small,
           label:        'forms.city.population'.tr(),
           keyboardType: TextInputType.number,
           validator:    _validateNumber,
         ),
         RegisterField(
           name:         'density',
+          size:         SetesFieldSize.small,
           label:        'forms.city.density'.tr(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateDecimal,
         ),
         RegisterField(
           name:         'area',
+          size:         SetesFieldSize.small,
           label:        'forms.city.area'.tr(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateDecimal,

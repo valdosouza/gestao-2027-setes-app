@@ -251,14 +251,19 @@ class _EntityMainTabState extends State<EntityMainTab> {
 
     // Tabulação (criar-formulario-cadastro.md, item 8): Tab só nos campos
     // editáveis, na ordem declarada; toggle F/J/N fica fora da sequência.
+    // Grade responsiva (onda B da densidade, 2026-10-17): nome em meia
+    // linha, documentos e datas em um quarto — no celular, linha inteira.
     var order = 0;
-    Widget field(Widget child) {
-      final wrapped = FocusTraversalOrder(
-        order: NumericFocusOrder((order++).toDouble()),
-        child: child,
-      );
-      return Padding(padding: const EdgeInsets.only(bottom: 16), child: wrapped);
-    }
+    SetesFormGridItem field(Widget child,
+            {SetesFieldSize size = SetesFieldSize.large}) =>
+        SetesFormGridItem(
+          size: size,
+          child: FocusTraversalOrder(
+            order: NumericFocusOrder((order++).toDouble()),
+            child: child,
+          ),
+        );
+    const small = SetesFieldSize.small;
 
     return Form(
       autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -267,156 +272,158 @@ class _EntityMainTabState extends State<EntityMainTab> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Toggle F/J/N PRIMEIRO (fora da sequência de Tab) — Fase 3,
-            // decisão 4 + semântica dos rótulos (2026-07-18).
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ExcludeFocusTraversal(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(
-                          value: 'F',
-                          label: SetesText('forms.entity.personF'.tr())),
-                      ButtonSegment(
-                          value: 'J',
-                          label: SetesText('forms.entity.personJ'.tr())),
-                      ButtonSegment(
-                          value: 'N',
-                          label: SetesText('forms.entity.personN'.tr())),
-                    ],
-                    selected: {personType},
-                    onSelectionChanged: (selection) => _emit(
-                        widget.value.copyWith(personType: selection.first)),
+            SetesFormGrid(items: [
+              // Toggle F/J/N PRIMEIRO (fora da sequência de Tab) — Fase 3,
+              // decisão 4 + semântica dos rótulos (2026-07-18).
+              SetesFormGridItem(
+                size: SetesFieldSize.full,
+                child: ExcludeFocusTraversal(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SegmentedButton<String>(
+                      segments: [
+                        ButtonSegment(
+                            value: 'F',
+                            label: SetesText('forms.entity.personF'.tr())),
+                        ButtonSegment(
+                            value: 'J',
+                            label: SetesText('forms.entity.personJ'.tr())),
+                        ButtonSegment(
+                            value: 'N',
+                            label: SetesText('forms.entity.personN'.tr())),
+                      ],
+                      selected: {personType},
+                      onSelectionChanged: (selection) => _emit(
+                          widget.value.copyWith(personType: selection.first)),
+                    ),
                   ),
                 ),
               ),
-            ),
-            field(SetesTextField(
-              label: (isCompany
-                      ? 'forms.entity.nameCompany'
-                      : 'forms.entity.nameCompanyPerson')
-                  .tr(),
-              controller: _nameCompany,
-              focusNode: widget.hooks?.nameCompanyFocus,
-              fieldKey: widget.hooks?.nameCompanyKey,
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-              validator: _validateRequired,
-              onChanged: (t) => _emit(widget.value.copyWith(nameCompany: t)),
-            )),
-            field(SetesTextField(
-              label: (isCompany
-                      ? 'forms.entity.nickTrade'
-                      : 'forms.entity.nickTradePerson')
-                  .tr(),
-              controller: _nickTrade,
-              focusNode: widget.hooks?.nickTradeFocus,
-              fieldKey: widget.hooks?.nickTradeKey,
-              textInputAction: TextInputAction.next,
-              validator: _validateRequired,
-              onChanged: (t) => _emit(widget.value.copyWith(nickTrade: t)),
-            )),
-            // Aniversário (tb_entity) SÓ no modo Sem Documento — PF usa a
-            // Data de Nascimento (person) e PJ a Data de Fundação (company).
-            if (personType == 'N')
               field(SetesTextField(
-                label: 'forms.entity.aniversary'.tr(),
-                hint: 'register.dateHint'.tr(),
-                controller: _aniversary,
-                keyboardType: TextInputType.datetime,
+                label: (isCompany
+                        ? 'forms.entity.nameCompany'
+                        : 'forms.entity.nameCompanyPerson')
+                    .tr(),
+                controller: _nameCompany,
+                focusNode: widget.hooks?.nameCompanyFocus,
+                fieldKey: widget.hooks?.nameCompanyKey,
+                autofocus: true,
                 textInputAction: TextInputAction.next,
-                validator: validateOptionalDate,
-                onChanged: (t) => _emit(widget.value
-                    .copyWith(aniversary: () => displayDateToIso(t))),
+                validator: _validateRequired,
+                onChanged: (t) => _emit(widget.value.copyWith(nameCompany: t)),
               )),
-            if (personType == 'F') ...[
-              field(_docBlurListener(
-                personType: 'F',
-                child: SetesTextField(
-                  label: 'forms.entity.cpf'.tr(),
-                  controller: _cpf,
-                  focusNode: widget.hooks?.cpfFocus,
-                  fieldKey: widget.hooks?.cpfKey,
-                  keyboardType: TextInputType.number,
+              field(SetesTextField(
+                label: (isCompany
+                        ? 'forms.entity.nickTrade'
+                        : 'forms.entity.nickTradePerson')
+                    .tr(),
+                controller: _nickTrade,
+                focusNode: widget.hooks?.nickTradeFocus,
+                fieldKey: widget.hooks?.nickTradeKey,
+                textInputAction: TextInputAction.next,
+                validator: _validateRequired,
+                onChanged: (t) => _emit(widget.value.copyWith(nickTrade: t)),
+              )),
+              // Aniversário (tb_entity) SÓ no modo Sem Documento — PF usa a
+              // Data de Nascimento (person) e PJ a Data de Fundação (company).
+              if (personType == 'N')
+                field(SetesTextField(
+                  label: 'forms.entity.aniversary'.tr(),
+                  hint: 'register.dateHint'.tr(),
+                  controller: _aniversary,
+                  keyboardType: TextInputType.datetime,
                   textInputAction: TextInputAction.next,
-                  validator: _validateCpf,
+                  validator: validateOptionalDate,
                   onChanged: (t) => _emit(widget.value
-                      .copyWith(person: _person.copyWith(cpf: t.trim()))),
-                ),
-              )),
-              field(SetesTextField(
-                label: 'forms.entity.rg'.tr(),
-                controller: _rg,
-                textInputAction: TextInputAction.next,
-                onChanged: (t) => _emit(
-                    widget.value.copyWith(person: _person.copyWith(rg: t))),
-              )),
-              field(SetesTextField(
-                label: 'forms.entity.birthday'.tr(),
-                hint: 'register.dateHint'.tr(),
-                controller: _birthday,
-                keyboardType: TextInputType.datetime,
-                textInputAction: TextInputAction.done,
-                validator: validateOptionalDate,
-                onChanged: (t) => _emit(widget.value.copyWith(
-                    person: _person.copyWith(
-                        birthday: () => displayDateToIso(t)))),
-              )),
-            ] else if (personType == 'J') ...[
-              field(_docBlurListener(
-                personType: 'J',
-                child: SetesTextField(
-                  label: 'forms.entity.cnpj'.tr(),
-                  controller: _cnpj,
-                  focusNode: widget.hooks?.cnpjFocus,
-                  fieldKey: widget.hooks?.cnpjKey,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  validator: _validateCnpj,
-                  onChanged: (t) => _emit(widget.value
-                      .copyWith(company: _company.copyWith(cnpj: t.trim()))),
-                ),
-              )),
-              field(SetesTextField(
-                label: 'forms.entity.ie'.tr(),
-                controller: _ie,
-                textInputAction: TextInputAction.next,
-                onChanged: (t) => _emit(
-                    widget.value.copyWith(company: _company.copyWith(ie: t))),
-              )),
-              field(SetesTextField(
-                label: 'forms.entity.im'.tr(),
-                controller: _im,
-                textInputAction: TextInputAction.next,
-                onChanged: (t) => _emit(
-                    widget.value.copyWith(company: _company.copyWith(im: t))),
-              )),
-              field(SetesTextField(
-                label: 'forms.entity.dtFoundation'.tr(),
-                hint: 'register.dateHint'.tr(),
-                controller: _dtFoundation,
-                keyboardType: TextInputType.datetime,
-                textInputAction: TextInputAction.done,
-                validator: validateOptionalDate,
-                onChanged: (t) => _emit(widget.value.copyWith(
-                    company: _company.copyWith(
-                        dtFoundation: () => displayDateToIso(t)))),
-              )),
-            ] else ...[
-              // 'N' — Sem documento: bloco fiscal oculto; o identificador
-              // externo é gerado pelo backend (leitura na edição).
-              if (_externalId.text.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
+                      .copyWith(aniversary: () => displayDateToIso(t))),
+                ), size: small),
+              if (personType == 'F') ...[
+                field(_docBlurListener(
+                  personType: 'F',
                   child: SetesTextField(
-                    label: 'forms.entity.externalId'.tr(),
-                    controller: _externalId,
-                    readOnly: true,
+                    label: 'forms.entity.cpf'.tr(),
+                    controller: _cpf,
+                    focusNode: widget.hooks?.cpfFocus,
+                    fieldKey: widget.hooks?.cpfKey,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    validator: _validateCpf,
+                    onChanged: (t) => _emit(widget.value
+                        .copyWith(person: _person.copyWith(cpf: t.trim()))),
                   ),
-                ),
-            ],
+                ), size: small),
+                field(SetesTextField(
+                  label: 'forms.entity.rg'.tr(),
+                  controller: _rg,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (t) => _emit(
+                      widget.value.copyWith(person: _person.copyWith(rg: t))),
+                ), size: small),
+                field(SetesTextField(
+                  label: 'forms.entity.birthday'.tr(),
+                  hint: 'register.dateHint'.tr(),
+                  controller: _birthday,
+                  keyboardType: TextInputType.datetime,
+                  textInputAction: TextInputAction.done,
+                  validator: validateOptionalDate,
+                  onChanged: (t) => _emit(widget.value.copyWith(
+                      person: _person.copyWith(
+                          birthday: () => displayDateToIso(t)))),
+                ), size: small),
+              ] else if (personType == 'J') ...[
+                field(_docBlurListener(
+                  personType: 'J',
+                  child: SetesTextField(
+                    label: 'forms.entity.cnpj'.tr(),
+                    controller: _cnpj,
+                    focusNode: widget.hooks?.cnpjFocus,
+                    fieldKey: widget.hooks?.cnpjKey,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    validator: _validateCnpj,
+                    onChanged: (t) => _emit(widget.value
+                        .copyWith(company: _company.copyWith(cnpj: t.trim()))),
+                  ),
+                ), size: small),
+                field(SetesTextField(
+                  label: 'forms.entity.ie'.tr(),
+                  controller: _ie,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (t) => _emit(
+                      widget.value.copyWith(company: _company.copyWith(ie: t))),
+                ), size: small),
+                field(SetesTextField(
+                  label: 'forms.entity.im'.tr(),
+                  controller: _im,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (t) => _emit(
+                      widget.value.copyWith(company: _company.copyWith(im: t))),
+                ), size: small),
+                field(SetesTextField(
+                  label: 'forms.entity.dtFoundation'.tr(),
+                  hint: 'register.dateHint'.tr(),
+                  controller: _dtFoundation,
+                  keyboardType: TextInputType.datetime,
+                  textInputAction: TextInputAction.done,
+                  validator: validateOptionalDate,
+                  onChanged: (t) => _emit(widget.value.copyWith(
+                      company: _company.copyWith(
+                          dtFoundation: () => displayDateToIso(t)))),
+                ), size: small),
+              ] else ...[
+                // 'N' — Sem documento: bloco fiscal oculto; o identificador
+                // externo é gerado pelo backend (leitura na edição).
+                if (_externalId.text.isNotEmpty)
+                  SetesFormGridItem(
+                    size: SetesFieldSize.medium,
+                    child: SetesTextField(
+                      label: 'forms.entity.externalId'.tr(),
+                      controller: _externalId,
+                      readOnly: true,
+                    ),
+                  ),
+              ],
+            ]),
           ],
         ),
       ),

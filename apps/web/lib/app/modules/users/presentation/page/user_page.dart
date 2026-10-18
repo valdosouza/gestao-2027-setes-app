@@ -120,6 +120,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         // Código gerado pelo backend (MAX+1 da tb_entity): sempre readOnly.
         RegisterField(
           name:     'id',
+          size:     SetesFieldSize.small,
           label:    'forms.user.code'.tr(),
           readOnly: true,
         ),
@@ -130,11 +131,13 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         ),
         RegisterField(
           name:      'nickTrade',
+          size:      SetesFieldSize.medium,
           label:     'forms.user.nick'.tr(),
           validator: SetesValidators.required(),
         ),
         RegisterField(
           name:         'email',
+          size:         SetesFieldSize.medium,
           label:        'forms.user.email'.tr(),
           keyboardType: TextInputType.emailAddress,
           validator: SetesValidators.compose([
@@ -144,6 +147,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         ),
         RegisterField(
           name:    'password',
+          size:    SetesFieldSize.medium,
           label:   'forms.user.password'.tr(),
           obscure: true,
           // Inclusão: obrigatória. Edição: vazia mantém a atual.

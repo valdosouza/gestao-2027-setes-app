@@ -25,6 +25,7 @@ class RegisterField {
     this.mask,
     this.hint,
     this.trailingBuilder,
+    this.size = SetesFieldSize.large,
   })  : isLookup = false,
         display = '',
         onPick = null,
@@ -40,6 +41,7 @@ class RegisterField {
     required this.display,
     required this.onPick,
     this.validatorMessage,
+    this.size = SetesFieldSize.medium,
   })  : isLookup = true,
         obscure = false,
         readOnly = true,
@@ -81,6 +83,11 @@ class RegisterField {
 
   /// Mensagem exibida pelo Form.validate() quando nada foi escolhido.
   final String? validatorMessage;
+
+  /// Tamanho do campo na grade do formulário ([SetesFormGrid] — onda B da
+  /// densidade, 2026-10-17): quanto o conteúdo precisa, nunca pixels.
+  /// Padrão: large (nome/descrição); o lookup nasce medium.
+  final SetesFieldSize size;
 }
 
 /// Aba extra do formulário (ex.: "Permissões" no cadastro de Usuário —
@@ -323,50 +330,27 @@ class RegisterFormPageState extends State<RegisterFormPage> {
       key: _formKey,
       child: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
+        // Grade responsiva (onda B da densidade): cada campo no tamanho que
+        // declarou; extraChildren seguem numa linha inteira abaixo.
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            for (final (index, field) in widget.fields.indexed) ...[
-              if (field.isLookup)
-                // FK: readOnly e fora do Tab (SetesLookupField já exclui).
-                SetesLookupField(
-                  label: field.label,
-                  display: field.display,
-                  onSearch: field.onPick ?? () {},
-                  validatorMessage: field.validatorMessage,
-                )
-              else
-                _withTrailing(
-                  field,
-                  FocusTraversalOrder(
-                    order: NumericFocusOrder(index.toDouble()),
-                    child: SetesTextField(
-                      label: field.label,
-                      hint: field.hint,
-                      controller: _controllers[field.name],
-                      focusNode: _focusNodes[field.name],
-                      fieldKey: _fieldKeys[field.name],
-                      obscureText: field.obscure,
-                      readOnly: field.readOnly,
-                      autofocus: index == firstEditable,
-                      keyboardType: field.keyboardType,
-                      textInputAction: index == lastEditable
-                          ? TextInputAction.done
-                          : TextInputAction.next,
-                      // Valida e traduz: setes_validators devolve chave i18n
-                      // (.tr() em texto já traduzido devolve o próprio texto).
-                      validator: field.validator == null
-                          ? null
-                          : (value) => field.validator!(value)?.tr(),
-                      inputFormatters: field.mask == null
-                          ? null
-                          : [SetesMaskFormatter(field.mask!)],
-                    ),
+            SetesFormGrid(items: [
+              for (final (index, field) in widget.fields.indexed)
+                SetesFormGridItem(
+                  size: field.size,
+                  child: _buildField(index, field,
+                      firstEditable: firstEditable, lastEditable: lastEditable),
+                ),
+              if (widget.extraChildren.isNotEmpty)
+                SetesFormGridItem(
+                  size: SetesFieldSize.full,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: widget.extraChildren,
                   ),
                 ),
-              const SizedBox(height: 16),
-            ],
-            ...widget.extraChildren,
+            ]),
           ],
         ),
       ),
@@ -406,6 +390,49 @@ class RegisterFormPageState extends State<RegisterFormPage> {
             ),
     );
   }
+
+  Widget _buildField(
+    int index,
+    RegisterField field, {
+    required int firstEditable,
+    required int lastEditable,
+  }) =>
+      field.isLookup
+          // FK: readOnly e fora do Tab (SetesLookupField já exclui).
+          ? SetesLookupField(
+              label: field.label,
+              display: field.display,
+              onSearch: field.onPick ?? () {},
+              validatorMessage: field.validatorMessage,
+            )
+          : _withTrailing(
+              field,
+              FocusTraversalOrder(
+                order: NumericFocusOrder(index.toDouble()),
+                child: SetesTextField(
+                  label: field.label,
+                  hint: field.hint,
+                  controller: _controllers[field.name],
+                  focusNode: _focusNodes[field.name],
+                  fieldKey: _fieldKeys[field.name],
+                  obscureText: field.obscure,
+                  readOnly: field.readOnly,
+                  autofocus: index == firstEditable,
+                  keyboardType: field.keyboardType,
+                  textInputAction: index == lastEditable
+                      ? TextInputAction.done
+                      : TextInputAction.next,
+                  // Valida e traduz: setes_validators devolve chave i18n
+                  // (.tr() em texto já traduzido devolve o próprio texto).
+                  validator: field.validator == null
+                      ? null
+                      : (value) => field.validator!(value)?.tr(),
+                  inputFormatters: field.mask == null
+                      ? null
+                      : [SetesMaskFormatter(field.mask!)],
+                ),
+              ),
+            );
 }
 
 /// Mantém a aba principal viva no TabBarView (AutomaticKeepAlive).
