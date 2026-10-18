@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_validators/setes_validators.dart';
+import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
@@ -83,6 +84,7 @@ class _BankPageState extends State<BankPage> with FieldConfigLoader {
         // inclusão, preenchido na edição (precedente privileges/interfaces).
         RegisterField(
           name:     'id',
+          size:     SetesFieldSize.small,
           label:    'forms.bank.code'.tr(),
           readOnly: true,
         ),
@@ -90,6 +92,7 @@ class _BankPageState extends State<BankPage> with FieldConfigLoader {
         // Zod /^\d{3}$/ — as duas fontes da validação, R6).
         RegisterField(
           name:         'number',
+          size:         SetesFieldSize.small,
           label:        'forms.bank.number'.tr(),
           keyboardType: TextInputType.number,
           mask:         '###',

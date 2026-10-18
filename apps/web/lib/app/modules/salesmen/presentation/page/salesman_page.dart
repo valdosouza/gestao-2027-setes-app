@@ -158,18 +158,21 @@ class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
           ),
           RegisterField(
             name:     'document',
+            size:     SetesFieldSize.small,
             label:    'forms.salesman.document'.tr(),
             readOnly: true,
           ),
         ],
         RegisterField(
           name:         'aliqKickback',
+          size:         SetesFieldSize.small,
           label:        'forms.salesman.aliqKickback'.tr(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateAliqKickback,
         ),
         RegisterField(
           name:         'flexValue',
+          size:         SetesFieldSize.small,
           label:        'forms.salesman.flexValue'.tr(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateFlexValue,

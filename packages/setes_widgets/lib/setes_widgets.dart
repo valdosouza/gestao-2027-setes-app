@@ -6,6 +6,7 @@ export 'src/setes_card.dart';
 export 'src/setes_circular_progress_indicator.dart';
 export 'src/setes_checkbox.dart';
 export 'src/setes_dropdown.dart';
+export 'src/setes_form_grid.dart';
 export 'src/setes_form_shell.dart';
 export 'src/setes_icon_button.dart';
 export 'src/setes_list_tile.dart';

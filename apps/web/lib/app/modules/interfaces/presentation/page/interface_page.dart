@@ -188,6 +188,7 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
         // inclusão, preenchido na edição (decisão do Valdo 2026-07-11).
         RegisterField(
           name:     'id',
+          size:     SetesFieldSize.small,
           label:    'forms.interface.code'.tr(),
           readOnly: true,
         ),
@@ -198,16 +199,19 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
         ),
         RegisterField(
           name:  'groupDefault',
+          size:  SetesFieldSize.medium,
           label: 'forms.interface.group'.tr(),
         ),
         RegisterField(
           name:  'i18nKey',
+          size:  SetesFieldSize.medium,
           label: 'forms.interface.i18nKey'.tr(),
         ),
         // position é texto livre (decisão do Valdo 2026-07-11); kind virou
         // dropdown T/R no extraChildren (decisão 13 — Framework de Configs).
         RegisterField(
           name:  'position',
+          size:  SetesFieldSize.small,
           label: 'forms.interface.position'.tr(),
         ),
       ], fieldConfig),

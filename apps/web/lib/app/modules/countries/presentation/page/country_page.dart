@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
@@ -84,6 +85,7 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
       fields: applyFieldConfig([
         RegisterField(
           name:         'id',
+          size:         SetesFieldSize.small,
           label:        'forms.country.code'.tr(),
           keyboardType: TextInputType.number,
           readOnly:     !creating, // código BACEN imutável na edição
