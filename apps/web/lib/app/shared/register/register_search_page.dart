@@ -6,6 +6,7 @@ import '../search/advanced_search_panel.dart';
 import '../search/search_criteria_chips.dart';
 import '../search/search_criteria_datasource.dart';
 import '../search/search_criterion.dart';
+import '../session/crud_privileges.dart';
 import 'register_config_button.dart';
 import 'register_paging_bar.dart';
 
@@ -218,7 +219,8 @@ class _RegisterSearchPageState<T> extends State<RegisterSearchPage<T>> {
               RegisterConfigButton(moduleKey: widget.configModuleKey!),
           ],
         ),
-        floatingActionButton: widget.onNew != null
+        // D-PV2: o "Novo" só existe com INSERIR na tela atual (ponto único — CrudPrivileges)
+        floatingActionButton: widget.onNew != null && CrudPrivileges.canInsert
             ? FloatingActionButton(
                 onPressed: widget.onNew,
                 child: const Icon(Icons.add),

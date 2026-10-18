@@ -76,7 +76,8 @@ class PaymentTypeDatasourceImpl implements PaymentTypeDatasource {
   Future<List<FinancialPlanLookupItem>> financialPlans(
       String filter, String kind) async {
     final query = filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/financial-plans$query');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/payment-types/financial-plans$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => FinancialPlanLookupItem.fromJson(e as Map<String, dynamic>))

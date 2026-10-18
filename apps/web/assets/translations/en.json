@@ -298,6 +298,9 @@
       "kind": "Social Media Kind",
       "link": "Social Media Link"
     },
+    "institutionInterfaces": {
+      "inactive": "inactive"
+    },
     "institution": {
       "tab": "Institution",
       "tabInterfaces": "Interfaces",
@@ -1550,6 +1553,7 @@
       "interfaces": "Interfaces",
       "customers": "Customers",
       "institutions": "Institutions",
+      "institution-interfaces": "Client interfaces",
       "establishment": "My Establishment",
       "users": "Users",
       "modules": "Modules",

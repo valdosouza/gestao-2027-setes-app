@@ -240,6 +240,7 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(InterfaceDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

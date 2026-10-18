@@ -112,7 +112,8 @@ class OrderReturnDatasourceImpl implements OrderReturnDatasource {
       'page=1',
       'pageSize=50',
     ];
-    final json = await client.get('/api/cfop?${params.join('&')}');
+    // D-PV2: lista do PRÓPRIO módulo — o /api/cfop é do Super (o admin recebia 403 neste diálogo)
+    final json = await client.get('/api/order-returns/cfop-lookup?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => OrderReturnCfopLookup.fromJson(e as Map<String, dynamic>))

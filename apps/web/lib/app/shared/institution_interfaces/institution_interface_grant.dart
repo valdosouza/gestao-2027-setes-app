@@ -1,7 +1,8 @@
 /// Linha do contrato comercial de interfaces do estabelecimento
 /// (tb_institution_has_interface — decisões 17/18/23 da Fase 1):
 /// catálogo completo + situação do contrato do cliente alvo.
-/// Fonte: GET /api/admin/institutions/:id/interfaces.
+/// Fonte: GET /api/admin/institutions/:id/interfaces (Super) ou
+/// GET /api/institution-interfaces/:id (tela delegável — D-PV11).
 class InstitutionInterfaceGrant {
   const InstitutionInterfaceGrant({
     required this.id,

@@ -211,6 +211,7 @@ class _CityPageState extends State<CityPage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(CityDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

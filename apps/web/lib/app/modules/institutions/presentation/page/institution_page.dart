@@ -22,7 +22,7 @@ import '../../../../shared/users/datasource/user_datasource.dart';
 import '../../data/datasource/institution_datasource.dart';
 import '../../domain/entity/object_institution.dart';
 import '../bloc/institution_bloc.dart';
-import '../widget/institution_interfaces_tab.dart';
+import '../../../../shared/institution_interfaces/institution_interfaces_tab.dart';
 import '../widget/institution_tab.dart';
 import '../widget/institution_users_tab.dart';
 

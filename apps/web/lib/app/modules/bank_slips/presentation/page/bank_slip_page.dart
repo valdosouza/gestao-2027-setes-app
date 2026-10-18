@@ -20,6 +20,7 @@ import '../bloc/bank_slip_bloc.dart';
 import 'bank_slip_detail_view.dart';
 import 'bank_slip_format.dart';
 import 'bank_slip_issue_dialog.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Tela de Boletos — interface 'bank-slips', grupo Financeiro
 /// (prompt_boleto_emitido.md D1–D11). TELA DE PROCESSO: LISTA em abas por
@@ -67,8 +68,11 @@ class _BankSlipPageState extends State<BankSlipPage>
     // Onda 2 (D-I9): ao abrir a tela, consulta ativa THROTTLED das apresentações
     // vivas (o webhook só liga na Onda 4) — silenciosa; o evento recarrega a lista.
     _bloc = Modular.get<BankSlipBloc>()
-      ..add(const BankSlipListRequested(status: BankSlipStatus.open, filter: ''))
-      ..add(const BankSlipBankSyncRequested());
+      ..add(const BankSlipListRequested(status: BankSlipStatus.open, filter: ''));
+    // A-PV7: a consulta silenciosa ao abrir só para quem pode falar com o banco (TRANSMITIR)
+    if (CurrentInterface.can('TRANSMITIR')) {
+      _bloc.add(const BankSlipBankSyncRequested());
+    }
     _lookup = Modular.get<BankSlipLookupDatasource>();
     _searchDatasource = Modular.get<SearchCriteriaDatasource>();
     _loadSearchCriteria();
@@ -184,6 +188,8 @@ class _BankSlipPageState extends State<BankSlipPage>
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
           // Onda 2: "Atualizar com o banco" — consulta ativa com resumo
+          // A-PV7: consultar o banco = TRANSMITIR (simétrico ao fisco)
+          if (CurrentInterface.can('TRANSMITIR'))
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'forms.bankSlip.bankSync'.tr(),
@@ -203,7 +209,10 @@ class _BankSlipPageState extends State<BankSlipPage>
         ],
       ),
       // FAB = Emitir boleto (padrão Icons.add da tela de pesquisa)
-      floatingActionButton: FloatingActionButton(
+      // D-PV2: abrir um registro novo = INSERIR na tela atual
+      floatingActionButton: !CurrentInterface.can('INSERIR')
+          ? null
+          : FloatingActionButton(
         tooltip: 'forms.bankSlip.issue'.tr(),
         onPressed: _openIssueDialog,
         child: const Icon(Icons.add),

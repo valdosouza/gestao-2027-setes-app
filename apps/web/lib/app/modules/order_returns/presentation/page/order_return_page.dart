@@ -496,6 +496,8 @@ class _OrderReturnDetailView extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // D-PV2 (literal): item novo = INSERIR, mudar = ALTERAR, tirar = EXCLUIR (Q-PV10)
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.edit),
                   tooltip: 'forms.orderReturn.editItem'.tr(),
@@ -503,6 +505,7 @@ class _OrderReturnDetailView extends StatelessWidget {
                       ? null
                       : () => _openQuantityDialog(context, item),
                 ),
+                if (CurrentInterface.can('EXCLUIR'))
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'forms.orderReturn.removeItem'.tr(),
@@ -512,7 +515,7 @@ class _OrderReturnDetailView extends StatelessWidget {
               ],
             )
           : null,
-      onTap: orderReturn.isOpen && !busy
+      onTap: orderReturn.isOpen && !busy && CurrentInterface.can('ALTERAR')
           ? () => _openQuantityDialog(context, item)
           : null,
     );
@@ -527,7 +530,8 @@ class _OrderReturnDetailView extends StatelessWidget {
           ),
           title: Text(title),
           actions: [
-            if (orderReturn.isOpen)
+            // D-PV2: excluir a devolução aberta = EXCLUIR (D-PV7)
+            if (orderReturn.isOpen && CurrentInterface.can('EXCLUIR'))
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'forms.orderReturn.cancelReturn'.tr(),

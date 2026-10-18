@@ -3,13 +3,15 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
-import '../../../../shared/feedback/feedback.dart';
-import '../../data/datasource/institution_datasource.dart';
-import '../../domain/entity/institution_interface_grant.dart';
+import '../feedback/feedback.dart';
+import 'institution_interface_grant.dart';
+import 'institution_interfaces_source.dart';
 
 /// Aba "Interfaces" do cadastro de Estabelecimento — CRUD do contrato
 /// comercial (tb_institution_has_interface, decisões 17/18/23 da Fase 1):
-/// o Super marca as interfaces que o cliente contratou.
+/// o Super marca as interfaces que o cliente contratou. Desde a D-PV11
+/// (2026-10-18) é peça COMPARTILHADA: também é o corpo da tela "Interfaces
+/// dos clientes" (delegável), cada uma com a sua [InstitutionInterfacesSource].
 ///
 /// Aba AUTÔNOMA (precedente dos checkboxes de privilégios da tela de
 /// Interfaces): carrega e grava via datasource, fora do draft do bloc —
@@ -24,12 +26,17 @@ class InstitutionInterfacesTab extends StatefulWidget {
   const InstitutionInterfacesTab({
     required this.institutionId,
     required this.datasource,
+    this.canChange = true,
     super.key,
   });
 
   /// null = inclusão (schema ainda não existe — aba orienta salvar antes).
   final int? institutionId;
-  final InstitutionDatasource datasource;
+  final InstitutionInterfacesSource datasource;
+
+  /// false = só leitura (quem tem VISUALIZAR sem ALTERAR na tela delegada —
+  /// D-PV11; a API confere o mesmo par e recusa o salvar).
+  final bool canChange;
 
   @override
   State<InstitutionInterfacesTab> createState() =>
@@ -161,7 +168,7 @@ class _InstitutionInterfacesTabState extends State<InstitutionInterfacesTab> {
       children.add(SetesCheckbox(
         label: grant.description ?? '',
         value: grant.granted,
-        enabled: !_saving,
+        enabled: !_saving && widget.canChange,
         onChanged: (checked) => _toggle(grant, checked ?? false),
       ));
     }

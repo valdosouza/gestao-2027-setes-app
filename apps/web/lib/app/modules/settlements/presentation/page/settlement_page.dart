@@ -429,6 +429,8 @@ class _SettlementPageState extends State<SettlementPage>
                 child: SetesText('forms.settlement.selectedSummary'.tr(
                     args: ['${selectedBills.length}', setesMoney(total)])),
               ),
+              // D-PV7: baixar = INSERIR
+              if (CurrentInterface.can('INSERIR'))
               SetesButton(
                 label: 'forms.settlement.settleSelected'.tr(),
                 icon: Icons.check,
@@ -521,7 +523,8 @@ class _SettlementPageState extends State<SettlementPage>
         mainAxisSize: MainAxisSize.min,
         children: [
           _statusBadge(settled.status),
-          if (settled.isCurrent)
+          // D-PV7: estornar a baixa = EXCLUIR
+          if (settled.isCurrent && CurrentInterface.can('EXCLUIR'))
             IconButton(
               icon: const Icon(Icons.undo),
               tooltip: 'forms.settlement.reverse'.tr(),

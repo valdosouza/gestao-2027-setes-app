@@ -302,6 +302,8 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
             ),
           // D-F177 (= Q-F185 (a)): travado pelo loading, como os botões de lote
           // (H1) — dava para disparar a rotina mensal com um lote no ar
+          // D-PV8: a rotina mensal = FATURAR (a cobrança do mês)
+          if (CurrentInterface.can('FATURAR'))
           IconButton(
             icon: const Icon(Icons.play_circle_outline),
             tooltip: 'forms.serviceOrder.monthlyRun'.tr(),
@@ -311,7 +313,10 @@ class _ServiceOrderPageState extends State<ServiceOrderPage>
         ],
       ),
       // FAB = Abrir OS (lookup de cliente + POST — padrão Icons.add)
-      floatingActionButton: FloatingActionButton(
+      // D-PV2: abrir um registro novo = INSERIR na tela atual
+      floatingActionButton: !CurrentInterface.can('INSERIR')
+          ? null
+          : FloatingActionButton(
         tooltip: 'forms.serviceOrder.openOs'.tr(),
         onPressed: _openNewOrder,
         child: const Icon(Icons.add),
@@ -1139,12 +1144,15 @@ class _ServiceOrderDetailView extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // D-PV2 (literal): item novo = INSERIR, mudar = ALTERAR, tirar = EXCLUIR (Q-PV10)
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.edit),
                   tooltip: 'forms.serviceOrder.editItem'.tr(),
                   onPressed:
                       busy ? null : () => _openItemDialog(context, existing: item),
                 ),
+                if (CurrentInterface.can('EXCLUIR'))
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'forms.serviceOrder.removeItem'.tr(),
@@ -1154,7 +1162,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
               ],
             )
           : null,
-      onTap: order.isOpen && !busy
+      onTap: order.isOpen && !busy && CurrentInterface.can('ALTERAR')
           ? () => _openItemDialog(context, existing: item)
           : null,
     );
@@ -1180,7 +1188,8 @@ class _ServiceOrderDetailView extends StatelessWidget {
                 tooltip: 'forms.serviceOrder.cancelInvoice'.tr(),
                 onPressed: busy ? null : onCancelInvoice,
               ),
-            if (order.isOpen)
+            // D-PV8: excluir a OS aberta = EXCLUIR
+            if (order.isOpen && CurrentInterface.can('EXCLUIR'))
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'forms.serviceOrder.cancelOs'.tr(),
@@ -1226,6 +1235,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
               ],
             if (order.isOpen) ...[
               const SizedBox(height: 8),
+              if (CurrentInterface.can('INSERIR'))
               SetesButton(
                 label: 'forms.serviceOrder.addItem'.tr(),
                 icon: Icons.add,

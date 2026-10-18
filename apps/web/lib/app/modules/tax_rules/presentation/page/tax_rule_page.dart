@@ -8,6 +8,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../../../shared/register/register_form_shell.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/search/search_criteria_datasource.dart';
 import '../../../../shared/search/search_criterion.dart';
@@ -546,7 +547,9 @@ class _TaxRuleFormViewState extends State<_TaxRuleFormView>
   Widget build(BuildContext context) {
     final draft = _draft;
     _rememberSlices();
-    return SetesFormShell(
+    return RegisterFormShell(
+      // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+      creating: widget.onDelete == null,
       title: widget.title,
       saving: widget.saving,
       onBack: widget.onBack,

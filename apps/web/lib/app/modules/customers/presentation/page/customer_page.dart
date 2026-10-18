@@ -19,6 +19,7 @@ import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/interface_config/interface_config_loader.dart';
 import '../../../../shared/lookup/datasource/salesman_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../../../shared/register/register_form_shell.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/search/search_criteria_datasource.dart';
 import '../../../../shared/search/search_criterion.dart';
@@ -401,7 +402,9 @@ class _CustomerFormViewState extends State<_CustomerFormView>
   Widget build(BuildContext context) {
     final draft = _draft;
     final creating = widget.creating;
-    return SetesFormShell(
+    return RegisterFormShell(
+      // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+      creating: widget.onDelete == null,
       title: widget.title,
       saving: widget.saving,
       onBack: widget.onBack,

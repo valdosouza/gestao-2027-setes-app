@@ -179,6 +179,7 @@ class _ModulePageState extends State<ModulePage> with FieldConfigLoader {
       onDelete:
           creating ? null : () => _bloc.add(ModuleDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
       // Exclusão graciosa (contrato do DELETE): avisa que as telas voltam
       // aos grupos padrão do menu.
       deleteConfirmMessage: 'forms.module.deleteWarning'.tr(),

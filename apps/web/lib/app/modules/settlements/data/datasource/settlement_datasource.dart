@@ -111,7 +111,8 @@ class SettlementDatasourceImpl implements SettlementDatasource {
 
   @override
   Future<List<SettlementPaymentTypeLookup>> paymentTypes() async {
-    final json = await client.get('/api/payment-types');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/settlements/payment-types');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) =>
@@ -147,7 +148,8 @@ class SettlementDatasourceImpl implements SettlementDatasource {
 
   @override
   Future<List<SettlementBankAccountLookup>> bankAccounts() async {
-    final json = await client.get('/api/bank-accounts');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/settlements/bank-accounts');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) =>

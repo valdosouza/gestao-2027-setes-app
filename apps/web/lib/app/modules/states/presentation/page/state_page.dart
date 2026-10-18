@@ -190,6 +190,7 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(StateDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

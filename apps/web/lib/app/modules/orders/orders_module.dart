@@ -28,8 +28,8 @@ import 'presentation/page/order_page.dart';
 /// /api/orders/:id/negotiation) → Validar e Faturar chama /api/billing
 /// direto (sem módulo billing próprio; cheques por parcela coletados no
 /// próprio faturamento — D5). Gêmeo do /api/orders na setes-api. Vendedor
-/// reusa o shared/lookup/salesman_lookup_datasource (já usado por
-/// customers/carriers/providers).
+/// reusa o shared/lookup/salesman_lookup_datasource (também usado por
+/// customers) apontado para a lista do PRÓPRIO módulo (D-PV2).
 class OrdersModule extends Module {
   @override
   List<Bind> get binds => [
@@ -41,8 +41,10 @@ class OrdersModule extends Module {
                 client: i.get<ApiClient>(), basePath: '/api/orders')),
         Bind.lazySingleton<OrderRepository>(
             (i) => OrderRepositoryImpl(datasource: i.get<OrderDatasource>())),
-        Bind.lazySingleton<SalesmanLookupDatasource>(
-            (i) => SalesmanLookupDatasourceImpl(client: i.get<ApiClient>())),
+        Bind.lazySingleton<SalesmanLookupDatasource>((i) =>
+            SalesmanLookupDatasourceImpl(
+                client: i.get<ApiClient>(),
+                path: '/api/orders/active-salesman-lookup')),
         Bind.factory<OrderGetlist>(
             (i) => OrderGetlist(repository: i.get<OrderRepository>())),
         Bind.factory<OrderGet>(

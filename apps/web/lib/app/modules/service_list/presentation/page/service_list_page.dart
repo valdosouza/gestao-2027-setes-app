@@ -184,6 +184,7 @@ class _ServiceListPageState extends State<ServiceListPage>
           ? null
           : () => _bloc.add(ServiceListDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

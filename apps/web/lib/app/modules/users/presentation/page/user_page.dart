@@ -215,6 +215,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(UserDeleteRequested(editing.id!)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

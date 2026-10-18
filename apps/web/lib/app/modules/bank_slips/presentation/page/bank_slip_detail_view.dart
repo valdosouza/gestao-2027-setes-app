@@ -10,6 +10,7 @@ import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/format/money.dart';
 import '../../domain/entity/bank_slip_entity.dart';
 import 'bank_slip_format.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Detalhe do boleto DIRIGIDO PELO ESTADO (skill tela-de-processo):
 /// cabeçalho congelado (nosso nº, documento, emissão, vencimento, valor,
@@ -285,6 +286,8 @@ class BankSlipDetailView extends StatelessWidget {
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
+                // A-PV7: reaplicar a voz do banco = TRANSMITIR
+                if (CurrentInterface.can('TRANSMITIR'))
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: SetesButton(
@@ -303,14 +306,18 @@ class BankSlipDetailView extends StatelessWidget {
                 children: [
                   // Pendência aberta esconde "Registrar" (a API devolve 409
                   // BANK_SLIP_EFFECT_PENDING): resolve-se pelo Reaplicar.
-                  if (slip.isOpen && !slip.hasLiveRegistration && refused.isEmpty)
+                  // D-PV7: registrar no banco = TRANSMITIR
+                  if (slip.isOpen && !slip.hasLiveRegistration && refused.isEmpty &&
+                      CurrentInterface.can('TRANSMITIR'))
                     SetesButton(
                       label: 'forms.bankSlip.register'.tr(),
                       icon: Icons.cloud_upload_outlined,
                       loading: saving,
                       onPressed: saving ? null : onRegister,
                     ),
-                  if (reg != null && reg.requestCode != null)
+                  // A-PV7: consultar o banco = TRANSMITIR
+                  if (reg != null && reg.requestCode != null &&
+                      CurrentInterface.can('TRANSMITIR'))
                     SetesButton(
                       label: 'forms.bankSlip.refresh'.tr(),
                       icon: Icons.sync,
@@ -318,7 +325,9 @@ class BankSlipDetailView extends StatelessWidget {
                       loading: saving,
                       onPressed: saving ? null : onRefresh,
                     ),
-                  if (reg != null && reg.requestCode != null)
+                  // D-PV7: PDF = IMPRIMIR
+                  if (reg != null && reg.requestCode != null &&
+                      CurrentInterface.can('IMPRIMIR'))
                     SetesButton(
                       label: 'forms.bankSlip.pdf'.tr(),
                       icon: Icons.picture_as_pdf_outlined,
@@ -394,7 +403,8 @@ class BankSlipDetailView extends StatelessWidget {
           ),
           title: Text(title),
           actions: [
-            if (slip.isOpen)
+            // D-PV7: cancelar o boleto = CANCELAR
+            if (slip.isOpen && CurrentInterface.can('CANCELAR'))
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'forms.bankSlip.cancel'.tr(),
@@ -431,7 +441,8 @@ class BankSlipDetailView extends StatelessWidget {
             const SizedBox(height: 24),
             // Ações por ESTADO: aberto = Baixar; liquidado = Estornar;
             // cancelado = nada (somente leitura).
-            if (slip.isOpen)
+            // D-PV7: liquidar = ALTERAR; estornar = CANCELAR
+            if (slip.isOpen && CurrentInterface.can('ALTERAR'))
               Align(
                 alignment: Alignment.centerRight,
                 child: SetesButton(
@@ -441,7 +452,7 @@ class BankSlipDetailView extends StatelessWidget {
                   onPressed: saving ? null : () => _openSettleDialog(context),
                 ),
               ),
-            if (slip.isSettled)
+            if (slip.isSettled && CurrentInterface.can('CANCELAR'))
               Align(
                 alignment: Alignment.centerRight,
                 child: SetesButton(

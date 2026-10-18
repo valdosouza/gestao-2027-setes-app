@@ -6,6 +6,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 
 import '../feedback/feedback.dart';
 import '../feedback/form_pendency.dart';
+import '../session/crud_privileges.dart';
 
 /// Descritor de campo (decisão 20): parametriza o formulário genérico.
 ///
@@ -116,6 +117,7 @@ class RegisterFormPage extends StatefulWidget {
     this.canSave = true,
     this.onDelete,
     this.canDelete = false,
+    required this.creating,
     this.saving = false,
     this.extraChildren = const <Widget>[],
     this.extraTabs = const <RegisterTab>[],
@@ -132,13 +134,19 @@ class RegisterFormPage extends StatefulWidget {
   final void Function(Map<String, String> values) onSave;
   final VoidCallback onCancel;
 
-  /// Privilégios 'insert'/'update' do usuário (decisão 21).
+  /// Regra própria da página para salvar (ex.: campo travado). O PRIVILÉGIO
+  /// vem do ponto único [CrudPrivileges] (D-PV2): INSERIR no registro novo,
+  /// ALTERAR na edição — os dois têm de valer.
   final bool canSave;
 
   /// Dispara o evento de excluir no bloc (a confirmação acontece AQUI,
   /// antes do disparo — exclusão sempre LÓGICA, decisão 4).
   final VoidCallback? onDelete;
   final bool canDelete;
+
+  /// Registro NOVO × edição (D-PV2: escolhe INSERIR ou ALTERAR para o salvar).
+  /// Obrigatório: deduzir de [canDelete] erraria na tela que não exclui.
+  final bool creating;
 
   /// Estado do bloc: operação em andamento desabilita as ações.
   final bool saving;
@@ -376,9 +384,15 @@ class RegisterFormPageState extends State<RegisterFormPage> {
       title: widget.title,
       saving: widget.saving,
       onBack: widget.onCancel,
-      onSave: widget.canSave ? _save : null,
-      onDelete:
-          widget.canDelete && widget.onDelete != null ? _confirmDelete : null,
+      onSave: widget.canSave &&
+              CrudPrivileges.canSave(creating: widget.creating)
+          ? _save
+          : null,
+      onDelete: widget.canDelete &&
+              widget.onDelete != null &&
+              CrudPrivileges.canDelete
+          ? _confirmDelete
+          : null,
       child: widget.extraTabs.isEmpty
           ? formContent
           : DefaultTabController(

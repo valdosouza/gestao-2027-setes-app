@@ -107,6 +107,7 @@ class _CountryPageState extends State<CountryPage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(CountryDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

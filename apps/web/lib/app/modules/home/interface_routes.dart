@@ -22,6 +22,8 @@ const Map<String, String> interfaceRoutes = {
   // decisão 8 da Fase 3; consumo dos clientes segue no lookup bank-accounts)
   'banks':      '/home/banks/',
   'institutions': '/home/institutions/',
+  // Interfaces dos clientes (D-PV11, 2026-10-18 — tela do Super delegável pelo Super a usuário da Setes)
+  'institution-interfaces': '/home/institution-interfaces/',
   // Meu Estabelecimento (menu Sistema) — CRUD sem lista, institutionId
   // implícito no token (cardinalidade 1 garantida pela API)
   'establishment': '/home/establishment/',

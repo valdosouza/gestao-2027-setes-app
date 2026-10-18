@@ -4,8 +4,8 @@ import '../../domain/entity/cashier_entity.dart';
 
 /// Datasource remoto do Caixa: /api/cashier na setes-api (módulo gêmeo —
 /// escopo por institution+usuário do JWT). Lookup de conta bancária em
-/// /api/bank-accounts (projeção local — módulo nunca importa módulo,
-/// mesmo padrão de settlements/orders).
+/// /api/cashier/bank-accounts (D-PV2 — a lista de apoio é do PRÓPRIO módulo;
+/// módulo nunca importa módulo nem chama o /api de outra tela).
 abstract class CashierDatasource {
   /// Sessão ABERTA do usuário corrente, ou null (nenhuma aberta hoje).
   Future<CashierRow?> current();
@@ -71,7 +71,8 @@ class CashierDatasourceImpl implements CashierDatasource {
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'pageSize=100',
     ];
-    final json = await client.get('/api/bank-accounts?${params.join('&')}');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/cashier/bank-accounts?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) =>

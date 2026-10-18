@@ -10,6 +10,7 @@ import '../../../../shared/format/money.dart';
 import '../../data/datasource/order_datasource.dart';
 import '../../domain/entity/order_entity.dart';
 import 'order_format.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Seção "Negociação" do detalhe do pedido (prompt_negociacao_pedido.md
 /// D3: UMA tela, DUAS vias). Cabeçalho = via SIMPLES (forma de pagamento
@@ -1023,7 +1024,8 @@ class OrderNegotiationSectionState extends State<OrderNegotiationSection> {
           _buildHeader(context),
           const Divider(height: 24),
           _buildGrid(context),
-          if (!_readOnly) ...[
+          // D-PV2: gravar a negociação = ALTERAR do pedido (PUT /:id/negotiation)
+          if (!_readOnly && CurrentInterface.can('ALTERAR')) ...[
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerRight,

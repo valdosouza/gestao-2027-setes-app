@@ -232,6 +232,7 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(CfopDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

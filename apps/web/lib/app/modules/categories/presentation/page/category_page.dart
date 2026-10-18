@@ -10,6 +10,8 @@ import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../domain/entity/category_entity.dart';
 import '../bloc/category_bloc.dart';
+import '../../../../shared/register/register_form_shell.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Tela de Categorias de produtos e serviços — interface 'categories',
 /// cadastro em ÁRVORE (porta do Delphi reg_category.pas; decisões do Valdo
@@ -96,7 +98,10 @@ class _CategoryPageState extends State<CategoryPage>
         ],
       ),
       // FAB = novo NÍVEL raiz da árvore ativa (Delphi: opção "Nível")
-      floatingActionButton: FloatingActionButton(
+      // D-PV2: novo nível = INSERIR na tela atual
+      floatingActionButton: !CurrentInterface.can('INSERIR')
+          ? null
+          : FloatingActionButton(
         tooltip: 'forms.category.newRoot'.tr(),
         onPressed: () => _bloc.add(const CategoryNewPressed()),
         child: const Icon(Icons.add),
@@ -127,7 +132,7 @@ class _CategoryPageState extends State<CategoryPage>
                     emptyText: 'register.emptyList'.tr(),
                     onTap: (item) => _bloc.add(CategoryEditPressed(item)),
                     // Ação "+" no nó = novo SUBNÍVEL (Delphi: "SubNível")
-                    onAddChild: (item) =>
+                    onAddChild: !CurrentInterface.can('INSERIR') ? null : (item) =>
                         _bloc.add(CategoryNewPressed(parent: item)),
                     addChildTooltip: 'forms.category.newChild'.tr(),
                   ),
@@ -337,7 +342,9 @@ class _CategoryFormViewState extends State<_CategoryFormView> {
     final kindLabel = widget.state.kind == 'S'
         ? 'forms.category.tabServices'.tr()
         : 'forms.category.tabProducts'.tr();
-    return SetesFormShell(
+    return RegisterFormShell(
+      // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+      creating: widget.onDelete == null,
       title: '${widget.title} · $kindLabel',
       saving: widget.state.saving,
       onBack: widget.onBack,

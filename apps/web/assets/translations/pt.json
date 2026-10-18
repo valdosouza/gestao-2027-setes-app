@@ -298,6 +298,9 @@
       "kind": "Tipo da Rede Social",
       "link": "Link da Rede Social"
     },
+    "institutionInterfaces": {
+      "inactive": "inativo"
+    },
     "institution": {
       "tab": "Estabelecimento",
       "tabInterfaces": "Interfaces",
@@ -1550,6 +1553,7 @@
       "interfaces": "Interfaces",
       "customers": "Clientes",
       "institutions": "Estabelecimentos",
+      "institution-interfaces": "Interfaces dos clientes",
       "establishment": "Meu Estabelecimento",
       "users": "Usuários",
       "modules": "Módulos",
