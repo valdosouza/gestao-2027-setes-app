@@ -10,11 +10,30 @@
 #   (ou defina API_URL e NFSE_API_URL no ambiente)
 # Depois do build: publicar `build/web` com `Cache-Control: no-cache` em index.html,
 # flutter_bootstrap.js e main.dart.js (D-F147) e avisar os usuários para recarregar.
+#
+# D-PV16 (= Q-PV18 (a), Valdo 2026-10-18): ANTES do build, o catálogo de privilégios do ambiente de DESTINO é conferido contra a
+# lista única do setes-api que vai junto (`scripts/check-privilege-catalog.ts` — só leitura, sessão READ ONLY). Alarme = PARA: o
+# app publicado com um botão cujo par não está no catálogo esconde o botão até do admin (o C1) — e publicar o app não reinicia o
+# setes-api, então o alarme do boot não apareceria. O seed dos pares vai ao banco ANTES do app.
+#   -SetesApiDir   pasta do setes-api publicado junto (padrão: ..\..\..\setes-api, o irmão do setes-app)
+#   -CatalogEnvFile  .env do ambiente de DESTINO (padrão: o .env do -SetesApiDir — avisado; na Onda 4 informe o do destino).
+#                  O .env VENCE as variáveis do shell (DOTENV_CONFIG_OVERRIDE) — DB_* do ambiente nunca desviam a conferência.
+#   -CheckOnly     só as conferências (URLs + catálogo + app), sem o build
+# Também confere o APP DESTA ÁRVORE contra a lista do setes-api irmão (a cerca da D-PV9 com SETES_APP_DIR = esta árvore): o
+# setes-api ao lado tem de ser a versão que vai junto. Ordem da publicação: seed dos pares -> setes-api -> app.
 param(
   [string]$ApiUrl = $env:API_URL,
-  [string]$NfseApiUrl = $env:NFSE_API_URL
+  [string]$NfseApiUrl = $env:NFSE_API_URL,
+  [string]$SetesApiDir = (Join-Path $PSScriptRoot '..\..\..\setes-api'),
+  [string]$CatalogEnvFile = '',
+  [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
+# caminhos relativos valem a partir de onde o script foi chamado (resolvidos ANTES de trocar de pasta)
+if (-not [string]::IsNullOrWhiteSpace($CatalogEnvFile) -and -not [IO.Path]::IsPathRooted($CatalogEnvFile)) {
+  $CatalogEnvFile = Join-Path (Get-Location).Path $CatalogEnvFile
+}
+if (-not [IO.Path]::IsPathRooted($SetesApiDir)) { $SetesApiDir = Join-Path (Get-Location).Path $SetesApiDir }
 Set-Location $PSScriptRoot
 
 function Test-ApiUrl([string]$name, [string]$value) {
@@ -41,6 +60,44 @@ function Test-ApiUrl([string]$name, [string]$value) {
 
 Test-ApiUrl 'API_URL' $ApiUrl
 Test-ApiUrl 'NFSE_API_URL' $NfseApiUrl
+
+# D-PV16: o catálogo de privilégios do destino cobre a lista única E o app desta árvore só consome pares da lista
+# (nunca pula em silêncio — sem o setes-api ao lado, para)
+function Test-PrivilegeCatalog([string]$apiDir, [string]$envFile) {
+  $script = Join-Path $apiDir 'scripts\check-privilege-catalog.ts'
+  if (-not (Test-Path -LiteralPath $script)) { throw "setes-api nao encontrado em $apiDir (scripts\check-privilege-catalog.ts) - informe -SetesApiDir" }
+  $usingDefault = [string]::IsNullOrWhiteSpace($envFile)
+  $envPath = if ($usingDefault) { Join-Path $apiDir '.env' } else { $envFile }
+  if (-not (Test-Path -LiteralPath $envPath)) { throw "arquivo de ambiente do catalogo nao encontrado: $envPath - informe -CatalogEnvFile" }
+  $envPath = (Resolve-Path -LiteralPath $envPath).Path
+  if ($usingDefault) { Write-Warning "catalogo conferido contra o .env do setes-api irmao ($envPath) - na publicacao para outro ambiente informe -CatalogEnvFile" }
+  $appRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+  $saved = @{ path = $env:DOTENV_CONFIG_PATH; override = $env:DOTENV_CONFIG_OVERRIDE; app = $env:SETES_APP_DIR }
+  Push-Location $apiDir
+  try {
+    $env:DOTENV_CONFIG_PATH = $envPath
+    $env:DOTENV_CONFIG_OVERRIDE = 'true'
+    & npm run --silent check:privileges
+    $catalog = $LASTEXITCODE
+    $fence = 0
+    if ($catalog -eq 0) {
+      $env:SETES_APP_DIR = $appRoot
+      & npm test --silent -- src/__tests__/privilege-catalog-fence.test.ts
+      $fence = $LASTEXITCODE
+    }
+  } finally {
+    Pop-Location
+    $env:DOTENV_CONFIG_PATH = $saved.path
+    $env:DOTENV_CONFIG_OVERRIDE = $saved.override
+    $env:SETES_APP_DIR = $saved.app
+  }
+  if ($catalog -eq 1) { throw "catalogo de privilegios com ALARME - aplique o seed dos pares no destino ANTES de publicar o app (D-PV16)" }
+  if ($catalog -ne 0) { throw "conferencia do catalogo NAO rodou (saida $($catalog): banco inacessivel, .env do destino sem DB_* ou erro de leitura) - a publicacao para" }
+  if ($fence -ne 0) { throw "o app desta arvore consome par fora da lista do setes-api irmao (cerca D-PV9, saida $fence) - o setes-api ao lado tem de ser a versao publicada junto" }
+}
+
+Test-PrivilegeCatalog $SetesApiDir $CatalogEnvFile
+if ($CheckOnly) { Write-Host 'conferencias OK (URLs + catalogo de privilegios + app contra a lista) - build nao executado (-CheckOnly).'; return }
 
 flutter build web --release "--dart-define=API_URL=$($ApiUrl.Trim())" "--dart-define=NFSE_API_URL=$($NfseApiUrl.Trim())"
 if ($LASTEXITCODE -ne 0) { throw "flutter build web falhou ($LASTEXITCODE)" }
