@@ -125,7 +125,7 @@ void main() {
     when(() => nfse.getView(_aId)).thenAnswer((_) async => const Right(_aVoice));
     when(() => nfse.getView(_bId)).thenAnswer((_) async => const Right(_bVoice));
     when(() => repo.open(5)).thenAnswer((_) async => const Right(_newId));
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

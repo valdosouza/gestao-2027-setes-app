@@ -254,9 +254,9 @@ class ServiceOrderFiscalSection extends StatelessWidget {
                           loading: busy,
                           onPressed: busy ? null : onTransmit,
                         ),
-                      // Consultar: a nfse-api exige TRANSMITIR (a consulta ativa
-                      // pode fechar a tentativa — F2B-SOC-11)
-                      if (view.currentAttempt != null && CurrentInterface.can('TRANSMITIR'))
+                      // Consultar: a nfse-api exige CONSULTAR (D-PV40 — a consulta ativa
+                      // pode fechar a tentativa, F2B-SOC-11, mas não transmite)
+                      if (view.currentAttempt != null && CurrentInterface.can('CONSULTAR'))
                         SetesButton(
                           label: 'forms.serviceOrder.fiscalRefresh'.tr(),
                           icon: Icons.sync,

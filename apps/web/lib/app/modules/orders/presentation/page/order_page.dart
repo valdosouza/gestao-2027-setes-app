@@ -760,7 +760,8 @@ class _OrderDetailView extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // D-PV2 (literal): item novo = INSERIR, mudar = ALTERAR, tirar = EXCLUIR (Q-PV10)
+                // D-PV21 (Valdo 2026-10-20, fecha a Q-PV10 = (b)): todo ato sobre o DOCUMENTO ABERTO é ALTERAR — item novo, mudado ou tirado;
+                // INSERIR = abrir o documento, EXCLUIR = apagá-lo (um verbo, um sentido, sobre o documento)
                 if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.edit),
@@ -768,7 +769,7 @@ class _OrderDetailView extends StatelessWidget {
                   onPressed:
                       busy ? null : () => _openItemDialog(context, existing: item),
                 ),
-                if (CurrentInterface.can('EXCLUIR'))
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'forms.order.removeItem'.tr(),
@@ -819,7 +820,8 @@ class _OrderDetailView extends StatelessWidget {
                 _buildItemTile(context, item),
                 const Divider(height: 1),
               ],
-            if (order.isOpen && CurrentInterface.can('INSERIR')) ...[
+            // D-PV21: item novo no pedido aberto = ALTERAR (INSERIR = abrir o pedido)
+            if (order.isOpen && CurrentInterface.can('ALTERAR')) ...[
               const SizedBox(height: 8),
               SetesButton(
                 label: 'forms.order.addItem'.tr(),

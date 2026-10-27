@@ -90,6 +90,7 @@
     "nextPage": "Próxima página",
     "saved": "Registro salvo",
     "deleted": "Registro excluído",
+    "ownEstablishment": "Esta entidade é o próprio estabelecimento — os dados da empresa e a tributação se editam em Meu Estabelecimento; aqui só os campos do papel.",
     "confirmDelete": "Confirma a exclusão?",
     "error": "Não foi possível concluir a operação",
     "yes": "Sim",

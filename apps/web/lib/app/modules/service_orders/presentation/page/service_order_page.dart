@@ -1144,7 +1144,8 @@ class _ServiceOrderDetailView extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // D-PV2 (literal): item novo = INSERIR, mudar = ALTERAR, tirar = EXCLUIR (Q-PV10)
+                // D-PV21 (Valdo 2026-10-20, fecha a Q-PV10 = (b)): todo ato sobre o DOCUMENTO ABERTO é ALTERAR — item novo, mudado ou tirado;
+                // INSERIR = abrir o documento, EXCLUIR = apagá-lo (um verbo, um sentido, sobre o documento)
                 if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.edit),
@@ -1152,7 +1153,7 @@ class _ServiceOrderDetailView extends StatelessWidget {
                   onPressed:
                       busy ? null : () => _openItemDialog(context, existing: item),
                 ),
-                if (CurrentInterface.can('EXCLUIR'))
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'forms.serviceOrder.removeItem'.tr(),
@@ -1235,7 +1236,8 @@ class _ServiceOrderDetailView extends StatelessWidget {
               ],
             if (order.isOpen) ...[
               const SizedBox(height: 8),
-              if (CurrentInterface.can('INSERIR'))
+              // D-PV21: item novo na OS aberta = ALTERAR (INSERIR = abrir a OS)
+              if (CurrentInterface.can('ALTERAR'))
               SetesButton(
                 label: 'forms.serviceOrder.addItem'.tr(),
                 icon: Icons.add,

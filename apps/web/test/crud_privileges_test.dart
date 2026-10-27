@@ -44,7 +44,7 @@ void main() {
         as Map<String, dynamic>;
     Localization.load(const Locale('pt'), translations: Translations(json));
   });
-  tearDown(() => CurrentInterface.value = null);
+  tearDown(CurrentInterface.reset);
 
   group('CrudPrivileges (o ponto único)', () {
     test('lê os privilégios da interface atual — descrição do catálogo, sem diferenciar caixa', () {
@@ -54,10 +54,17 @@ void main() {
       expect(CrudPrivileges.canSave(creating: true), isTrue);
       expect(CrudPrivileges.canSave(creating: false), isFalse);
     });
-    test('sem interface conhecida (deep link) libera — a API decide', () {
+    test('sem interface conhecida E sem menu (deep link antes do /menus) libera — a API decide', () {
       CurrentInterface.value = null;
       expect([CrudPrivileges.canInsert, CrudPrivileges.canUpdate, CrudPrivileges.canDelete],
           [true, true, true]);
+    });
+    test('D-PV17: menu carregado e a tela aberta FORA dele → falso (o usuário não tem a tela)', () {
+      CurrentInterface.menu = [MenuModule(description: 'Vendas', interfaces: [_iface(['VISUALIZAR', 'INSERIR'])])];
+      CurrentInterface.bindRoute('/home/order-returns/');
+      expect([CrudPrivileges.canInsert, CrudPrivileges.canUpdate, CrudPrivileges.canDelete], [false, false, false]);
+      CurrentInterface.bindRoute('/home/customers/');
+      expect([CrudPrivileges.canInsert, CrudPrivileges.canUpdate], [true, false]);
     });
   });
 

@@ -36,3 +36,22 @@ class InstitutionInterfaceGrant {
         granted: granted ?? this.granted,
       );
 }
+
+/// Resposta de UMA marca (D-PV34): `PUT …/interfaces/:interfaceId { linked }`.
+class InstitutionInterfaceLink {
+  const InstitutionInterfaceLink({required this.interfaceId, required this.linked, required this.changed});
+
+  factory InstitutionInterfaceLink.fromJson(Map<String, dynamic> json) => InstitutionInterfaceLink(
+        interfaceId: (json['interfaceId'] as num).toInt(),
+        linked:      json['linked'] == true,
+        changed:     json['changed'] == true,
+      );
+
+  final int interfaceId;
+
+  /// Estado DEPOIS da marca — é o que a aba mostra.
+  final bool linked;
+
+  /// false = já estava assim (idempotente; sem evento).
+  final bool changed;
+}

@@ -36,7 +36,8 @@ class InstitutionInterfacesDatasourceImpl implements InstitutionInterfacesDataso
   }
 
   @override
-  Future<void> setInterfaces(int institutionId, List<int> interfaceIds) async {
-    await client.put('/api/institution-interfaces/$institutionId', {'interfaceIds': interfaceIds});
+  Future<InstitutionInterfaceLink> setInterface(int institutionId, int interfaceId, bool linked) async {
+    final json = await client.put('/api/institution-interfaces/$institutionId/interfaces/$interfaceId', {'linked': linked});
+    return InstitutionInterfaceLink.fromJson(json['data'] as Map<String, dynamic>);
   }
 }

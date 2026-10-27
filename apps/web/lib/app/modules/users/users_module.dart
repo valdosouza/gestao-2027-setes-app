@@ -5,7 +5,6 @@ import '../../shared/search/search_criteria_datasource.dart';
 import '../../shared/users/datasource/user_datasource.dart';
 import 'data/repository/user_repository_impl.dart';
 import 'domain/repository/user_repository.dart';
-import 'domain/usecase/user_delete.dart';
 import 'domain/usecase/user_get.dart';
 import 'domain/usecase/user_getlist.dart';
 import 'domain/usecase/user_post.dart';
@@ -31,14 +30,11 @@ class UsersModule extends Module {
             (i) => UserPost(repository: i.get<UserRepository>())),
         Bind.factory<UserPut>(
             (i) => UserPut(repository: i.get<UserRepository>())),
-        Bind.factory<UserDelete>(
-            (i) => UserDelete(repository: i.get<UserRepository>())),
         Bind.singleton<UserBloc>((i) => UserBloc(
               getlist: i.get<UserGetlist>(),
               get:     i.get<UserGet>(),
               post:    i.get<UserPost>(),
               put:     i.get<UserPut>(),
-              delete:  i.get<UserDelete>(),
             )),
         // Pesquisa avançada (D-BA2) — amarrada ao /api do PRÓPRIO módulo
         Bind.lazySingleton<SearchCriteriaDatasource>((i) =>

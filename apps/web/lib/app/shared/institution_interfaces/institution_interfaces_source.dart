@@ -11,5 +11,8 @@ import 'institution_interface_grant.dart';
 /// `/api/institution-interfaces/:id`).
 abstract class InstitutionInterfacesSource {
   Future<List<InstitutionInterfaceGrant>> getInterfaces(int institutionId);
-  Future<void> setInterfaces(int institutionId, List<int> interfaceIds);
+
+  /// D-PV34 (2026-10-20): UMA marca — concede ou revoga UMA interface; a API é
+  /// idempotente e devolve o estado DEPOIS (a aba reflete o que ela diz).
+  Future<InstitutionInterfaceLink> setInterface(int institutionId, int interfaceId, bool linked);
 }

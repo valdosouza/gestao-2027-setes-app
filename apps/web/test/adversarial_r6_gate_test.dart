@@ -104,7 +104,7 @@ void main() {
     when(() => nfse.getView(_orderId)).thenAnswer((_) async => const Right(_authorizedVoice));
     when(() => invoice.fiscalEffect(_orderId)).thenAnswer((_) async => const Right(ServiceOrderFiscalEffect()));
     when(() => invoice.cancelPlan(_orderId)).thenAnswer((_) async => Right(_onlyAuthority()));
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

@@ -10,6 +10,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
+import '../../../../shared/entity/widgets/own_establishment_frozen.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
 import '../../../../shared/entity/widgets/social_media_list_tab.dart';
 import '../../../../shared/lookup/datasource/city_lookup_datasource.dart';
@@ -378,7 +379,8 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
             Expanded(
               child: TabBarView(
                 controller: _tabs,
-                children: [
+                // D-PV32: a cadeia e a aba Tributação congelam quando a entity é o próprio estabelecimento
+                children: freezeChainTabs(frozen: draft.ownEstablishment, indexes: const {0, 1, 2, 3}, tabs: [
                   EntityMainTab(
                     value: draft,
                     onChanged: (fiscal) =>
@@ -410,7 +412,7 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
                     value: draft,
                     onChanged: widget.onDraftChanged,
                   ),
-                ],
+                ]),
               ),
             ),
           ],

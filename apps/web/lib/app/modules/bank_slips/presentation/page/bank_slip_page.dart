@@ -69,8 +69,8 @@ class _BankSlipPageState extends State<BankSlipPage>
     // vivas (o webhook só liga na Onda 4) — silenciosa; o evento recarrega a lista.
     _bloc = Modular.get<BankSlipBloc>()
       ..add(const BankSlipListRequested(status: BankSlipStatus.open, filter: ''));
-    // A-PV7: a consulta silenciosa ao abrir só para quem pode falar com o banco (TRANSMITIR)
-    if (CurrentInterface.can('TRANSMITIR')) {
+    // D-PV40: perguntar ao banco sem mudar estado nele = CONSULTAR (transmitir e consultar são verbos independentes)
+    if (CurrentInterface.can('CONSULTAR')) {
       _bloc.add(const BankSlipBankSyncRequested());
     }
     _lookup = Modular.get<BankSlipLookupDatasource>();
@@ -188,8 +188,8 @@ class _BankSlipPageState extends State<BankSlipPage>
         title: Text('register.listTitle'.tr(args: [widget.title])),
         actions: [
           // Onda 2: "Atualizar com o banco" — consulta ativa com resumo
-          // A-PV7: consultar o banco = TRANSMITIR (simétrico ao fisco)
-          if (CurrentInterface.can('TRANSMITIR'))
+          // D-PV40: consultar o banco = CONSULTAR (simétrico ao fisco)
+          if (CurrentInterface.can('CONSULTAR'))
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'forms.bankSlip.bankSync'.tr(),

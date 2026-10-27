@@ -66,7 +66,13 @@ class ObjectCarrier extends ObjectEntityFiscal {
     super.person,
     super.company,
     super.noDoc,
+    this.ownEstablishment = false,
   });
+  /// D-PV32 (2026-10-20): a entity é o PRÓPRIO estabelecimento — a cadeia e a
+  /// aba Tributação ficam somente leitura (edite em Meu Estabelecimento); os
+  /// campos do papel seguem editáveis. Vem do GET; nunca é enviado.
+  final bool ownEstablishment;
+
 
   /// null = inclusão (a API cria a cadeia OU reaproveita a entity pelo doc).
   final int? id;
@@ -81,6 +87,7 @@ class ObjectCarrier extends ObjectEntityFiscal {
     final entity = json['entity'] as Map<String, dynamic>? ?? const {};
     return ObjectCarrier(
       id:     (json['id'] as num?)?.toInt(),
+      ownEstablishment: json['ownEstablishment'] == true,
       active: (json['active'] as String?) == 'S',
       tax: json['tax'] != null
           ? EntityTaxData.fromJson(json['tax'] as Map<String, dynamic>)
@@ -136,6 +143,7 @@ class ObjectCarrier extends ObjectEntityFiscal {
   }) =>
       ObjectCarrier(
         id:           id,
+        ownEstablishment: ownEstablishment,
         active:       active ?? this.active,
         tax:          tax ?? this.tax,
         nameCompany:  nameCompany ?? this.nameCompany,
@@ -154,6 +162,7 @@ class ObjectCarrier extends ObjectEntityFiscal {
   /// ObjectEntityFiscal — os campos do concreto são preservados).
   ObjectCarrier mergeFiscal(ObjectEntityFiscal fiscal) => ObjectCarrier(
         id:           id,
+        ownEstablishment: ownEstablishment,
         active:       active,
         tax:          tax,
         nameCompany:  fiscal.nameCompany,

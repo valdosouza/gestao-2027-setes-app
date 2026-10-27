@@ -56,7 +56,9 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
   /// (showServerFieldError — Framework de Mensagens, Onda B).
   final _formPageKey = GlobalKey<RegisterFormPageState>();
 
-  /// Ativo (tb_user.active) — estado da página, fora dos values da fábrica.
+  /// Ativo do VÍNCULO com o estabelecimento do admin (D-PV19/D-UC2) — estado
+  /// da página, fora dos values da fábrica. O super (tela global, sem foco)
+  /// não mexe nele aqui — o vínculo é da aba Usuários do Estabelecimento.
   bool _active = true;
   int? _editingId;
 
@@ -133,10 +135,12 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           label:     'forms.user.nick'.tr(),
           validator: SetesValidators.required(),
         ),
+        // D-PV19/D-UC1: o e-mail de LOGIN é imutável — editável só na inclusão (a API recusa a troca)
         RegisterField(
           name:         'email',
           label:        'forms.user.email'.tr(),
           keyboardType: TextInputType.emailAddress,
+          readOnly:     !creating,
           validator: SetesValidators.compose([
             SetesValidators.required(),
             SetesValidators.email(),
@@ -156,11 +160,13 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         ),
       ], fieldConfig),
       extraChildren: [
-        SetesCheckbox(
-          label: 'forms.user.active'.tr(),
-          value: _active,
-          onChanged: (checked) => setState(() => _active = checked ?? true),
-        ),
+        // D-UC2: o "ativo" é do vínculo com o estabelecimento — na tela global do super não há foco (fica na aba do Estabelecimento)
+        if (!_isSuper)
+          SetesCheckbox(
+            label: 'forms.user.active'.tr(),
+            value: _active,
+            onChanged: (checked) => setState(() => _active = checked ?? true),
+          ),
       ],
       // Duas abas (pedido do Valdo 2026-07-12): Dados do Usuário ×
       // Permissões (vínculos com estabelecimentos + privilégios de acesso).
@@ -206,15 +212,14 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           password: (values['password'] ?? '').isEmpty
               ? null
               : values['password'],
-          active: _active,
+          active: _isSuper ? null : _active,
         ),
         creating: creating,
       )),
       onCancel: () => _bloc.add(const UserBackToListPressed()),
-      onDelete: creating
-          ? null
-          : () => _bloc.add(UserDeleteRequested(editing.id!)),
-      canDelete: !creating,
+      // D-PV19/D-UC1: a credencial nunca é excluída — sem lixeira; inativa-se o vínculo
+      onDelete: null,
+      canDelete: false,
         creating: creating,
     );
   }

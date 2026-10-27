@@ -1,4 +1,3 @@
-import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -57,10 +56,6 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
   /// carregar = vitrine sem o botão (a tela nunca quebra por isso).
   List<SearchCriterion> _searchCriteria = const [];
 
-  /// Perfil do usuário logado (via /api/core/me): decide o alvo do salvar
-  /// (institution × override pessoal) e o que fica editável.
-  bool _isAdmin = false;
-
   @override
   void initState() {
     super.initState();
@@ -73,7 +68,6 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
     }
     _searchDatasource = Modular.get<SearchCriteriaDatasource>();
     _loadSearchCriteria();
-    _loadProfile();
   }
 
   Future<void> _loadSearchCriteria() async {
@@ -83,16 +77,6 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
     } catch (_) {
       // sem critérios = sem botão; o filtro rápido segue funcionando
     }
-  }
-
-  Future<void> _loadProfile() async {
-    final result = await Modular.get<GetMeUsecase>()();
-    result.fold(
-      (_) {},
-      (me) {
-        if (mounted) setState(() => _isAdmin = me.isAdmin);
-      },
-    );
   }
 
   void _openInterface(InterfaceVitrineEntity iface) {
@@ -105,14 +89,17 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
     _bloc.add(InterfaceConfigsInterfaceOpened(iface));
   }
 
+  /// D-PV25/D-PV26: a API diz se quem pede tem CONFIGURAR na interface alvo
+  /// (`canConfigure`) — grava o valor da institution; senão só o override
+  /// pessoal quando o catálogo autoriza (scope U, A-PV6). O perfil não decide.
   bool _canEdit(InterfaceConfigEntity config) =>
-      _isAdmin || config.allowsUserOverride;
+      config.canConfigure || config.allowsUserOverride;
 
-  void _save(String name, String? content) =>
+  void _save(InterfaceConfigEntity config, String? content) =>
       _bloc.add(InterfaceConfigsValueSaveRequested(
-        name: name,
+        name: config.name,
         content: content,
-        asUser: !_isAdmin,
+        asUser: !config.canConfigure,
       ));
 
   // -------------------------------------------------------------------
@@ -144,7 +131,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
           subtitle: subtitle,
           value: config.boolValue,
           enabled: enabled,
-          onChanged: (checked) => _save(config.name, checked ? 'S' : 'N'),
+          onChanged: (checked) => _save(config, checked ? 'S' : 'N'),
         );
       case 'Options':
         final options = config.optionsList;
@@ -166,7 +153,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
                 value: selected,
                 itemLabel: (option) => option.label,
                 onChanged: (option) {
-                  if (option != null) _save(config.name, option.value);
+                  if (option != null) _save(config, option.value);
                 },
               ),
             ),
@@ -201,7 +188,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
       final formatted = '${picked.year.toString().padLeft(4, '0')}-'
           '${picked.month.toString().padLeft(2, '0')}-'
           '${picked.day.toString().padLeft(2, '0')}';
-      _save(config.name, formatted);
+      _save(config, formatted);
     }
   }
 
@@ -210,7 +197,7 @@ class _InterfaceConfigsPageState extends State<InterfaceConfigsPage> {
       context: context,
       builder: (_) => _ConfigValueDialog(config: config),
     );
-    if (result != null) _save(config.name, result.content);
+    if (result != null) _save(config, result.content);
   }
 
   // -------------------------------------------------------------------

@@ -11,6 +11,7 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
+import '../../../../shared/entity/widgets/own_establishment_frozen.dart';
 import '../../../../shared/entity/widgets/entity_tax_tab.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
 import '../../../../shared/entity/widgets/social_media_list_tab.dart';
@@ -377,7 +378,8 @@ class _ProviderFormViewState extends State<_ProviderFormView>
             Expanded(
               child: TabBarView(
                 controller: _tabs,
-                children: [
+                // D-PV32: a cadeia e a aba Tributação congelam quando a entity é o próprio estabelecimento
+                children: freezeChainTabs(frozen: draft.ownEstablishment, indexes: const {0, 1, 2, 3, 5}, tabs: [
                   EntityMainTab(
                     value: draft,
                     onChanged: (fiscal) =>
@@ -416,7 +418,7 @@ class _ProviderFormViewState extends State<_ProviderFormView>
                     onChanged: (tax) =>
                         widget.onDraftChanged(draft.copyWith(tax: tax)),
                   ),
-                ],
+                ]),
               ),
             ),
           ],

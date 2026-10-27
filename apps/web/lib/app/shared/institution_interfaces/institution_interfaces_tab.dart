@@ -15,9 +15,10 @@ import 'institution_interfaces_source.dart';
 ///
 /// Aba AUTÔNOMA (precedente dos checkboxes de privilégios da tela de
 /// Interfaces): carrega e grava via datasource, fora do draft do bloc —
-/// cada toggle sincroniza na hora (PUT com a lista completa; a API concede
-/// a lista e revoga as demais com soft delete). Só funciona na EDIÇÃO:
-/// o contrato vive no schema do cliente, que nasce no salvar do cadastro.
+/// cada toggle é UMA marca (D-PV34, 2026-10-20: concede ou revoga UM id; a
+/// API é idempotente e a aba reflete o estado que ela devolve — nunca a lista
+/// inteira). Só funciona na EDIÇÃO: o contrato vive no schema do cliente,
+/// que nasce no salvar do cadastro.
 ///
 /// Filtros LOCAIS por módulo (group_default do catálogo) e nome da
 /// interface (pedido do Valdo 2026-07-12 — catálogo chegará a ~300
@@ -85,24 +86,21 @@ class _InstitutionInterfacesTabState extends State<InstitutionInterfacesTab> {
     }
   }
 
-  /// Toggle = sincroniza o contrato na hora (PUT com a lista completa).
-  /// Sucesso = SnackBar via ponte (R1); falhou → reverte o estado local e
-  /// entrega o Failure à ponte.
+  /// Toggle = UMA marca (D-PV34): a API concede/revoga este id e devolve o
+  /// estado depois; a aba mostra o que ela disse. Sucesso = SnackBar via
+  /// ponte (R1); falhou → reverte o estado local e entrega o Failure à ponte.
   Future<void> _toggle(InstitutionInterfaceGrant grant, bool granted) async {
     final previous = _grants;
-    final updated = [
-      for (final g in _grants) g.id == grant.id ? g.copyWith(granted: granted) : g,
-    ];
     setState(() {
-      _grants = updated;
+      _grants = [for (final g in _grants) g.id == grant.id ? g.copyWith(granted: granted) : g];
       _saving = true;
     });
     try {
-      await widget.datasource.setInterfaces(
-        widget.institutionId!,
-        [for (final g in updated) if (g.granted) g.id],
-      );
+      final link = await widget.datasource.setInterface(widget.institutionId!, grant.id, granted);
       if (mounted) {
+        setState(() {
+          _grants = [for (final g in _grants) g.id == link.interfaceId ? g.copyWith(granted: link.linked) : g];
+        });
         await showSuccessFeedback(context, 'forms.institution.interfacesSaved');
       }
     } on Failure catch (failure) {

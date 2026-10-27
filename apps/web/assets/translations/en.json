@@ -90,6 +90,7 @@
     "nextPage": "Next page",
     "saved": "Record saved",
     "deleted": "Record deleted",
+    "ownEstablishment": "This entity is the establishment itself — company data and taxation are edited in My Establishment; only the role fields are editable here.",
     "confirmDelete": "Confirm deletion?",
     "error": "The operation could not be completed",
     "yes": "Yes",

@@ -35,6 +35,11 @@ class UserListItem {
 /// Usuário completo (GET /api/users/:id) + payload do POST/PUT.
 /// [password] é SÓ de envio (a API nunca devolve a senha):
 /// null no PUT = mantém a atual.
+/// D-PV19/D-UC2 (2026-10-20): [active] é do VÍNCULO com o estabelecimento em
+/// foco (admin = o do JWT; super = o institutionId passado ao GET/PUT); null =
+/// sem foco (a tela global do Super) — não se mostra nem se envia. O e-mail de
+/// login é IMUTÁVEL (a API recusa a troca — 409 LOGIN_EMAIL_IMMUTABLE) e a
+/// exclusão de usuário não existe (D-UC1: inativa-se o vínculo).
 class UserEntity {
   const UserEntity({
     this.id,
@@ -42,7 +47,7 @@ class UserEntity {
     required this.nickTrade,
     required this.email,
     this.password,
-    this.active = true,
+    this.active,
   });
 
   factory UserEntity.fromJson(Map<String, dynamic> json) => UserEntity(
@@ -50,7 +55,7 @@ class UserEntity {
         nameCompany: json['nameCompany'] as String? ?? '',
         nickTrade:   json['nickTrade'] as String? ?? '',
         email:       json['email'] as String? ?? '',
-        active:      json['active'] == 'S',
+        active:      json['active'] == null ? null : json['active'] == 'S',
       );
 
   final int? id;
@@ -58,14 +63,14 @@ class UserEntity {
   final String nickTrade;
   final String email;
   final String? password;
-  final bool active;
+  final bool? active;
 
   Map<String, dynamic> toJson() => {
         'nameCompany': nameCompany,
         'nickTrade':   nickTrade,
         'email':       email,
         if (password != null && password!.isNotEmpty) 'password': password,
-        'active':      active ? 'S' : 'N',
+        if (active != null) 'active': active! ? 'S' : 'N',
       };
 }
 

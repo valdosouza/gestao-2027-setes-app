@@ -75,7 +75,13 @@ class ObjectCollaborator extends ObjectEntityFiscal {
     super.person,
     super.company,
     super.noDoc,
+    this.ownEstablishment = false,
   });
+  /// D-PV32 (2026-10-20): a entity é o PRÓPRIO estabelecimento — a cadeia e a
+  /// aba Tributação ficam somente leitura (edite em Meu Estabelecimento); os
+  /// campos do papel seguem editáveis. Vem do GET; nunca é enviado.
+  final bool ownEstablishment;
+
 
   /// null = inclusão (a API cria a cadeia OU reaproveita a entity pelo doc).
   final int? id;
@@ -96,6 +102,7 @@ class ObjectCollaborator extends ObjectEntityFiscal {
     final entity = json['entity'] as Map<String, dynamic>? ?? const {};
     return ObjectCollaborator(
       id:                  (json['id'] as num?)?.toInt(),
+      ownEstablishment: json['ownEstablishment'] == true,
       dtAdmission:         json['dtAdmission'] as String?,
       dtResignation:       json['dtResignation'] as String?,
       salary:              jsonDouble(json['salary']),
@@ -181,6 +188,7 @@ class ObjectCollaborator extends ObjectEntityFiscal {
   }) =>
       ObjectCollaborator(
         id:            id,
+        ownEstablishment: ownEstablishment,
         dtAdmission:   dtAdmission != null ? dtAdmission() : this.dtAdmission,
         dtResignation:
             dtResignation != null ? dtResignation() : this.dtResignation,
@@ -212,6 +220,7 @@ class ObjectCollaborator extends ObjectEntityFiscal {
   ObjectCollaborator mergeFiscal(ObjectEntityFiscal fiscal) =>
       ObjectCollaborator(
         id:                  id,
+        ownEstablishment: ownEstablishment,
         dtAdmission:         dtAdmission,
         dtResignation:       dtResignation,
         salary:              salary,

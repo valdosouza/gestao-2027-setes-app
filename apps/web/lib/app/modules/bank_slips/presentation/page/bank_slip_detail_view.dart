@@ -286,8 +286,8 @@ class BankSlipDetailView extends StatelessWidget {
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
-                // A-PV7: reaplicar a voz do banco = TRANSMITIR
-                if (CurrentInterface.can('TRANSMITIR'))
+                // D-PV27: reaplicar = o privilégio do EFEITO reaplicado — voz R (liquidação) = ALTERAR; C/V (cancelamento) = CANCELAR
+                if (p.kind == 'R' ? CurrentInterface.can('ALTERAR') : CurrentInterface.can('CANCELAR'))
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: SetesButton(
@@ -315,9 +315,9 @@ class BankSlipDetailView extends StatelessWidget {
                       loading: saving,
                       onPressed: saving ? null : onRegister,
                     ),
-                  // A-PV7: consultar o banco = TRANSMITIR
+                  // D-PV40: consultar o banco = CONSULTAR
                   if (reg != null && reg.requestCode != null &&
-                      CurrentInterface.can('TRANSMITIR'))
+                      CurrentInterface.can('CONSULTAR'))
                     SetesButton(
                       label: 'forms.bankSlip.refresh'.tr(),
                       icon: Icons.sync,

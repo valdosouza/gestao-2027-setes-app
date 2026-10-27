@@ -207,13 +207,13 @@ class _UserDialogState extends State<_UserDialog> {
   Future<void> _loadUser() async {
     setState(() => _loading = true);
     try {
-      final user = await widget.datasource.get(widget.editingId!);
+      final user = await widget.datasource.get(widget.editingId!, institutionId: widget.institutionId);
       if (mounted) {
         setState(() {
           _name.text  = user.nameCompany;
           _nick.text  = user.nickTrade;
           _email.text = user.email;
-          _active     = user.active;
+          _active     = user.active ?? true;
         });
       }
     } on Failure catch (failure) {
@@ -295,7 +295,8 @@ class _UserDialogState extends State<_UserDialog> {
         await widget.datasource.post(user,
             institutionId: widget.institutionId, kind: _kind);
       } else {
-        await widget.datasource.put(user);
+        // D-UC2: o "ativo" vai ao VÍNCULO com ESTE estabelecimento (o super informa o alvo)
+        await widget.datasource.put(user, institutionId: widget.institutionId);
         // Perfil mudou → sincroniza SÓ o vínculo deste institution,
         // preservando os demais (a aba é do Super — endpoint de vínculos).
         if (_kindEditable && _kind != widget.initialKind) {
@@ -363,11 +364,13 @@ class _UserDialogState extends State<_UserDialog> {
                         validator: _tr(SetesValidators.required()),
                       ),
                       const SizedBox(height: 16),
+                      // D-PV19/D-UC1: o e-mail de login é imutável — só na inclusão
                       SetesTextField(
                         label: 'forms.user.email'.tr(),
                         controller: _email,
                         focusNode: _emailFocus,
                         fieldKey: _emailKey,
+                        readOnly: !_creating,
                         keyboardType: TextInputType.emailAddress,
                         validator: _tr(SetesValidators.compose([
                           SetesValidators.required(),

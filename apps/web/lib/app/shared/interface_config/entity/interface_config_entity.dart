@@ -12,6 +12,7 @@ class InterfaceConfigEntity {
     this.options,
     this.institutionContent,
     this.userContent,
+    this.canConfigure = false,
   });
 
   factory InterfaceConfigEntity.fromJson(Map<String, dynamic> json) =>
@@ -25,6 +26,7 @@ class InterfaceConfigEntity {
         institutionContent: json['institutionContent'] as String?,
         userContent:        json['userContent'] as String?,
         content:            json['content'] as String? ?? '',
+        canConfigure:       json['canConfigure'] == true,
       );
 
   /// Chave da configuração (snake_case — ex-GRL_CAMPO).
@@ -53,6 +55,11 @@ class InterfaceConfigEntity {
 
   /// Valor EFETIVO para o usuário corrente (usuário → institution → default).
   final String content;
+
+  /// D-PV25/D-PV26: quem pede tem CONFIGURAR na interface ALVO — grava o valor da
+  /// INSTITUTION ('I'). Vem da API (`GET /interface-configs/:id` e `/key/:k`);
+  /// a tela nunca decide pelo perfil. false = só o override pessoal (scope U).
+  final bool canConfigure;
 
   bool get allowsUserOverride => scope == 'U';
 
