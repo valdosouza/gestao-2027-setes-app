@@ -192,6 +192,7 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
         // externo — precedente País/BACEN); imutável na edição.
         RegisterField(
           name:         'id',
+          size:         SetesFieldSize.small,
           label:        'forms.cfop.code'.tr(),
           readOnly:     !creating,
           keyboardType: TextInputType.number,
@@ -208,6 +209,7 @@ class _CfopPageState extends State<CfopPage> with FieldConfigLoader {
         ),
         RegisterField(
           name:         'register',
+          size:         SetesFieldSize.small,
           label:        'forms.cfop.register'.tr(),
           keyboardType: TextInputType.number,
           validator:    _validateOptionalInt,

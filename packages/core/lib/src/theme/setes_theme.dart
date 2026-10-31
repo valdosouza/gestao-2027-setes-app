@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'tokens/setes_tokens.dart';
@@ -34,6 +35,42 @@ class SetesMetrics {
   static const double padding = 16.0; // kDefaultPadding do weberpsetes
 }
 
+/// Densidade do sistema (onda A — 2026-10-17, Valdo: "densidade fixa no
+/// tema"). FIXA por plataforma, não por largura: mouse e teclado (Windows,
+/// macOS, Linux — inclusive no navegador) = COMPACTA; toque (Android, iOS)
+/// = padrão do Material. Janela estreita no desktop continua compacta —
+/// quem decide a largura dos campos é a grade (SetesFormGrid), não o tema.
+class SetesDensity {
+  const SetesDensity._();
+
+  static bool get compactByPlatform => switch (defaultTargetPlatform) {
+        TargetPlatform.windows ||
+        TargetPlatform.macOS ||
+        TargetPlatform.linux =>
+          true,
+        _ => false,
+      };
+
+  /// Campo de texto: 14 px com respiro vertical menor (~41 px de altura;
+  /// era 48 com a densidade compacta do Material e 56 no padrão).
+  static const double fieldFontSize = 14;
+  static const EdgeInsets fieldPadding =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 14);
+
+  /// Rótulo que sobe para a borda do campo: o Material o reduz a 75 % — com
+  /// a base em 16 ele fica nos 12 px de antes (com a base em 14 ficaria em
+  /// 10,5 px, pequeno demais — visto no passeio de 2026-10-17). Só o tamanho:
+  /// a cor de foco/erro continua vindo do Material.
+  static const double floatingLabelFontSize = 16;
+
+  /// Barras (AppBar do sistema e das telas).
+  static const double toolbarHeight = 48;
+
+  /// Linhas de lista e itens de menu: uma linha 40 px, duas linhas 56 px.
+  static const VisualDensity listDensity =
+      VisualDensity(horizontal: -2, vertical: -4);
+}
+
 /// Fábrica de tema (decisão 27): a WEB usa UM estilo para todos os módulos.
 /// Padrão = identidade Setes; o cliente sobrepõe primary/secondary via
 /// tb_institution_theme (decisão 16). Todo o resto deriva dos marcadores —
@@ -42,9 +79,11 @@ class SetesMetrics {
 class SetesTheme {
   const SetesTheme._();
 
-  static ThemeData build({Color? primary, Color? secondary}) {
+  /// [compact] = densidade compacta (SetesDensity); null = pela plataforma.
+  static ThemeData build({Color? primary, Color? secondary, bool? compact}) {
     final Color brandPrimary   = primary ?? SetesColors.blue;   // azul do "7" da logo
     final Color brandSecondary = secondary ?? SetesColors.navy;
+    final bool dense = compact ?? SetesDensity.compactByPlatform;
 
     var scheme = ColorScheme.fromSeed(seedColor: brandPrimary).copyWith(
       primary: brandPrimary,
@@ -70,12 +109,30 @@ class SetesTheme {
       colorScheme: scheme,
       extensions: [tokens],
       scaffoldBackgroundColor: SetesColors.bgLight,
+      // Densidade (SetesDensity): compacta no desktop, padrão no toque.
+      visualDensity: dense ? VisualDensity.compact : VisualDensity.standard,
+      inputDecorationTheme: dense
+          ? const InputDecorationTheme(
+              isDense: true,
+              contentPadding: SetesDensity.fieldPadding,
+              floatingLabelStyle:
+                  TextStyle(fontSize: SetesDensity.floatingLabelFontSize),
+            )
+          : null,
+      listTileTheme: dense
+          ? const ListTileThemeData(visualDensity: SetesDensity.listDensity)
+          : null,
       // Faixa da marca: primária com texto branco (flyer Setes)
       appBarTheme: AppBarTheme(
         backgroundColor: brandPrimary,
         foregroundColor: Colors.white,
+        toolbarHeight: dense ? SetesDensity.toolbarHeight : null,
       ),
       textTheme: baseText.copyWith(
+        // Texto digitado nos campos e título das linhas de lista (M3).
+        bodyLarge: dense
+            ? const TextStyle(fontSize: SetesDensity.fieldFontSize)
+            : null,
         titleLarge: const TextStyle(
             fontSize: 20, fontWeight: FontWeight.w600, color: SetesColors.titleText),
         titleMedium: const TextStyle(

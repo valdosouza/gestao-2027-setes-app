@@ -158,6 +158,7 @@ class _ServiceListPageState extends State<ServiceListPage>
         // código externo — precedente CFOP); imutável na edição.
         RegisterField(
           name:      'id',
+          size:      SetesFieldSize.small,
           label:     'forms.serviceList.id'.tr(),
           hint:      'forms.serviceList.idHint'.tr(),
           readOnly:  !creating,
@@ -165,6 +166,7 @@ class _ServiceListPageState extends State<ServiceListPage>
         ),
         RegisterField(
           name:      'description',
+          size:      SetesFieldSize.full,
           label:     'forms.serviceList.description'.tr(),
           validator: _validateDescription,
         ),

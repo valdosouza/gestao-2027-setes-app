@@ -57,7 +57,9 @@
     "modules": "Módulos",
     "welcome": "Selecione um módulo no menu",
     "not_implemented": "Interface '{}' ainda não implementada",
-    "logout": "Sair"
+    "logout": "Sair",
+    "collapseInterfaces": "Recolher as telas",
+    "expandInterfaces": "Mostrar as telas (clique no módulo)"
   },
   "register": {
     "search": "Pesquisar",

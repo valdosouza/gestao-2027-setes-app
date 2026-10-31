@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:setes_validators/setes_validators.dart';
+import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
@@ -119,6 +120,7 @@ class _ModulePageState extends State<ModulePage> with FieldConfigLoader {
         // inclusão, preenchido na edição (precedente de Privilégios).
         RegisterField(
           name:     'id',
+          size:     SetesFieldSize.small,
           label:    'forms.module.code'.tr(),
           readOnly: true,
         ),
@@ -135,6 +137,7 @@ class _ModulePageState extends State<ModulePage> with FieldConfigLoader {
         ),
         RegisterField(
           name:         'position',
+          size:         SetesFieldSize.small,
           label:        'forms.module.position'.tr(),
           hint:         'forms.module.positionHint'.tr(),
           keyboardType: TextInputType.number,
@@ -144,6 +147,7 @@ class _ModulePageState extends State<ModulePage> with FieldConfigLoader {
         // campo: nome conhecido = o próprio ícone; sem match = Icons.folder.
         RegisterField(
           name:      'imageIcon',
+          size:      SetesFieldSize.medium,
           label:     'forms.module.icon'.tr(),
           hint:      'forms.module.iconHint'.tr(),
           validator: SetesValidators.maxLength(50),

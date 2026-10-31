@@ -146,6 +146,7 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
       fields: applyFieldConfig([
         RegisterField(
           name:         'id',
+          size:         SetesFieldSize.small,
           label:        'forms.state.code'.tr(),
           keyboardType: TextInputType.number,
           readOnly:     !creating, // código IBGE imutável na edição
@@ -160,16 +161,19 @@ class _StatePageState extends State<StatePage> with FieldConfigLoader {
         ),
         RegisterField(
           name:      'abbreviation',
+          size:      SetesFieldSize.small,
           label:     'forms.state.abbreviation'.tr(),
           validator: _validateRequired,
         ),
         RegisterField(
           name:      'name',
+          size:      SetesFieldSize.medium,
           label:     'forms.state.name'.tr(),
           validator: _validateRequired,
         ),
         RegisterField(
           name:         'aliquota',
+          size:         SetesFieldSize.small,
           label:        'forms.state.aliquota'.tr(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator:    _validateDecimal,

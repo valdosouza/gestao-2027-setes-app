@@ -18,7 +18,18 @@ class LanguageSelector extends StatelessWidget {
 
   static const Map<String, String> _labels = {'pt': 'Português', 'en': 'English'};
 
-  Future<void> _change(BuildContext context, Locale locale) async {
+  /// Nome do idioma no próprio idioma (ex.: "Português").
+  static String labelOf(Locale locale) => _labels[locale.languageCode] ?? locale.languageCode;
+
+  /// Troca o idioma — o MESMO caminho do seletor, para quem oferece o idioma em
+  /// outro lugar (ex.: o menu do usuário no celular — onda D da densidade).
+  /// [context] precisa seguir montado depois da escolha (nunca o de um popup).
+  static Future<void> change(
+    BuildContext context,
+    Locale locale, {
+    bool persist = true,
+    SavePreferenceUsecase? saveUsecase,
+  }) async {
     await context.setLocale(locale);
     if (persist) {
       final usecase = saveUsecase ?? Modular.get<SavePreferenceUsecase>();
@@ -30,15 +41,15 @@ class LanguageSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = context.locale;
     return PopupMenuButton<Locale>(
-      tooltip: _labels[current.languageCode] ?? current.languageCode,
+      tooltip: labelOf(current),
       icon: const Icon(Icons.language_outlined),
-      onSelected: (locale) => _change(context, locale),
+      onSelected: (locale) => change(context, locale, persist: persist, saveUsecase: saveUsecase),
       itemBuilder: (context) => [
         for (final locale in context.supportedLocales)
           CheckedPopupMenuItem<Locale>(
             value: locale,
             checked: locale.languageCode == current.languageCode,
-            child: Text(_labels[locale.languageCode] ?? locale.languageCode),
+            child: Text(labelOf(locale)),
           ),
       ],
     );

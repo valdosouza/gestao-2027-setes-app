@@ -30,6 +30,7 @@ RegisterField _merge(RegisterField field, FieldConfigEntity? config) {
       onPick:  field.onPick,
       validatorMessage: field.validatorMessage ??
           (config.required ? 'forms.validation.required'.tr() : null),
+      size:    field.size,
     );
   }
 
@@ -50,6 +51,7 @@ RegisterField _merge(RegisterField field, FieldConfigEntity? config) {
     mask:            config.mask ?? field.mask,
     hint:            field.hint,
     trailingBuilder: field.trailingBuilder,
+    size:            field.size,
     validator:
         validators.isEmpty ? null : SetesValidators.compose(validators),
   );

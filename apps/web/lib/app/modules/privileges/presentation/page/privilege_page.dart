@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
@@ -81,6 +82,7 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
         // inclusão, preenchido na edição (decisão do Valdo 2026-07-11).
         RegisterField(
           name:     'id',
+          size:     SetesFieldSize.small,
           label:    'forms.privilege.code'.tr(),
           readOnly: true,
         ),
