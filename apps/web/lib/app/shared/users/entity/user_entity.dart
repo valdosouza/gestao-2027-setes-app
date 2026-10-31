@@ -33,8 +33,10 @@ class UserListItem {
 }
 
 /// Usuário completo (GET /api/users/:id) + payload do POST/PUT.
-/// [password] é SÓ de envio (a API nunca devolve a senha):
-/// null no PUT = mantém a atual.
+/// [password] é SÓ de envio (a API nunca devolve a senha). D-PV48 (2026-10-27):
+/// a senha se define UMA vez, na criação da credencial — no PUT só vai para
+/// conta SEM credencial ([hasCredential] falso: usuário vindo do sincronizador —
+/// A-PV23); depois, só o titular troca, pelo "Esqueci minha senha".
 /// D-PV19/D-UC2 (2026-10-20): [active] é do VÍNCULO com o estabelecimento em
 /// foco (admin = o do JWT; super = o institutionId passado ao GET/PUT); null =
 /// sem foco (a tela global do Super) — não se mostra nem se envia. O e-mail de
@@ -48,6 +50,7 @@ class UserEntity {
     required this.email,
     this.password,
     this.active,
+    this.hasCredential = false,
   });
 
   factory UserEntity.fromJson(Map<String, dynamic> json) => UserEntity(
@@ -56,6 +59,7 @@ class UserEntity {
         nickTrade:   json['nickTrade'] as String? ?? '',
         email:       json['email'] as String? ?? '',
         active:      json['active'] == null ? null : json['active'] == 'S',
+        hasCredential: json['hasCredential'] == true,
       );
 
   final int? id;
@@ -64,6 +68,9 @@ class UserEntity {
   final String email;
   final String? password;
   final bool? active;
+
+  /// A credencial já existe (há senha)? Só leitura — a API nunca devolve o hash.
+  final bool hasCredential;
 
   Map<String, dynamic> toJson() => {
         'nameCompany': nameCompany,

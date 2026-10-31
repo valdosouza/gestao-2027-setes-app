@@ -259,8 +259,12 @@ class _UserPrivilegesSectionState extends State<UserPrivilegesSection> {
 }
 
 /// Dialog dos privilégios de UMA interface (3ª parte do modelo Delphi):
-/// checkboxes do catálogo da interface. Marcar qualquer privilégio marca
-/// VISUALIZAR junto — sem ele a interface some do menu do usuário regular.
+/// checkboxes do catálogo da interface. D-PV57/D-PV58 (2026-10-31): marcar
+/// qualquer verbo marca o VISUALIZAR junto (a API aplica a MESMA regra ao
+/// gravar). D-PV59: desmarcar o VISUALIZAR desmarca TODOS os verbos da tela
+/// (tirar o VISUALIZAR = tirar a tela) e o diálogo mostra o que sai ANTES de
+/// salvar. D-PV60: a concessão antiga com verbo sem VISUALIZAR abre como está,
+/// com o aviso de que o salvar a acerta (nenhum script mexe nela).
 class _PrivilegesDialog extends StatefulWidget {
   const _PrivilegesDialog({required this.item});
 
@@ -273,6 +277,14 @@ class _PrivilegesDialog extends StatefulWidget {
 class _PrivilegesDialogState extends State<_PrivilegesDialog> {
   late Set<int> _selected;
 
+  /// D-PV59: o que saiu junto ao desmarcar o VISUALIZAR (mostrado antes de salvar).
+  List<String> _removedWithView = const [];
+
+  /// D-PV60: concessão gravada antes da D-PV58 — verbo sem o VISUALIZAR.
+  late final bool _legacyNoView;
+
+  bool get _hasView => widget.item.privileges.any((p) => p.privilegeId == _visualizarId);
+
   @override
   void initState() {
     super.initState();
@@ -280,14 +292,23 @@ class _PrivilegesDialogState extends State<_PrivilegesDialog> {
       for (final p in widget.item.privileges)
         if (p.granted) p.privilegeId,
     };
+    _legacyNoView = _hasView && _selected.isNotEmpty && !_selected.contains(_visualizarId);
   }
 
   void _toggle(int privilegeId, bool checked) {
     setState(() {
       if (checked) {
         _selected.add(privilegeId);
-        // Operar exige enxergar: VISUALIZAR entra junto (menu — opção 1).
-        _selected.add(_visualizarId);
+        // D-PV58: todo verbo leva o VISUALIZAR da mesma tela (operar exige enxergar)
+        if (_hasView) _selected.add(_visualizarId);
+        _removedWithView = const [];
+      } else if (privilegeId == _visualizarId) {
+        // D-PV59: tirar o VISUALIZAR tira a tela — todos os verbos saem, e a lista do que saiu aparece
+        _removedWithView = [
+          for (final p in widget.item.privileges)
+            if (p.privilegeId != _visualizarId && _selected.contains(p.privilegeId)) p.description ?? '${p.privilegeId}',
+        ];
+        _selected.clear();
       } else {
         _selected.remove(privilegeId);
       }
@@ -313,6 +334,17 @@ class _PrivilegesDialogState extends State<_PrivilegesDialog> {
                 padding: const EdgeInsets.only(top: 8),
                 child: SetesText('forms.user.privilegesVisualizarHint'.tr()),
               ),
+              if (_removedWithView.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SetesText('forms.user.privilegesViewOffWarning'
+                      .tr(args: [_removedWithView.join(', ')])),
+                ),
+              if (_legacyNoView && !_selected.contains(_visualizarId) && _selected.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SetesText('forms.user.privilegesLegacyNoView'.tr()),
+                ),
             ],
           ),
         ),

@@ -149,21 +149,23 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
             SetesValidators.email(),
           ]),
         ),
-        RegisterField(
-          name:    'password',
-          size:    SetesFieldSize.medium,
-          label:   'forms.user.password'.tr(),
-          obscure: true,
-          // Inclusão: obrigatória. Edição: vazia mantém a atual.
-          validator: creating
-              ? SetesValidators.compose([
-                  SetesValidators.required(),
-                  SetesValidators.minLength(5),
-                ])
-              : SetesValidators.minLength(5),
-        ),
+        // D-PV48 (2026-10-27): a senha se define UMA vez — na criação da credencial (inclusão, ou a 1ª senha de uma conta que veio do
+        // sincronizador sem senha — A-PV23). Depois, só o titular troca, pelo "Esqueci minha senha"; o campo nem aparece.
+        if (creating || !editing.hasCredential)
+          RegisterField(
+            name:    'password',
+            size:    SetesFieldSize.medium,
+            label:   'forms.user.password'.tr(),
+            obscure: true,
+            validator: SetesValidators.compose([
+              SetesValidators.required(),
+              SetesValidators.minLength(5),
+            ]),
+          ),
       ], fieldConfig),
       extraChildren: [
+        if (!creating && editing.hasCredential)
+          SetesText('forms.user.passwordOwnerOnly'.tr()),
         // D-UC2: o "ativo" é do vínculo com o estabelecimento — na tela global do super não há foco (fica na aba do Estabelecimento)
         if (!_isSuper)
           SetesCheckbox(
