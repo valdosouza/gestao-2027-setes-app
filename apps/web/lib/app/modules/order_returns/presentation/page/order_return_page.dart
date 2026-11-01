@@ -496,6 +496,9 @@ class _OrderReturnDetailView extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // D-PV21 (Valdo 2026-10-20, fecha a Q-PV10 = (b)): todo ato sobre o DOCUMENTO ABERTO é ALTERAR — item novo, mudado ou tirado;
+                // INSERIR = abrir o documento, EXCLUIR = apagá-lo (um verbo, um sentido, sobre o documento)
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.edit),
                   tooltip: 'forms.orderReturn.editItem'.tr(),
@@ -503,6 +506,7 @@ class _OrderReturnDetailView extends StatelessWidget {
                       ? null
                       : () => _openQuantityDialog(context, item),
                 ),
+                if (CurrentInterface.can('ALTERAR'))
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'forms.orderReturn.removeItem'.tr(),
@@ -512,7 +516,7 @@ class _OrderReturnDetailView extends StatelessWidget {
               ],
             )
           : null,
-      onTap: orderReturn.isOpen && !busy
+      onTap: orderReturn.isOpen && !busy && CurrentInterface.can('ALTERAR')
           ? () => _openQuantityDialog(context, item)
           : null,
     );
@@ -527,7 +531,8 @@ class _OrderReturnDetailView extends StatelessWidget {
           ),
           title: Text(title),
           actions: [
-            if (orderReturn.isOpen)
+            // D-PV2: excluir a devolução aberta = EXCLUIR (D-PV7)
+            if (orderReturn.isOpen && CurrentInterface.can('EXCLUIR'))
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'forms.orderReturn.cancelReturn'.tr(),

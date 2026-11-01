@@ -1,7 +1,8 @@
 /// Linha do contrato comercial de interfaces do estabelecimento
 /// (tb_institution_has_interface — decisões 17/18/23 da Fase 1):
 /// catálogo completo + situação do contrato do cliente alvo.
-/// Fonte: GET /api/admin/institutions/:id/interfaces.
+/// Fonte: GET /api/admin/institutions/:id/interfaces (Super) ou
+/// GET /api/institution-interfaces/:id (tela delegável — D-PV11).
 class InstitutionInterfaceGrant {
   const InstitutionInterfaceGrant({
     required this.id,
@@ -34,4 +35,23 @@ class InstitutionInterfaceGrant {
         groupDefault: groupDefault,
         granted: granted ?? this.granted,
       );
+}
+
+/// Resposta de UMA marca (D-PV34): `PUT …/interfaces/:interfaceId { linked }`.
+class InstitutionInterfaceLink {
+  const InstitutionInterfaceLink({required this.interfaceId, required this.linked, required this.changed});
+
+  factory InstitutionInterfaceLink.fromJson(Map<String, dynamic> json) => InstitutionInterfaceLink(
+        interfaceId: (json['interfaceId'] as num).toInt(),
+        linked:      json['linked'] == true,
+        changed:     json['changed'] == true,
+      );
+
+  final int interfaceId;
+
+  /// Estado DEPOIS da marca — é o que a aba mostra.
+  final bool linked;
+
+  /// false = já estava assim (idempotente; sem evento).
+  final bool changed;
 }

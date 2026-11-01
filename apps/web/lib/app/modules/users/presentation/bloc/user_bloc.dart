@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/users/entity/user_entity.dart';
-import '../../domain/usecase/user_delete.dart';
 import '../../domain/usecase/user_get.dart';
 import '../../domain/usecase/user_getlist.dart';
 import '../../domain/usecase/user_post.dart';
@@ -25,21 +24,19 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     required this.get,
     required this.post,
     required this.put,
-    required this.delete,
   }) : super(const UserListState(loading: true)) {
     on<UserListRequested>(_onListRequested);
     on<UserNewPressed>((event, emit) => emit(const UserFormState()));
     on<UserEditPressed>(_onEditPressed);
     on<UserBackToListPressed>((event, emit) => _reload(emit));
     on<UserSaveRequested>(_onSaveRequested);
-    on<UserDeleteRequested>(_onDeleteRequested);
+    // D-PV19/D-UC1: a exclusão de usuário não existe — inativa-se o vínculo (checkbox "ativo").
   }
 
   final UserGetlist getlist;
   final UserGet get;
   final UserPost post;
   final UserPut put;
-  final UserDelete delete;
 
   /// Últimos filtro/página/tamanho aplicados — recarga após salvar/excluir/
   /// voltar devolve o usuário exatamente onde estava (paginação, critério 6).
@@ -131,15 +128,4 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     );
   }
 
-  Future<void> _onDeleteRequested(
-      UserDeleteRequested event, Emitter<UserState> emit) async {
-    final result = await delete(event.id);
-    await result.fold(
-      (failure) async => emit(UserActionFailure(failure)),
-      (_) async {
-        emit(const UserActionSuccess('register.deleted'));
-        await _reload(emit);
-      },
-    );
-  }
 }

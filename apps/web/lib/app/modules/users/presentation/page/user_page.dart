@@ -56,7 +56,9 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
   /// (showServerFieldError — Framework de Mensagens, Onda B).
   final _formPageKey = GlobalKey<RegisterFormPageState>();
 
-  /// Ativo (tb_user.active) — estado da página, fora dos values da fábrica.
+  /// Ativo do VÍNCULO com o estabelecimento do admin (D-PV19/D-UC2) — estado
+  /// da página, fora dos values da fábrica. O super (tela global, sem foco)
+  /// não mexe nele aqui — o vínculo é da aba Usuários do Estabelecimento.
   bool _active = true;
   int? _editingId;
 
@@ -135,36 +137,43 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           label:     'forms.user.nick'.tr(),
           validator: SetesValidators.required(),
         ),
+        // D-PV19/D-UC1: o e-mail de LOGIN é imutável — editável só na inclusão (a API recusa a troca)
         RegisterField(
           name:         'email',
           size:         SetesFieldSize.medium,
           label:        'forms.user.email'.tr(),
           keyboardType: TextInputType.emailAddress,
+          readOnly:     !creating,
           validator: SetesValidators.compose([
             SetesValidators.required(),
             SetesValidators.email(),
           ]),
         ),
-        RegisterField(
-          name:    'password',
-          size:    SetesFieldSize.medium,
-          label:   'forms.user.password'.tr(),
-          obscure: true,
-          // Inclusão: obrigatória. Edição: vazia mantém a atual.
-          validator: creating
-              ? SetesValidators.compose([
-                  SetesValidators.required(),
-                  SetesValidators.minLength(5),
-                ])
-              : SetesValidators.minLength(5),
-        ),
+        // D-PV48 (2026-10-27): a senha se define UMA vez — na criação da credencial (inclusão, ou a 1ª senha de uma conta que veio do
+        // sincronizador sem senha — A-PV23). Depois, só o titular troca, pelo "Esqueci minha senha"; o campo nem aparece.
+        // Na conta sem senha a 1ª é OPCIONAL (gate adversarial da costura A1): o admin edita nome/ativo sem dar acesso ao sistema.
+        if (creating || !editing.hasCredential)
+          RegisterField(
+            name:    'password',
+            size:    SetesFieldSize.medium,
+            label:   'forms.user.password'.tr(),
+            obscure: true,
+            validator: SetesValidators.compose([
+              if (creating) SetesValidators.required(),
+              SetesValidators.minLength(5),
+            ]),
+          ),
       ], fieldConfig),
       extraChildren: [
-        SetesCheckbox(
-          label: 'forms.user.active'.tr(),
-          value: _active,
-          onChanged: (checked) => setState(() => _active = checked ?? true),
-        ),
+        if (!creating && editing.hasCredential)
+          SetesText('forms.user.passwordOwnerOnly'.tr()),
+        // D-UC2: o "ativo" é do vínculo com o estabelecimento — na tela global do super não há foco (fica na aba do Estabelecimento)
+        if (!_isSuper)
+          SetesCheckbox(
+            label: 'forms.user.active'.tr(),
+            value: _active,
+            onChanged: (checked) => setState(() => _active = checked ?? true),
+          ),
       ],
       // Duas abas (pedido do Valdo 2026-07-12): Dados do Usuário ×
       // Permissões (vínculos com estabelecimentos + privilégios de acesso).
@@ -210,15 +219,15 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
           password: (values['password'] ?? '').isEmpty
               ? null
               : values['password'],
-          active: _active,
+          active: _isSuper ? null : _active,
         ),
         creating: creating,
       )),
       onCancel: () => _bloc.add(const UserBackToListPressed()),
-      onDelete: creating
-          ? null
-          : () => _bloc.add(UserDeleteRequested(editing.id!)),
-      canDelete: !creating,
+      // D-PV19/D-UC1: a credencial nunca é excluída — sem lixeira; inativa-se o vínculo
+      onDelete: null,
+      canDelete: false,
+        creating: creating,
     );
   }
 

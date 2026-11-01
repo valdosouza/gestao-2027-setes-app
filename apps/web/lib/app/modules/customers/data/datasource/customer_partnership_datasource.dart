@@ -49,7 +49,8 @@ class CustomerPartnershipDatasourceImpl
   Future<List<CollaboratorLookupItem>> collaborators(String filter) async {
     final query =
         filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/collaborators$query');
+    // D-PV2: lista de apoio da aba Parceria no PRÓPRIO módulo (privilégio da interface partnerships — A-PV2)
+    final json = await client.get('/api/customers/collaborator-lookup$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CollaboratorLookupItem.fromJson(e as Map<String, dynamic>))

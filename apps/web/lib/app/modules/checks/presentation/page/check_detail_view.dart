@@ -8,6 +8,7 @@ import '../../data/datasource/check_lookup_datasource.dart';
 import '../../domain/entity/check_entity.dart';
 import 'check_action_dialogs.dart';
 import 'check_format.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Detalhe do cheque DIRIGIDO PELO ESTADO (skill tela-de-processo):
 /// cabeçalho imutável (banco, agência/conta, número, emitente, valor, data
@@ -255,10 +256,12 @@ class CheckDetailView extends StatelessWidget {
               runSpacing: 12,
               alignment: WrapAlignment.end,
               children: [
-                if (check.isCustody) ..._custodyActions(context),
-                if (check.isFactoring) ..._factoringActions(context),
+                // D-PV7: depositar/descontar/devolver/usar em pagamento = ALTERAR; estornar = CANCELAR
+                if (check.isCustody && CurrentInterface.can('ALTERAR')) ..._custodyActions(context),
+                if (check.isFactoring && CurrentInterface.can('ALTERAR')) ..._factoringActions(context),
                 // Estornar: disponível em QUALQUER estado — a API decide
                 // se o último evento é reversível (409 caso não seja).
+                if (CurrentInterface.can('CANCELAR'))
                 SetesButton(
                   label: 'forms.checks.reverse'.tr(),
                   icon: Icons.undo,

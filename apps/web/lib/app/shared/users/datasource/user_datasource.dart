@@ -18,14 +18,15 @@ abstract class UserDatasource {
       int page = 1,
       int? pageSize,
       SearchCriteriaValues criteria = SearchCriteriaValues.empty});
-  Future<UserEntity> get(int id);
+  /// [institutionId] = o vínculo em foco para o "ativo" (D-UC2; só o super escolhe — o admin tem o alvo forçado ao JWT).
+  Future<UserEntity> get(int id, {int? institutionId});
 
   /// A API gera o id (MAX+1 da tb_entity) e aplica o MD5 da senha.
   /// [institutionId]+[kind] criam o vínculo na MESMA transação (workflow
   /// 2026-07-12 — primeiro admin do cliente nasce já vinculado).
   Future<int> post(UserEntity user, {int? institutionId, String? kind});
-  Future<void> put(UserEntity user);
-  Future<void> delete(int id);
+  /// [institutionId] = o vínculo alvo do "ativo" (super). D-PV19/D-UC1: a exclusão de usuário NÃO existe.
+  Future<void> put(UserEntity user, {int? institutionId});
 
   /// Privilégios de acesso do usuário no institution alvo (ACL —
   /// workflow 2026-07-12). [institutionId] obrigatório para o super;
@@ -69,8 +70,9 @@ class UserDatasourceImpl implements UserDatasource {
   }
 
   @override
-  Future<UserEntity> get(int id) async {
-    final json = await client.get('/api/users/$id');
+  Future<UserEntity> get(int id, {int? institutionId}) async {
+    final query = institutionId != null ? '?institutionId=$institutionId' : '';
+    final json = await client.get('/api/users/$id$query');
     return UserEntity.fromJson(json['data'] as Map<String, dynamic>);
   }
 
@@ -85,13 +87,11 @@ class UserDatasourceImpl implements UserDatasource {
   }
 
   @override
-  Future<void> put(UserEntity user) async {
-    await client.put('/api/users/${user.id}', user.toJson());
-  }
-
-  @override
-  Future<void> delete(int id) async {
-    await client.delete('/api/users/$id');
+  Future<void> put(UserEntity user, {int? institutionId}) async {
+    await client.put('/api/users/${user.id}', {
+      ...user.toJson(),
+      if (institutionId != null) 'institutionId': institutionId,
+    });
   }
 
   @override

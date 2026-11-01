@@ -104,6 +104,7 @@ class _PrivilegePageState extends State<PrivilegePage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(PrivilegeDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

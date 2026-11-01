@@ -126,7 +126,7 @@ void main() {
     when(() => invoice.fiscalEffect(_aId)).thenAnswer((_) async => const Right(_aEffect));
     when(() => invoice.fiscalEffect(_bId)).thenAnswer((_) async => const Right(_bEffect));
     when(() => nfse.getView(_bId)).thenAnswer((_) async => const Right(_bVoice));
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

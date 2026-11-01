@@ -181,7 +181,8 @@ class OrderDatasourceImpl implements OrderDatasource {
   Future<List<OrderCustomerLookup>> customers(String filter) async {
     final query =
         filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/customers$query');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/orders/customer-lookup$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => OrderCustomerLookup.fromJson(e as Map<String, dynamic>))

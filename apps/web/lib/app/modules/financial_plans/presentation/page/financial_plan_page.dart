@@ -10,6 +10,8 @@ import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/register/register_config_button.dart';
 import '../../domain/entity/financial_plan_entity.dart';
 import '../bloc/financial_plan_bloc.dart';
+import '../../../../shared/register/register_form_shell.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Tela do Plano de Contas — interface 'financial-plans', 2º cadastro em
 /// ÁRVORE (porta do Delphi reg_plano_contas.pas; padrão do tipo árvore do
@@ -89,7 +91,10 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
         ],
       ),
       // FAB = novo NÍVEL raiz (Delphi: opção "Nível")
-      floatingActionButton: FloatingActionButton(
+      // D-PV2: novo nível = INSERIR na tela atual
+      floatingActionButton: !CurrentInterface.can('INSERIR')
+          ? null
+          : FloatingActionButton(
         tooltip: 'forms.financialPlan.newRoot'.tr(),
         onPressed: () => _bloc.add(const FinancialPlanNewPressed()),
         child: const Icon(Icons.add),
@@ -101,7 +106,7 @@ class _FinancialPlanPageState extends State<FinancialPlanPage> {
               emptyText: 'register.emptyList'.tr(),
               onTap: (item) => _bloc.add(FinancialPlanEditPressed(item)),
               // Ação "+" no nó = novo SUBNÍVEL (Delphi: "SubNível")
-              onAddChild: (item) =>
+              onAddChild: !CurrentInterface.can('INSERIR') ? null : (item) =>
                   _bloc.add(FinancialPlanNewPressed(parent: item)),
               addChildTooltip: 'forms.financialPlan.newChild'.tr(),
             ),
@@ -315,7 +320,9 @@ class _FinancialPlanFormViewState extends State<_FinancialPlanFormView> {
   }
 
   @override
-  Widget build(BuildContext context) => SetesFormShell(
+  Widget build(BuildContext context) => RegisterFormShell(
+        // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+        creating: widget.onDelete == null,
         title: widget.title,
         saving: widget.state.saving,
         onBack: widget.onBack,

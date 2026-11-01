@@ -9,6 +9,7 @@ import 'package:setes_widgets/setes_widgets.dart';
 import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/field_config/entity/field_config_entity.dart';
 import '../../../../shared/field_config/field_config_loader.dart';
+import '../../../../shared/register/register_form_shell.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/search/search_criteria_datasource.dart';
 import '../../../../shared/search/search_criterion.dart';
@@ -419,7 +420,9 @@ class _PaymentTypeFormViewState extends State<_PaymentTypeFormView> {
     // Descrição/NF-e travados na edição (catálogo compartilhado) e também
     // quando uma forma do catálogo foi escolhida na lupa.
     final catalogLocked = !_creating || _catalogId != null;
-    return SetesFormShell(
+    return RegisterFormShell(
+      // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+      creating: widget.onDelete == null,
       title: widget.title,
       saving: widget.state.saving,
       onBack: widget.onBack,

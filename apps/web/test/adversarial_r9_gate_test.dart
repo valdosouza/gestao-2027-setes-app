@@ -100,7 +100,7 @@ void main() {
     when(() => repo.getById(_newId)).thenAnswer((_) async => const Right(_newOrder));
     when(() => repo.getById(_billedId)).thenAnswer((_) async => const Right(_billed));
     when(() => invoice.fiscalEffect(_billedId)).thenAnswer((_) async => const Right(ServiceOrderFiscalEffect()));
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

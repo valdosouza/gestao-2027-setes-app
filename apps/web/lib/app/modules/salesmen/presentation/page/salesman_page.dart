@@ -210,6 +210,7 @@ class _SalesmanPageState extends State<SalesmanPage> with FieldConfigLoader {
           ? null
           : () => _bloc.add(SalesmanDeleteRequested(draft.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

@@ -92,6 +92,7 @@
     "nextPage": "Próxima página",
     "saved": "Registro salvo",
     "deleted": "Registro excluído",
+    "ownEstablishment": "Esta entidade é o próprio estabelecimento — os dados da empresa e a tributação se editam em Meu Estabelecimento; aqui só os campos do papel.",
     "confirmDelete": "Confirma a exclusão?",
     "error": "Não foi possível concluir a operação",
     "yes": "Sim",
@@ -300,6 +301,9 @@
       "kind": "Tipo da Rede Social",
       "link": "Link da Rede Social"
     },
+    "institutionInterfaces": {
+      "inactive": "inativo"
+    },
     "institution": {
       "tab": "Estabelecimento",
       "tabInterfaces": "Interfaces",
@@ -415,13 +419,15 @@
       "institutions": "Estabelecimentos (o usuário só consegue entrar onde tiver vínculo ativo)",
       "institutionsSaved": "Vínculos do usuário atualizados",
       "institutionsSaveFirst": "Salve o usuário primeiro para vincular os estabelecimentos.",
-      "passwordKeepHint": "Vazio mantém a senha atual",
+      "passwordOwnerOnly": "A senha só é trocada pelo próprio usuário, pelo \"Esqueci minha senha\" — o cadastro define a senha uma vez, na criação.",
       "privilegesTitle": "Privilégios de Acesso (usuário regular: o menu mostra só as interfaces com Visualizar)",
       "privilegesInstitution": "Estabelecimento",
       "privilegesLinkFirst": "Vincule o usuário a um estabelecimento antes de definir privilégios.",
       "privilegesNone": "Sem acesso",
       "privilegesSaved": "Privilégios atualizados",
       "privilegesVisualizarHint": "Marcar qualquer privilégio inclui Visualizar — sem ele a interface não aparece no menu.",
+      "privilegesViewOffWarning": "Sem Visualizar a tela sai do usuário. Saem também: {}.",
+      "privilegesLegacyNoView": "Concessão antiga sem Visualizar: ao salvar, Visualizar entra junto.",
       "tabData": "Dados do Usuário",
       "tabPermissions": "Permissões",
       "permissionsSaveFirst": "Salve o usuário primeiro — as permissões são liberadas após o cadastro."
@@ -1552,6 +1558,7 @@
       "interfaces": "Interfaces",
       "customers": "Clientes",
       "institutions": "Estabelecimentos",
+      "institution-interfaces": "Interfaces dos clientes",
       "establishment": "Meu Estabelecimento",
       "users": "Usuários",
       "modules": "Módulos",

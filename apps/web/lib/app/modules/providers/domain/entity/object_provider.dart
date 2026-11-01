@@ -65,7 +65,13 @@ class ObjectProvider extends ObjectEntityFiscal {
     super.person,
     super.company,
     super.noDoc,
+    this.ownEstablishment = false,
   });
+  /// D-PV32 (2026-10-20): a entity é o PRÓPRIO estabelecimento — a cadeia e a
+  /// aba Tributação ficam somente leitura (edite em Meu Estabelecimento); os
+  /// campos do papel seguem editáveis. Vem do GET; nunca é enviado.
+  final bool ownEstablishment;
+
 
   /// null = inclusão (a API cria a cadeia OU reaproveita a entity pelo doc).
   final int? id;
@@ -80,6 +86,7 @@ class ObjectProvider extends ObjectEntityFiscal {
     final entity = json['entity'] as Map<String, dynamic>? ?? const {};
     return ObjectProvider(
       id:     (json['id'] as num?)?.toInt(),
+      ownEstablishment: json['ownEstablishment'] == true,
       active: (json['active'] as String?) == 'S',
       tax: json['tax'] != null
           ? EntityTaxData.fromJson(json['tax'] as Map<String, dynamic>)
@@ -135,6 +142,7 @@ class ObjectProvider extends ObjectEntityFiscal {
   }) =>
       ObjectProvider(
         id:           id,
+        ownEstablishment: ownEstablishment,
         active:       active ?? this.active,
         tax:          tax ?? this.tax,
         nameCompany:  nameCompany ?? this.nameCompany,
@@ -153,6 +161,7 @@ class ObjectProvider extends ObjectEntityFiscal {
   /// ObjectEntityFiscal — os campos do concreto são preservados).
   ObjectProvider mergeFiscal(ObjectEntityFiscal fiscal) => ObjectProvider(
         id:           id,
+        ownEstablishment: ownEstablishment,
         active:       active,
         tax:          tax,
         nameCompany:  fiscal.nameCompany,

@@ -180,7 +180,7 @@ void main() {
       if (aVoiceQueue.isNotEmpty) return aVoiceQueue.removeAt(0).future;
       return Future.value(Right(aVoiceNow));
     });
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

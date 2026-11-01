@@ -17,12 +17,24 @@ class InterfaceConfigsSection extends StatefulWidget {
   const InterfaceConfigsSection({
     required this.interfaceId,
     required this.datasource,
+    this.onConfigSaved,
+    this.onConfigureRetired,
     super.key,
   });
 
   /// null = interface ainda não salva (modo inclusão).
   final int? interfaceId;
   final InterfaceDatasource datasource;
+
+  /// Chamado depois de gravar uma config: a API acrescenta o CONFIGURAR da
+  /// interface na mesma transação (D-PV25) — a tela pai espelha o par na
+  /// lista de privilégios (sem isso, o próximo ✓ mandaria a lista sem ele
+  /// e levaria 409 CATALOG_PAIR_IN_USE).
+  final VoidCallback? onConfigSaved;
+
+  /// D-PV65: a API retirou o CONFIGURAR junto da última config — a tela pai
+  /// tira o par da lista de privilégios (o espelho do [onConfigSaved]).
+  final VoidCallback? onConfigureRetired;
 
   @override
   State<InterfaceConfigsSection> createState() =>
@@ -70,6 +82,7 @@ class _InterfaceConfigsSectionState extends State<InterfaceConfigsSection> {
     if (result == null) return;
     try {
       await widget.datasource.saveConfig(widget.interfaceId!, result);
+      widget.onConfigSaved?.call();
       if (mounted) {
         await showSuccessFeedback(context, 'forms.interface.configSaved');
       }
@@ -90,7 +103,8 @@ class _InterfaceConfigsSectionState extends State<InterfaceConfigsSection> {
     );
     if (decision != SetesDecision.yes) return;
     try {
-      await widget.datasource.deleteConfig(widget.interfaceId!, config.name);
+      final retired = await widget.datasource.deleteConfig(widget.interfaceId!, config.name);
+      if (retired) widget.onConfigureRetired?.call();
       if (mounted) {
         await showSuccessFeedback(context, 'forms.interface.configDeleted');
       }

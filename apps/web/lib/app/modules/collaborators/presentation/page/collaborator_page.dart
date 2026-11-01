@@ -10,11 +10,13 @@ import '../../../../shared/feedback/feedback.dart';
 import '../../../../shared/feedback/form_pendency.dart';
 import '../../../../shared/entity/widgets/address_list_tab.dart';
 import '../../../../shared/entity/widgets/entity_main_tab.dart';
+import '../../../../shared/entity/widgets/own_establishment_frozen.dart';
 import '../../../../shared/entity/widgets/phone_list_tab.dart';
 import '../../../../shared/entity/widgets/social_media_list_tab.dart';
 import '../../../../shared/lookup/datasource/city_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/country_lookup_datasource.dart';
 import '../../../../shared/lookup/datasource/state_lookup_datasource.dart';
+import '../../../../shared/register/register_form_shell.dart';
 import '../../../../shared/register/register_search_page.dart';
 import '../../../../shared/search/search_criteria_datasource.dart';
 import '../../../../shared/search/search_criterion.dart';
@@ -346,7 +348,9 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
   @override
   Widget build(BuildContext context) {
     final draft = _draft;
-    return SetesFormShell(
+    return RegisterFormShell(
+      // D-PV2: o onDelete só chega na EDIÇÃO — registro novo = sem ele (salvar pede INSERIR; editar, ALTERAR)
+      creating: widget.onDelete == null,
       title: widget.title,
       saving: widget.saving,
       onBack: widget.onBack,
@@ -375,7 +379,8 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
             Expanded(
               child: TabBarView(
                 controller: _tabs,
-                children: [
+                // D-PV32: a cadeia e a aba Tributação congelam quando a entity é o próprio estabelecimento
+                children: freezeChainTabs(frozen: draft.ownEstablishment, indexes: const {0, 1, 2, 3}, tabs: [
                   EntityMainTab(
                     value: draft,
                     onChanged: (fiscal) =>
@@ -407,7 +412,7 @@ class _CollaboratorFormViewState extends State<_CollaboratorFormView>
                     value: draft,
                     onChanged: widget.onDraftChanged,
                   ),
-                ],
+                ]),
               ),
             ),
           ],

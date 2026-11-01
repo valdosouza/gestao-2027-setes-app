@@ -84,7 +84,13 @@ class ObjectCustomer extends ObjectEntityFiscal {
     super.person,
     super.company,
     super.noDoc,
+    this.ownEstablishment = false,
   });
+  /// D-PV32 (2026-10-20): a entity é o PRÓPRIO estabelecimento — a cadeia e a
+  /// aba Tributação ficam somente leitura (edite em Meu Estabelecimento); os
+  /// campos do papel seguem editáveis. Vem do GET; nunca é enviado.
+  final bool ownEstablishment;
+
 
   /// null = inclusão (a API cria a cadeia OU reaproveita a entity pelo doc).
   final int? id;
@@ -115,6 +121,7 @@ class ObjectCustomer extends ObjectEntityFiscal {
     final entity = json['entity'] as Map<String, dynamic>? ?? const {};
     return ObjectCustomer(
       id:           (json['id'] as num?)?.toInt(),
+      ownEstablishment: json['ownEstablishment'] == true,
       tbSalesmanId: jsonInt(json['tbSalesmanId']),
       salesmanName: json['salesmanName'] as String?,
       tbCarrierId:  jsonInt(json['tbCarrierId']),
@@ -198,6 +205,7 @@ class ObjectCustomer extends ObjectEntityFiscal {
   }) =>
       ObjectCustomer(
         id:           id,
+        ownEstablishment: ownEstablishment,
         tbSalesmanId: tbSalesmanId != null ? tbSalesmanId() : this.tbSalesmanId,
         salesmanName: salesmanName != null ? salesmanName() : this.salesmanName,
         tbCarrierId:  tbCarrierId != null ? tbCarrierId() : this.tbCarrierId,
@@ -224,6 +232,7 @@ class ObjectCustomer extends ObjectEntityFiscal {
   /// ObjectEntityFiscal — os campos do concreto são preservados).
   ObjectCustomer mergeFiscal(ObjectEntityFiscal fiscal) => ObjectCustomer(
         id:           id,
+        ownEstablishment: ownEstablishment,
         tbSalesmanId: tbSalesmanId,
         salesmanName: salesmanName,
         tbCarrierId:  tbCarrierId,

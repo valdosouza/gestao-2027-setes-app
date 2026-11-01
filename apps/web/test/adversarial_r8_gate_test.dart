@@ -76,7 +76,7 @@ void main() {
     when(() => repo.getList(any(), any(),
             page: any(named: 'page'), pageSize: any(named: 'pageSize'), criteria: any(named: 'criteria')))
         .thenAnswer((_) async => const Right(PagedResult.empty()));
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

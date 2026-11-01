@@ -11,6 +11,7 @@ import '../../../../shared/register/register_config_button.dart';
 import '../../data/datasource/cashier_datasource.dart';
 import '../../domain/entity/cashier_entity.dart';
 import '../bloc/cashier_bloc.dart';
+import '../../../../shared/session/current_interface.dart';
 
 /// Tela de Abertura/Fechamento de Caixa — interface 'cashier', grupo
 /// Financeiro. 3º TIPO de tela do produto (skill tela-de-processo.md):
@@ -116,6 +117,8 @@ class _CashierPageState extends State<CashierPage> {
             const SizedBox(height: 16),
             SetesText('forms.cashier.noCashierOpen'.tr()),
             const SizedBox(height: 24),
+            // D-PV7: abrir o caixa = INSERIR
+            if (CurrentInterface.can('INSERIR'))
             SetesButton(
               label: 'forms.cashier.openCashier'.tr(),
               icon: Icons.add,
@@ -174,17 +177,21 @@ class _CashierPageState extends State<CashierPage> {
             const Divider(height: 1),
           ],
         const SizedBox(height: 24),
+        // D-PV7: retirada e fechamento = ALTERAR
+        if (CurrentInterface.can('ALTERAR'))
         SetesButton(
           label: 'forms.cashier.withdraw'.tr(),
           icon: Icons.outbox_outlined,
           onPressed: busy ? null : _openWithdrawDialog,
         ),
+        if (CurrentInterface.can('ALTERAR')) ...[
         const SizedBox(height: 12),
         SetesButton(
           label: 'forms.cashier.closeCashier'.tr(),
           icon: Icons.lock_outline,
           onPressed: busy ? null : () => _openCloseDialog(detail),
         ),
+        ],
       ],
     );
   }

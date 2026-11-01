@@ -43,9 +43,4 @@ class UserRepositoryImpl implements UserRepository {
         return unit;
       });
 
-  @override
-  Future<Either<Failure, Unit>> delete(int id) => _guard(() async {
-        await datasource.delete(id);
-        return unit;
-      });
 }

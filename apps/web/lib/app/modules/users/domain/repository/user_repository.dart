@@ -13,5 +13,4 @@ abstract class UserRepository {
   Future<Either<Failure, UserEntity>> get(int id);
   Future<Either<Failure, int>> post(UserEntity user);
   Future<Either<Failure, Unit>> put(UserEntity user);
-  Future<Either<Failure, Unit>> delete(int id);
 }

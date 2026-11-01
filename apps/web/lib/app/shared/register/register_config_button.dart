@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../interface_config/datasource/interface_config_datasource.dart';
+import '../session/current_interface.dart';
 
 /// Engrenagem padrão das listas (Framework de Configurações, decisão 11 —
 /// ajuste 2026-08-03): o ícone SÓ aparece se o módulo tem configurações no
@@ -13,6 +14,11 @@ import '../interface_config/datasource/interface_config_datasource.dart';
 ///
 /// Peça única para a fábrica ([RegisterSearchPage]) e para as telas de
 /// processo/árvore que montavam a engrenagem manualmente.
+///
+/// D-PV25 (Valdo 2026-10-20 — `prompt_privilegios_interfaces.md`): a engrenagem
+/// só aparece com o privilégio CONFIGURAR da tela ATUAL (`CurrentInterface`,
+/// nome literal do catálogo — C1: botão vem do catálogo). Quem decide a
+/// gravação é a API (CONFIGURAR na interface alvo, no service do painel).
 class RegisterConfigButton extends StatefulWidget {
   const RegisterConfigButton({required this.moduleKey, super.key});
 
@@ -66,7 +72,7 @@ class _RegisterConfigButtonState extends State<RegisterConfigButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_visible) return const SizedBox.shrink();
+    if (!_visible || !CurrentInterface.can('CONFIGURAR')) return const SizedBox.shrink();
     return IconButton(
       icon: const Icon(Icons.settings_outlined),
       tooltip: 'register.configTooltip'.tr(),

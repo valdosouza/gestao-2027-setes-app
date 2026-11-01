@@ -122,6 +122,7 @@ class _BankPageState extends State<BankPage> with FieldConfigLoader {
       onDelete:
           creating ? null : () => _bloc.add(BankDeleteRequested(editing.id)),
       canDelete: !creating,
+        creating: creating,
     );
   }
 

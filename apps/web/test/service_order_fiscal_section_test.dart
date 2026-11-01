@@ -82,7 +82,7 @@ void main() {
     Localization.load(const Locale('pt'), translations: Translations(_load('pt')));
   });
 
-  setUp(() => CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR']));
+  setUp(() => CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR']));   // D-PV40: consultar ≠ transmitir
   tearDown(() => CurrentInterface.value = null);
 
   group('duas fontes, duas falhas', () {
@@ -148,12 +148,16 @@ void main() {
       expect(calls.list, ['refresh', 'xml', 'danfse', 'cancel-flow']);
     });
 
-    testWidgets('autorizada sem o privilégio CANCELAR: sem "Cancelar nota"; sem TRANSMITIR: sem "Consultar" (a nfse-api exige — F2B-SOC-11)', (tester) async {
-      CurrentInterface.value = _iface(['TRANSMITIR']);
+    testWidgets('autorizada sem o privilégio CANCELAR: sem "Cancelar nota"; sem CONSULTAR: sem "Consultar" (D-PV40 — TRANSMITIR não consulta)', (tester) async {
+      CurrentInterface.value = _iface(['CONSULTAR']);
       await _pump(tester, const ServiceOrderDetailState(order: _invoiced, fiscal: _authorized));
 
       expect(find.text('Cancelar nota'), findsNothing);
       expect(find.text('Consultar'), findsOneWidget);
+
+      CurrentInterface.value = _iface(['TRANSMITIR']);
+      await _pump(tester, const ServiceOrderDetailState(order: _invoiced, fiscal: _authorized));
+      expect(find.text('Consultar'), findsNothing, reason: 'D-PV40: transmitir não presume consultar');
 
       CurrentInterface.value = _iface(['CANCELAR']);
       await _pump(tester, const ServiceOrderDetailState(order: _invoiced, fiscal: _authorized));

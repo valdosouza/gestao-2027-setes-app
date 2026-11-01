@@ -19,6 +19,7 @@ import '../customers/customers_module.dart';
 import '../establishment/establishment_module.dart';
 import '../financial_plans/financial_plans_module.dart';
 import '../institutions/institutions_module.dart';
+import '../institution_interfaces/institution_interfaces_module.dart';
 import '../interface_configs/interface_configs_module.dart';
 import '../payment_types/payment_types_module.dart';
 import '../price_lists/price_lists_module.dart';
@@ -81,6 +82,7 @@ class HomeModule extends Module {
             // fecho da decisão 8 da Fase 3; sem cadeia fiscal)
             ModuleRoute('/banks', module: BanksModule()),
             ModuleRoute('/institutions', module: InstitutionsModule()),
+            ModuleRoute('/institution-interfaces', module: InstitutionInterfacesModule()),
             // Meu Estabelecimento (menu Sistema) — CRUD sem lista
             ModuleRoute('/establishment', module: EstablishmentModule()),
             // Fase 3 Entidade Única — primeiro papel novo (Customer)

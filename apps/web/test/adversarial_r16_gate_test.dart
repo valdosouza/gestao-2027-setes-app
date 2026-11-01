@@ -254,7 +254,7 @@ void main() {
 
   setUp(() {
     resetMocks();
-    CurrentInterface.value = _iface(['TRANSMITIR', 'CANCELAR', 'FATURAR']);
+    CurrentInterface.value = _iface(['TRANSMITIR', 'CONSULTAR', 'CANCELAR', 'FATURAR']);
   });
   tearDown(() => CurrentInterface.value = null);
 

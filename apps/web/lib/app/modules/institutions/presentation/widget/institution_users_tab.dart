@@ -190,8 +190,13 @@ class _UserDialogState extends State<_UserDialog> {
   bool _active = true;
   bool _loading = false;
   bool _saving = false;
+  bool _hasCredential = false;
 
   bool get _creating => widget.editingId == null;
+
+  /// D-PV48 (2026-10-27): a senha se define UMA vez — na criação da credencial (inclusão, ou a 1ª senha de conta vinda do
+  /// sincronizador sem senha — A-PV23). Depois, só o titular troca, pelo "Esqueci minha senha": o campo some.
+  bool get _passwordEditable => _creating || !_hasCredential;
 
   /// 'super' não se edita pela aba — dropdown escondido nesse caso.
   bool get _kindEditable => _creating || _kinds.contains(widget.initialKind);
@@ -207,13 +212,14 @@ class _UserDialogState extends State<_UserDialog> {
   Future<void> _loadUser() async {
     setState(() => _loading = true);
     try {
-      final user = await widget.datasource.get(widget.editingId!);
+      final user = await widget.datasource.get(widget.editingId!, institutionId: widget.institutionId);
       if (mounted) {
         setState(() {
           _name.text  = user.nameCompany;
           _nick.text  = user.nickTrade;
           _email.text = user.email;
-          _active     = user.active;
+          _active     = user.active ?? true;
+          _hasCredential = user.hasCredential;
         });
       }
     } on Failure catch (failure) {
@@ -265,17 +271,17 @@ class _UserDialogState extends State<_UserDialog> {
             SetesValidators.email(),
           ]))(_email.text),
         ),
-        PendencyField(
-          name: 'password',
-          focusNode: _passwordFocus,
-          fieldKey: _passwordKey,
-          validate: () => _tr(_creating
-              ? SetesValidators.compose([
-                  SetesValidators.required(),
-                  SetesValidators.minLength(5),
-                ])
-              : SetesValidators.minLength(5))(_password.text),
-        ),
+        if (_passwordEditable)
+          PendencyField(
+            name: 'password',
+            focusNode: _passwordFocus,
+            fieldKey: _passwordKey,
+            // a 1ª senha da conta sem credencial é OPCIONAL na edição (gate adversarial da costura A1) — obrigatória só na inclusão
+            validate: () => _tr(SetesValidators.compose([
+              if (_creating) SetesValidators.required(),
+              SetesValidators.minLength(5),
+            ]))(_password.text),
+          ),
       ];
 
   Future<void> _save() async {
@@ -288,14 +294,16 @@ class _UserDialogState extends State<_UserDialog> {
         nameCompany: _name.text.trim(),
         nickTrade:   _nick.text.trim(),
         email:       _email.text.trim(),
-        password:    _password.text.isEmpty ? null : _password.text,
+        // campo só de espaços = sem senha (como a fábrica de formulários faz com trim — gate adversarial do delta, L6)
+        password:    _passwordEditable && _password.text.trim().isNotEmpty ? _password.text : null,
         active:      _active,
       );
       if (_creating) {
         await widget.datasource.post(user,
             institutionId: widget.institutionId, kind: _kind);
       } else {
-        await widget.datasource.put(user);
+        // D-UC2: o "ativo" vai ao VÍNCULO com ESTE estabelecimento (o super informa o alvo)
+        await widget.datasource.put(user, institutionId: widget.institutionId);
         // Perfil mudou → sincroniza SÓ o vínculo deste institution,
         // preservando os demais (a aba é do Super — endpoint de vínculos).
         if (_kindEditable && _kind != widget.initialKind) {
@@ -363,11 +371,13 @@ class _UserDialogState extends State<_UserDialog> {
                         validator: _tr(SetesValidators.required()),
                       ),
                       const SizedBox(height: 16),
+                      // D-PV19/D-UC1: o e-mail de login é imutável — só na inclusão
                       SetesTextField(
                         label: 'forms.user.email'.tr(),
                         controller: _email,
                         focusNode: _emailFocus,
                         fieldKey: _emailKey,
+                        readOnly: !_creating,
                         keyboardType: TextInputType.emailAddress,
                         validator: _tr(SetesValidators.compose([
                           SetesValidators.required(),
@@ -375,22 +385,20 @@ class _UserDialogState extends State<_UserDialog> {
                         ])),
                       ),
                       const SizedBox(height: 16),
-                      SetesTextField(
-                        label: 'forms.user.password'.tr(),
-                        hint: _creating
-                            ? null
-                            : 'forms.user.passwordKeepHint'.tr(),
-                        controller: _password,
-                        focusNode: _passwordFocus,
-                        fieldKey: _passwordKey,
-                        obscureText: true,
-                        validator: _tr(_creating
-                            ? SetesValidators.compose([
-                                SetesValidators.required(),
-                                SetesValidators.minLength(5),
-                              ])
-                            : SetesValidators.minLength(5)),
-                      ),
+                      if (_passwordEditable)
+                        SetesTextField(
+                          label: 'forms.user.password'.tr(),
+                          controller: _password,
+                          focusNode: _passwordFocus,
+                          fieldKey: _passwordKey,
+                          obscureText: true,
+                          validator: _tr(SetesValidators.compose([
+                            SetesValidators.required(),
+                            SetesValidators.minLength(5),
+                          ])),
+                        )
+                      else
+                        SetesText('forms.user.passwordOwnerOnly'.tr()),
                       const SizedBox(height: 8),
                       // Perfil do vínculo com ESTE institution: editável na
                       // inclusão E na edição; 'super' fica de fora da aba

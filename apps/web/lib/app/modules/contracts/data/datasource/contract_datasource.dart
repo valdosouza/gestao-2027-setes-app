@@ -76,7 +76,8 @@ class ContractDatasourceImpl implements ContractDatasource {
       if (filter.isNotEmpty) 'filter=${Uri.encodeComponent(filter)}',
       'pageSize=100',
     ];
-    final json = await client.get('/api/customers?${params.join('&')}');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/contracts/customer-lookup?${params.join('&')}');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ContractCustomerLookup.fromJson(e as Map<String, dynamic>))
@@ -85,7 +86,8 @@ class ContractDatasourceImpl implements ContractDatasource {
 
   @override
   Future<List<ContractPaymentTypeLookup>> paymentTypes() async {
-    final json = await client.get('/api/payment-types');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/contracts/payment-types');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ContractPaymentTypeLookup.fromJson(e as Map<String, dynamic>))

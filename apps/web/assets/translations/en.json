@@ -92,6 +92,7 @@
     "nextPage": "Next page",
     "saved": "Record saved",
     "deleted": "Record deleted",
+    "ownEstablishment": "This entity is the establishment itself — company data and taxation are edited in My Establishment; only the role fields are editable here.",
     "confirmDelete": "Confirm deletion?",
     "error": "The operation could not be completed",
     "yes": "Yes",
@@ -300,6 +301,9 @@
       "kind": "Social Media Kind",
       "link": "Social Media Link"
     },
+    "institutionInterfaces": {
+      "inactive": "inactive"
+    },
     "institution": {
       "tab": "Institution",
       "tabInterfaces": "Interfaces",
@@ -415,13 +419,15 @@
       "institutions": "Institutions (the user can only sign in where an active link exists)",
       "institutionsSaved": "User links updated",
       "institutionsSaveFirst": "Save the user first to link institutions.",
-      "passwordKeepHint": "Leave empty to keep the current password",
+      "passwordOwnerOnly": "Only the user changes the password, through \"Forgot my password\" — registration sets it once, at creation.",
       "privilegesTitle": "Access Privileges (regular user: the menu shows only interfaces with View)",
       "privilegesInstitution": "Institution",
       "privilegesLinkFirst": "Link the user to an institution before setting privileges.",
       "privilegesNone": "No access",
       "privilegesSaved": "Privileges updated",
       "privilegesVisualizarHint": "Checking any privilege also grants View — without it the interface is hidden from the menu.",
+      "privilegesViewOffWarning": "Without View the screen is removed from the user. Also removed: {}.",
+      "privilegesLegacyNoView": "Old grant without View: saving adds View along.",
       "tabData": "User Data",
       "tabPermissions": "Permissions",
       "permissionsSaveFirst": "Save the user first — permissions are enabled after registration."
@@ -1552,6 +1558,7 @@
       "interfaces": "Interfaces",
       "customers": "Customers",
       "institutions": "Institutions",
+      "institution-interfaces": "Client interfaces",
       "establishment": "My Establishment",
       "users": "Users",
       "modules": "Modules",

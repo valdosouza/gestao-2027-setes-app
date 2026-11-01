@@ -53,10 +53,3 @@ class UserSaveRequested extends UserEvent {
   List<Object?> get props => [user, creating];
 }
 
-class UserDeleteRequested extends UserEvent {
-  const UserDeleteRequested(this.id);
-  final int id;
-
-  @override
-  List<Object?> get props => [id];
-}

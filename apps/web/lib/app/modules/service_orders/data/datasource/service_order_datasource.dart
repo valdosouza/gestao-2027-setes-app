@@ -165,7 +165,8 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
   Future<List<ServiceCustomerLookup>> customers(String filter) async {
     final query =
         filter.isNotEmpty ? '?filter=${Uri.encodeComponent(filter)}' : '';
-    final json = await client.get('/api/customers$query');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/service-orders/customer-lookup$query');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => ServiceCustomerLookup.fromJson(e as Map<String, dynamic>))
@@ -185,7 +186,8 @@ class ServiceOrderDatasourceImpl implements ServiceOrderDatasource {
 
   @override
   Future<List<ServicePaymentTypeLookup>> paymentTypes() async {
-    final json = await client.get('/api/payment-types');
+    // D-PV2: lista de apoio do PRÓPRIO módulo (a guarda por roteador exigiria o privilégio da outra tela)
+    final json = await client.get('/api/service-orders/payment-types');
     final data = json['data'] as List<dynamic>? ?? [];
     return data
         .map((e) =>

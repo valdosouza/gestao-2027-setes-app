@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:core/core.dart';
 import 'package:equatable/equatable.dart';
+import '../../../../shared/session/current_interface.dart';
 
 // Events
 abstract class MenuEvent extends Equatable {
@@ -113,7 +114,11 @@ class MenuBloc extends Bloc<MenuEvent, MenuState> {
     final result = await usecase();
     result.fold(
       (failure) => emit(MenuError(failure: failure)),
-      (modules) => emit(MenuLoaded(modules: modules)),
+      (modules) {
+        // D-PV17: o menu é a fonte dos privilégios da tela aberta — liga a tela atual ao item dela
+        CurrentInterface.menu = modules;
+        emit(MenuLoaded(modules: modules));
+      },
     );
   }
 

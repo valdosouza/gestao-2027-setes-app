@@ -1,7 +1,8 @@
 import 'package:core/core.dart';
 
 import '../../../../shared/search/search_criterion.dart';
-import '../../domain/entity/institution_interface_grant.dart';
+import '../../../../shared/institution_interfaces/institution_interface_grant.dart';
+import '../../../../shared/institution_interfaces/institution_interfaces_source.dart';
 import '../../domain/entity/object_institution.dart';
 import '../../domain/entity/sync_api_key.dart';
 
@@ -11,7 +12,7 @@ import '../../domain/entity/sync_api_key.dart';
 /// O POST absorveu o onboarding (decisão do Valdo, 2026-07-11): a API cria
 /// a cadeia fiscal em transação única, provisiona o schema do cliente
 /// (migrações) e só então ativa a institution.
-abstract class InstitutionDatasource {
+abstract class InstitutionDatasource implements InstitutionInterfacesSource {
   /// Página da lista (paginação D3): [pageSize] null deixa a API resolver a
   /// config page_size do usuário (D4).
   /// [criteria] = pesquisa avançada (D-BA1) — soma em E com [filter].
@@ -28,10 +29,13 @@ abstract class InstitutionDatasource {
 
   /// Contrato comercial de interfaces (aba Interfaces — decisão 23: o Super
   /// informa o institutionId ALVO; endpoints do admin permanecem).
+  @override
   Future<List<InstitutionInterfaceGrant>> getInterfaces(int institutionId);
 
   /// Sincroniza o contrato: concede a lista, revoga (soft) as demais.
-  Future<void> setInterfaces(int institutionId, List<int> interfaceIds);
+  @override
+  /// D-PV34: UMA marca por vez (`PUT /api/admin/institutions/:id/interfaces/:interfaceId`).
+  Future<InstitutionInterfaceLink> setInterface(int institutionId, int interfaceId, bool linked);
 
   /// Chave de sincronização do Sincronizador (aba Estabelecimento) —
   /// null quando ainda não foi gerada.
@@ -99,9 +103,10 @@ class InstitutionDatasourceImpl implements InstitutionDatasource {
   }
 
   @override
-  Future<void> setInterfaces(int institutionId, List<int> interfaceIds) async {
-    await client.put('/api/admin/institutions/$institutionId/interfaces',
-        {'interfaceIds': interfaceIds});
+  Future<InstitutionInterfaceLink> setInterface(int institutionId, int interfaceId, bool linked) async {
+    final json = await client.put(
+        '/api/admin/institutions/$institutionId/interfaces/$interfaceId', {'linked': linked});
+    return InstitutionInterfaceLink.fromJson(json['data'] as Map<String, dynamic>);
   }
 
   @override
