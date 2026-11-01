@@ -111,6 +111,14 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
         });
   }
 
+  /// D-PV65: a última config excluída levou o CONFIGURAR no servidor.
+  void _unmarkConfigurePair() {
+    final configure = _privileges.where((p) => p.description == 'CONFIGURAR');
+    if (configure.isEmpty || !mounted) return;
+    setState(() => _selectedPrivilegeIds = {..._selectedPrivilegeIds}
+      ..remove(configure.first.id));
+  }
+
   void _openNew() {
     setState(() {
       _selectedPrivilegeIds = {};
@@ -237,6 +245,7 @@ class _InterfacePageState extends State<InterfacePage> with FieldConfigLoader {
           interfaceId: creating ? null : editing.id,
           datasource: _datasource,
           onConfigSaved: _markConfigurePair,
+          onConfigureRetired: _unmarkConfigurePair,
         ),
       ],
       onSave: (values) => _bloc.add(InterfaceSaveRequested(

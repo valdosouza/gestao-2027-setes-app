@@ -26,7 +26,8 @@ abstract class InterfaceDatasource {
   /// decisões 6 e 7 — seção "Configurações", CRUD autônomo na edição).
   Future<List<InterfaceConfigCatalogEntity>> getConfigs(int interfaceId);
   Future<void> saveConfig(int interfaceId, InterfaceConfigCatalogEntity config);
-  Future<void> deleteConfig(int interfaceId, String name);
+  /// D-PV65: true quando a API retirou junto o CONFIGURAR da interface (era a última config).
+  Future<bool> deleteConfig(int interfaceId, String name);
 }
 
 class InterfaceDatasourceImpl implements InterfaceDatasource {
@@ -104,7 +105,8 @@ class InterfaceDatasourceImpl implements InterfaceDatasource {
   }
 
   @override
-  Future<void> deleteConfig(int interfaceId, String name) async {
-    await client.delete('/api/interfaces/$interfaceId/configs/$name');
+  Future<bool> deleteConfig(int interfaceId, String name) async {
+    final data = await client.delete('/api/interfaces/$interfaceId/configs/$name');
+    return data['retiredConfigure'] == true;
   }
 }

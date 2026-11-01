@@ -18,6 +18,7 @@ class InterfaceConfigsSection extends StatefulWidget {
     required this.interfaceId,
     required this.datasource,
     this.onConfigSaved,
+    this.onConfigureRetired,
     super.key,
   });
 
@@ -30,6 +31,10 @@ class InterfaceConfigsSection extends StatefulWidget {
   /// lista de privilégios (sem isso, o próximo ✓ mandaria a lista sem ele
   /// e levaria 409 CATALOG_PAIR_IN_USE).
   final VoidCallback? onConfigSaved;
+
+  /// D-PV65: a API retirou o CONFIGURAR junto da última config — a tela pai
+  /// tira o par da lista de privilégios (o espelho do [onConfigSaved]).
+  final VoidCallback? onConfigureRetired;
 
   @override
   State<InterfaceConfigsSection> createState() =>
@@ -98,7 +103,8 @@ class _InterfaceConfigsSectionState extends State<InterfaceConfigsSection> {
     );
     if (decision != SetesDecision.yes) return;
     try {
-      await widget.datasource.deleteConfig(widget.interfaceId!, config.name);
+      final retired = await widget.datasource.deleteConfig(widget.interfaceId!, config.name);
+      if (retired) widget.onConfigureRetired?.call();
       if (mounted) {
         await showSuccessFeedback(context, 'forms.interface.configDeleted');
       }
