@@ -15,7 +15,7 @@ import '../entity/widgets/entity_date.dart';
 /// `ibscbs_ib3_test.dart` confere este espelho contra a constante da API e contra as chaves i18n (D-IB91).
 const kIbscbsOmissions = <String>[
   'not-classified', 'no-line', 'not-applicable', 'requires-regular',
-  'place-indicator', 'nbs-missing', 'nbs-not-accepted', 'divergent',
+  'place-indicator', 'nbs-missing', 'nbs-not-accepted', 'divergent', 'cst-without-group',
 ];
 
 String? _str(dynamic v) => v is String ? v : null;

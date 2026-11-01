@@ -2008,7 +2008,8 @@
       "requires-regular": "classification requires the regular regime",
       "place-indicator": "invalid place of supply (cIndOp)",
       "nbs-missing": "service without NBS",
-      "nbs-not-accepted": "NBS not accepted by the catalog"
+      "nbs-not-accepted": "NBS not accepted by the catalog",
+      "cst-without-group": "CST without the IBS/CBS group — not yet supported on the NFS-e"
     },
     "previewFor": "Preview for invoicing on {}:",
     "atObligationRefused": "From {} invoicing will be REFUSED: {}",

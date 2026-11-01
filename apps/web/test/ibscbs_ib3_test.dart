@@ -154,7 +154,7 @@ void main() {
   group('motivos — lista FECHADA da API traduzida', () {
     test('D-IB91: o espelho do app = a lista PUBLICADA pela API, e todo motivo tem texto em pt e en', () {
       final api = _apiOmissions();
-      expect(api, hasLength(8));
+      expect(api, hasLength(9));   // D-IB113: + 'cst-without-group' (CST que não leva o grupo IBS/CBS)
       expect(kIbscbsOmissions.toSet(), api.toSet());
       for (final lang in ['pt', 'en']) {
         final omitted = (_load(lang)['ibscbs'] as Map<String, dynamic>)['omitted'] as Map<String, dynamic>;

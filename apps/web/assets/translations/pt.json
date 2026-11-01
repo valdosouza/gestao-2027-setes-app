@@ -2008,7 +2008,8 @@
       "requires-regular": "classificação exige o regime regular",
       "place-indicator": "local do fornecimento (cIndOp) inválido",
       "nbs-missing": "serviço sem NBS",
-      "nbs-not-accepted": "NBS não aceita pelo catálogo"
+      "nbs-not-accepted": "NBS não aceita pelo catálogo",
+      "cst-without-group": "CST sem o grupo IBS/CBS — ainda não suportado na NFS-e"
     },
     "previewFor": "Prévia para faturar em {}:",
     "atObligationRefused": "A partir de {} o faturamento será RECUSADO: {}",
