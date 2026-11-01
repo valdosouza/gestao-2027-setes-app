@@ -276,8 +276,9 @@ class _UserDialogState extends State<_UserDialog> {
             name: 'password',
             focusNode: _passwordFocus,
             fieldKey: _passwordKey,
+            // a 1ª senha da conta sem credencial é OPCIONAL na edição (gate adversarial da costura A1) — obrigatória só na inclusão
             validate: () => _tr(SetesValidators.compose([
-              SetesValidators.required(),
+              if (_creating) SetesValidators.required(),
               SetesValidators.minLength(5),
             ]))(_password.text),
           ),

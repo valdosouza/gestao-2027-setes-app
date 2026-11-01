@@ -151,6 +151,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
         ),
         // D-PV48 (2026-10-27): a senha se define UMA vez — na criação da credencial (inclusão, ou a 1ª senha de uma conta que veio do
         // sincronizador sem senha — A-PV23). Depois, só o titular troca, pelo "Esqueci minha senha"; o campo nem aparece.
+        // Na conta sem senha a 1ª é OPCIONAL (gate adversarial da costura A1): o admin edita nome/ativo sem dar acesso ao sistema.
         if (creating || !editing.hasCredential)
           RegisterField(
             name:    'password',
@@ -158,7 +159,7 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
             label:   'forms.user.password'.tr(),
             obscure: true,
             validator: SetesValidators.compose([
-              SetesValidators.required(),
+              if (creating) SetesValidators.required(),
               SetesValidators.minLength(5),
             ]),
           ),
