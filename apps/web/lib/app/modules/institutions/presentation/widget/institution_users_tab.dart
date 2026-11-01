@@ -294,7 +294,8 @@ class _UserDialogState extends State<_UserDialog> {
         nameCompany: _name.text.trim(),
         nickTrade:   _nick.text.trim(),
         email:       _email.text.trim(),
-        password:    _passwordEditable && _password.text.isNotEmpty ? _password.text : null,
+        // campo só de espaços = sem senha (como a fábrica de formulários faz com trim — gate adversarial do delta, L6)
+        password:    _passwordEditable && _password.text.trim().isNotEmpty ? _password.text : null,
         active:      _active,
       );
       if (_creating) {
