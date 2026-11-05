@@ -32,6 +32,17 @@ class PasswordPolicy {
     'ç': 'c', 'ñ': 'n', 'ý': 'y', 'ÿ': 'y',
   };
 
+  /// "Branco" com a MESMA lista explícita da API (o `trim()` do Dart e o do JS divergem em U+0085 — gate adversarial da Onda 3).
+  static const String _blank =
+      '\\t\\n\\u000b\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff';
+  static final RegExp _onlyBlank = RegExp('^[$_blank]*\$');
+  static final RegExp _edgeBlank = RegExp('^[$_blank]+|[$_blank]+\$');
+
+  /// Marcas combinantes (U+0300–U+036F), retiradas DEPOIS do `toLowerCase()` — acento em NFD e o `İ` ficam iguais nas duas pontas.
+  static final RegExp _combining = RegExp('[\\u0300-\\u036f]');
+
+  static bool isBlank(String value) => _onlyBlank.hasMatch(value);
+
   /// Sem caixa e sem acento (D-EA16).
   static String foldForComparison(String value) {
     final out = StringBuffer();
@@ -39,23 +50,26 @@ class PasswordPolicy {
       final ch = String.fromCharCode(rune);
       out.write(_accentFold[ch] ?? ch);
     }
-    return out.toString();
+    return out.toString().replaceAll(_combining, '');
   }
+
+  /// A chave de comparação com a lista de comuns (sem caixa, sem marcas combinantes — a MESMA da API).
+  static String commonListKey(String value) => value.toLowerCase().replaceAll(_combining, '');
 
   /// A parte local (antes do 1º `@`) do e-mail, aparada e dobrada; vazia sem `@` ou com `@` na 1ª posição.
   static String emailLocalPart(String? email) {
     if (email == null) return '';
     final at = email.indexOf('@');
-    return at > 0 ? foldForComparison(email.substring(0, at).trim()) : '';
+    return at > 0 ? foldForComparison(email.substring(0, at).replaceAll(_edgeBlank, '')) : '';
   }
 
   /// Os problemas da senha NOVA (vazia = nenhum). `loginEmail` = o e-mail de login digitado/gravado na mesma tela.
   static List<String> problems(String password, {String? loginEmail, Set<String> commonSet = commonPasswords}) {
-    if (password.trim().isEmpty) return const [blank];
+    if (isBlank(password)) return const [blank];
     final out = <String>[];
     if (password.length < minLength) out.add(tooShort);
     if (password.length > maxLength) out.add(tooLong);
-    if (commonSet.contains(password.toLowerCase())) out.add(common);
+    if (commonSet.contains(commonListKey(password))) out.add(common);
     final local = emailLocalPart(loginEmail);
     if (local.length >= emailLocalMinLength && foldForComparison(password).contains(local)) out.add(containsEmail);
     return out;

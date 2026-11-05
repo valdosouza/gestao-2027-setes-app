@@ -44,7 +44,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _submit() async {
     // D-EA5/D-EA16: a política única (espelho da API), com o e-mail digitado nesta tela; a "igual à atual" só a API julga
     // (depois do código) e volta como 422 no campo newPassword
-    final problems = PasswordPolicy.problems(_password.text, loginEmail: _email.text.trim());
+    // o MESMO e-mail que o bloc envia: o digitado ou, vazio, o da recuperação (gate socrático da Onda 3, LOW 6)
+    final typed = _email.text.trim();
+    final problems = PasswordPolicy.problems(_password.text,
+        loginEmail: typed.isNotEmpty ? typed : bloc.recoveryEmail);
     if (problems.isNotEmpty) {
       await showAuthValidationDialog(context, PasswordPolicy.messageKey(problems.first));
       if (mounted) _passwordFocus.requestFocus();
