@@ -279,7 +279,7 @@ class _UserDialogState extends State<_UserDialog> {
             // a 1ª senha da conta sem credencial é OPCIONAL na edição (gate adversarial da costura A1) — obrigatória só na inclusão
             validate: () => _tr(SetesValidators.compose([
               if (_creating) SetesValidators.required(),
-              SetesValidators.minLength(5),
+              SetesValidators.password(loginEmail: () => _email.text),   // D-EA5/D-EA16
             ]))(_password.text),
           ),
       ];
@@ -388,13 +388,14 @@ class _UserDialogState extends State<_UserDialog> {
                       if (_passwordEditable)
                         SetesTextField(
                           label: 'forms.user.password'.tr(),
+                          hint: PasswordPolicy.hintKey.tr(),   // D-EA5: a regra no campo
                           controller: _password,
                           focusNode: _passwordFocus,
                           fieldKey: _passwordKey,
                           obscureText: true,
                           validator: _tr(SetesValidators.compose([
                             SetesValidators.required(),
-                            SetesValidators.minLength(5),
+                            SetesValidators.password(loginEmail: () => _email.text),   // D-EA5/D-EA16
                           ])),
                         )
                       else

@@ -4,4 +4,5 @@ library;
 
 export 'src/federal_id.dart';
 export 'src/mask.dart';
+export 'src/password_policy.dart';
 export 'src/validators.dart';

@@ -157,11 +157,14 @@ class _UserPageState extends State<UserPage> with FieldConfigLoader {
             name:    'password',
             size:    SetesFieldSize.medium,
             label:   'forms.user.password'.tr(),
+            hint:    PasswordPolicy.hintKey.tr(),   // D-EA5: a regra no campo
             obscure: true,
             validator: SetesValidators.compose([
               if (creating) SetesValidators.required(),
-              SetesValidators.minLength(5),
             ]),
+            // D-EA5/D-EA16: a política única, olhando o e-mail de login digitado na MESMA tela
+            formValidator: (value, valueOf) =>
+                SetesValidators.password(loginEmail: () => valueOf('email'))(value),
           ),
       ], fieldConfig),
       extraChildren: [

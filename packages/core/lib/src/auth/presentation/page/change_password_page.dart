@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:setes_validators/setes_validators.dart';
 
 import '../../../preference/presentation/widget/language_selector.dart';
 import '../bloc/auth_bloc.dart';
@@ -41,8 +42,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   /// Pendência LOCAL = dialog de validação + foco de volta no campo — UMA
   /// por vez (Framework de Mensagens, R1/R3).
   Future<void> _submit() async {
-    if (_password.text.length < 5) {
-      await showAuthValidationDialog(context, 'auth.passwordTooShort');
+    // D-EA5/D-EA16: a política única (espelho da API), com o e-mail digitado nesta tela; a "igual à atual" só a API julga
+    // (depois do código) e volta como 422 no campo newPassword
+    final problems = PasswordPolicy.problems(_password.text, loginEmail: _email.text.trim());
+    if (problems.isNotEmpty) {
+      await showAuthValidationDialog(context, PasswordPolicy.messageKey(problems.first));
       if (mounted) _passwordFocus.requestFocus();
       return;
     }
@@ -101,7 +105,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           const SizedBox(height: 16),
           AuthField(
             label: 'auth.newPassword'.tr(),
-            hint: 'auth.passwordHint'.tr(),
+            hint: PasswordPolicy.hintKey.tr(),   // D-EA5: a regra no campo
             controller: _password,
             focusNode: _passwordFocus,
             icon: Icons.lock,

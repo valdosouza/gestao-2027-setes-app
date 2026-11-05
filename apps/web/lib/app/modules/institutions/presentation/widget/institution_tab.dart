@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:setes_validators/setes_validators.dart';
 import 'package:setes_widgets/setes_widgets.dart';
 
 import '../../../../shared/feedback/feedback.dart';
@@ -92,7 +93,9 @@ class _InstitutionTabState extends State<InstitutionTab> {
   String? _validateAdminPassword(String? value) {
     final text = value ?? '';
     if (text.isEmpty) return 'register.required'.tr();
-    if (text.length < 5) return 'forms.institution.adminPasswordShort'.tr();
+    // D-EA5/D-EA16: a política única (espelho da API), com o e-mail do administrador digitado ao lado
+    final problem = PasswordPolicy.validate(text, loginEmail: _adminEmail.text);
+    if (problem != null) return problem.tr();
     return null;
   }
 
@@ -196,7 +199,7 @@ class _InstitutionTabState extends State<InstitutionTab> {
                 order: const NumericFocusOrder(4),
                 child: SetesTextField(
                   label: 'forms.institution.adminPassword'.tr(),
-                  hint: 'forms.institution.adminPasswordHint'.tr(),
+                  hint: PasswordPolicy.hintKey.tr(),   // D-EA5: a regra no campo
                   controller: _adminPassword,
                   obscureText: true,
                   validator: _validateAdminPassword,

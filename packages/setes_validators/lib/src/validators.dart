@@ -1,5 +1,6 @@
 import 'federal_id.dart';
 import 'mask.dart';
+import 'password_policy.dart';
 
 /// Assinatura padrão do Flutter Form (`TextFormField.validator`).
 typedef SetesValidator = String? Function(String? value);
@@ -33,6 +34,11 @@ class SetesValidators {
       (value == null || value.trim().isEmpty)
           ? (message ?? 'forms.validation.required')
           : null;
+
+  /// Senha NOVA pela política única (D-EA5 — [PasswordPolicy], espelho da API): vazio passa (obrigatoriedade é do `required()`).
+  /// [loginEmail] lê o e-mail de login da MESMA tela na hora de validar (D-EA16 — a senha não pode conter o trecho antes do @).
+  static SetesValidator password({String? Function()? loginEmail}) =>
+      (value) => PasswordPolicy.validate(value, loginEmail: loginEmail?.call());
 
   static SetesValidator minLength(int length, {String? message}) =>
       _ifFilled((value) => value.trim().length < length

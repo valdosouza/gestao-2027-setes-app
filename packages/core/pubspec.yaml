@@ -16,6 +16,9 @@ dependencies:
   # Design system (decisão 11): presentation do core usa só widgets Setes*
   setes_widgets:
     path: ../setes_widgets
+  # Política de senha (D-EA5 — Onda 3 do endurecer): o espelho da API mora nos validadores compartilhados
+  setes_validators:
+    path: ../setes_validators
   # DI e rotas (decisão 12)
   flutter_modular: ^5.0.3
   # Estado (decisão 12)

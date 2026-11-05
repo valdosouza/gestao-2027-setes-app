@@ -23,6 +23,7 @@ class RegisterField {
     this.readOnly = false,
     this.keyboardType,
     this.validator,
+    this.formValidator,
     this.mask,
     this.hint,
     this.trailingBuilder,
@@ -48,6 +49,7 @@ class RegisterField {
         readOnly = true,
         keyboardType = null,
         validator = null,
+        formValidator = null,
         mask = null,
         hint = null,
         trailingBuilder = null;
@@ -60,6 +62,11 @@ class RegisterField {
   final bool readOnly;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+
+  /// Regra que depende de OUTRO campo do mesmo formulário (ex.: a senha não pode conter o trecho antes do @ do e-mail —
+  /// D-EA16, Onda 3 do endurecer): recebe o valor e um leitor do valor atual dos demais campos pelo `name`. Roda DEPOIS do
+  /// [validator] (o 1º erro vale) e devolve chave i18n ou texto, como ele.
+  final String? Function(String? value, String Function(String name) valueOf)? formValidator;
 
   /// Máscara de digitação `#`/`A` (decisão 16). O valor salvo vai SEM
   /// máscara (decisão 19 — a fábrica aplica unmask no onSave).
@@ -214,6 +221,11 @@ class RegisterFormPageState extends State<RegisterFormPage> {
     };
   }
 
+  /// O validador do campo e, se ele passar, o que depende dos outros campos ([RegisterField.formValidator]).
+  String? _validate(RegisterField field, String? value) =>
+      field.validator?.call(value) ??
+      field.formValidator?.call(value, (name) => _controllers[name]?.text ?? '');
+
   /// R3 — UMA pendência por vez: percorre os campos NA ORDEM declarada,
   /// roda o validator no valor atual e, na PRIMEIRA mensagem, mostra o
   /// dialog (ponte) → OK → foco no campo, marcando SÓ ele inline. O save
@@ -229,7 +241,7 @@ class RegisterFormPageState extends State<RegisterFormPage> {
         }
         continue;
       }
-      final message = field.validator?.call(_controllers[field.name]!.text);
+      final message = _validate(field, _controllers[field.name]!.text);
       if (message != null) {
         // setes_validators devolve chave i18n (.tr() em texto já traduzido
         // devolve o próprio texto).
@@ -438,9 +450,9 @@ class RegisterFormPageState extends State<RegisterFormPage> {
                       : TextInputAction.next,
                   // Valida e traduz: setes_validators devolve chave i18n
                   // (.tr() em texto já traduzido devolve o próprio texto).
-                  validator: field.validator == null
+                  validator: field.validator == null && field.formValidator == null
                       ? null
-                      : (value) => field.validator!(value)?.tr(),
+                      : (value) => _validate(field, value)?.tr(),
                   inputFormatters: field.mask == null
                       ? null
                       : [SetesMaskFormatter(field.mask!)],

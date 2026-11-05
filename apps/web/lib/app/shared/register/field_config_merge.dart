@@ -54,5 +54,6 @@ RegisterField _merge(RegisterField field, FieldConfigEntity? config) {
     size:            field.size,
     validator:
         validators.isEmpty ? null : SetesValidators.compose(validators),
+    formValidator:   field.formValidator,   // D-EA16: a regra que olha outro campo sobrevive à config do cliente
   );
 }

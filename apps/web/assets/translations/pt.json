@@ -49,7 +49,6 @@
     "changePassword": "Alterar senha",
     "passwordChanged": "Senha alterada com sucesso",
     "passwordsDontMatch": "As senhas não conferem",
-    "passwordTooShort": "A senha deve ter pelo menos 5 caracteres",
     "selectionExpired": "Sessão de seleção expirada — faça login novamente",
     "informEmail": "Informe o e-mail da conta"
   },
@@ -126,7 +125,15 @@
   },
   "forms": {
     "validation": {
-      "required": "Campo obrigatório",
+      "password": {
+        "blank": "A senha não pode ser só espaços",
+        "too-short": "A senha deve ter pelo menos 8 caracteres",
+        "too-long": "A senha deve ter no máximo 100 caracteres",
+        "common": "Esta senha é muito comum — escolha outra",
+        "contains-email": "A senha não pode conter o nome do seu e-mail (o trecho antes do @)",
+        "same-as-current": "A nova senha deve ser diferente da atual",
+        "hint": "Mínimo de 8 caracteres. Não use senhas comuns nem o nome do seu e-mail."
+      },      "required": "Campo obrigatório",
       "minLength": "Tamanho mínimo não atingido",
       "maxLength": "Tamanho máximo excedido",
       "onlyDigits": "Somente números",
@@ -318,8 +325,6 @@
       "adminEmailHint": "Será o login de acesso do administrador",
       "adminEmailInvalid": "E-mail inválido",
       "adminPassword": "Senha inicial",
-      "adminPasswordHint": "Mínimo de 5 caracteres",
-      "adminPasswordShort": "A senha deve ter pelo menos 5 caracteres",
       "active": "Ativo",
       "inactive": "Inativo",
       "interfacesSaveFirst": "Salve o estabelecimento primeiro — o contrato de interfaces é gravado no schema do cliente, criado no salvar.",
