@@ -17,6 +17,7 @@ class PasswordPolicy {
 
   /// Problemas, na ordem de prioridade (o 1º é o que a tela mostra) — os MESMOS códigos da API.
   static const String blank = 'blank';
+  static const String invalidChar = 'invalid-char';
   static const String tooShort = 'too-short';
   static const String tooLong = 'too-long';
   static const String common = 'common';
@@ -43,6 +44,27 @@ class PasswordPolicy {
 
   static bool isBlank(String value) => _onlyBlank.hasMatch(value);
 
+  /// D-EA39: caracteres invisíveis/de controle e meio emoji (substituto UTF-16 sem o par) — a MESMA lista da API, por unidade UTF-16.
+  static const List<List<int>> _forbiddenUnits = [
+    [0x0000, 0x001f], [0x007f, 0x009f], [0x00ad, 0x00ad], [0x061c, 0x061c], [0x180e, 0x180e],
+    [0x200b, 0x200f], [0x202a, 0x202e], [0x2060, 0x2064], [0x2066, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb],
+  ];
+
+  static bool hasForbiddenChar(String value) {
+    for (var i = 0; i < value.length; i++) {
+      final u = value.codeUnitAt(i);
+      if (u >= 0xd800 && u <= 0xdbff) {
+        final next = i + 1 < value.length ? value.codeUnitAt(i + 1) : -1;
+        if (next < 0xdc00 || next > 0xdfff) return true;
+        i++;
+        continue;
+      }
+      if (u >= 0xdc00 && u <= 0xdfff) return true;
+      if (_forbiddenUnits.any((r) => u >= r[0] && u <= r[1])) return true;
+    }
+    return false;
+  }
+
   /// Sem caixa e sem acento (D-EA16).
   static String foldForComparison(String value) {
     final out = StringBuffer();
@@ -67,6 +89,7 @@ class PasswordPolicy {
   static List<String> problems(String password, {String? loginEmail, Set<String> commonSet = commonPasswords}) {
     if (isBlank(password)) return const [blank];
     final out = <String>[];
+    if (hasForbiddenChar(password)) out.add(invalidChar);
     if (password.length < minLength) out.add(tooShort);
     if (password.length > maxLength) out.add(tooLong);
     // D-EA38: a lista compara a senha SEM o branco das pontas (a MESMA regra da API)

@@ -127,6 +127,7 @@
     "validation": {
       "password": {
         "blank": "A senha não pode ser só espaços",
+        "invalid-char": "A senha tem um caractere que não pode ser usado",
         "too-short": "A senha deve ter pelo menos 8 caracteres",
         "too-long": "A senha deve ter no máximo 100 caracteres",
         "common": "Esta senha é muito comum — escolha outra",

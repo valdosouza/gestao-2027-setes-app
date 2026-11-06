@@ -127,6 +127,7 @@
     "validation": {
       "password": {
         "blank": "The password cannot be only spaces",
+        "invalid-char": "The password has a character that cannot be used",
         "too-short": "The password must have at least 8 characters",
         "too-long": "The password must have at most 100 characters",
         "common": "This password is too common — choose another one",
