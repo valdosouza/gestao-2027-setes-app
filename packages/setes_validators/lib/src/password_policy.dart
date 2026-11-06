@@ -31,6 +31,7 @@ class PasswordPolicy {
     'ó': 'o', 'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
     'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
     'ç': 'c', 'ñ': 'n', 'ý': 'y', 'ÿ': 'y',
+    'ς': 'σ', // sigma final — a MESMA dobra da API
   };
 
   /// "Branco" com a MESMA lista explícita da API (o `trim()` do Dart e o do JS divergem em U+0085 — gate adversarial da Onda 3).
@@ -47,7 +48,7 @@ class PasswordPolicy {
   /// D-EA39: caracteres invisíveis/de controle e meio emoji (substituto UTF-16 sem o par) — a MESMA lista da API, por unidade UTF-16.
   static const List<List<int>> _forbiddenUnits = [
     [0x0000, 0x001f], [0x007f, 0x009f], [0x00ad, 0x00ad], [0x061c, 0x061c], [0x180e, 0x180e],
-    [0x200b, 0x200f], [0x202a, 0x202e], [0x2060, 0x2064], [0x2066, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb],
+    [0x200b, 0x200f], [0x2028, 0x2029], [0x202a, 0x202e], [0x2060, 0x2064], [0x2066, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb],
   ];
 
   static bool hasForbiddenChar(String value) {
