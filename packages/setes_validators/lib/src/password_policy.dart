@@ -69,7 +69,8 @@ class PasswordPolicy {
     final out = <String>[];
     if (password.length < minLength) out.add(tooShort);
     if (password.length > maxLength) out.add(tooLong);
-    if (commonSet.contains(commonListKey(password))) out.add(common);
+    // D-EA38: a lista compara a senha SEM o branco das pontas (a MESMA regra da API)
+    if (commonSet.contains(commonListKey(password.replaceAll(_edgeBlank, '')))) out.add(common);
     final local = emailLocalPart(loginEmail);
     if (local.length >= emailLocalMinLength && foldForComparison(password).contains(local)) out.add(containsEmail);
     return out;
